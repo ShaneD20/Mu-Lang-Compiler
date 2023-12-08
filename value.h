@@ -1,12 +1,12 @@
-#ifndef clox_value_h
-#define clox_value_h
+#ifndef mu_value_h
+#define mu_value_h
 
+//TODO string
 #include "common.h"
 
 typedef double Value;
 
-typedef struct
-{
+typedef struct {
   int capacity;
   int count;
   Value *values;
