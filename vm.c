@@ -10,7 +10,7 @@ void initVM() {
 }
 
 void freeVM() {
-
+  //TODO
 }
 
 void push(Value value) {
@@ -30,13 +30,20 @@ static void resetStack() {
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip += 1)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+//lazily treats all numbers as doubles
+#define BINARY_OP(op) \
+  do { \
+    double b = pop(); \
+    double a = pop(); \
+    push(a op b); \
+  } while (false)
+// while (false) is to manage trailing semicolons 
 
   while (true) {
 #ifdef DEBUG_TRACE_EXECUTION
     /* Stack Tracing */
     printf(" ");
-    for (Value *slot = vm.stack; slot < vm.stackTop; slot += 1)
-    {
+    for (Value* slot = vm.stack; slot < vm.stackTop; slot += 1) {
       printf("[ ");
       printValue(*slot);
       printf(" ]");
@@ -47,14 +54,23 @@ static InterpretResult run() {
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
-      case OP_CONSTANT: {
+      case OP_CONSTANT : {
+
         Value constant = READ_CONSTANT();
         push(constant);
         break;
       }
-      case OP_NEGATE: push(-pop());
+      case OP_ADD : BINARY_OP(+);
         break;
-      case OP_RETURN: { //TODO change after implementing functions
+      case OP_SUBTRACT : BINARY_OP(-);
+        break;
+      case OP_MULTIPLY : BINARY_OP(*);
+        break;
+      case OP_DIVIDE : BINARY_OP(/);
+        break;
+      case OP_NEGATE : push(-pop());
+        break;
+      case OP_RETURN : { //TODO change after implementing functions
         printValue(pop());
         printf("\n");
         return INTERPRET_OK;
@@ -63,9 +79,10 @@ static InterpretResult run() {
   }
 #undef READ_CONSTANT // undefining macros might seem solely fastidious but it helps the C preprocessor
 #undef READ_BYTE
+#undef BINARY_OP
 }
 
-InterpretResult interpret(Chunk *chunk) {
+InterpretResult interpret(Chunk* chunk) {
   vm.chunk = chunk;
   vm.ip = vm.chunk->code;
   return run();

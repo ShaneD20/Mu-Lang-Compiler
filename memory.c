@@ -4,18 +4,22 @@
 #include "memory.h"
 #include "vm.h"
 
-void *reallocate(void *pointer, size_t oldSize, size_t newSize)
-{
-  if (newSize == 0)
-  {
+#ifdef DEBUG_LOG_GC
+#include <stdio.h>
+#include "debug.h"
+#endif
+
+void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
+  // vm.bytesAllocated += newSize - oldSize;
+
+  if (newSize == 0) {
     free(pointer);
     return NULL;
   }
 
-  void *result = realloc(pointer, newSize);
+  void* result = realloc(pointer, newSize);
 
-  if (result == NULL)
-    exit(1);
+  if (result == NULL) exit(1);
 
   return result;
 }
