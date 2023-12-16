@@ -1,7 +1,7 @@
 #include <stdio.h>
-//TODO string, object
 #include "memory.h"
 #include "value.h"
+//TODO string, object
 
 void initValueArray(ValueArray* array) {
   array->values = NULL;

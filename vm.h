@@ -5,16 +5,14 @@
 #include "value.h"
 #define STACK_MAX 256
 
-typedef struct
-{
-  Chunk *chunk;
-  uint8_t *ip; // always points to the next instruction, not the one currently being handled
+typedef struct {
+  Chunk* chunk;
+  uint8_t* ip; // always points to the next instruction, not the one currently being handled
   Value stack[STACK_MAX];
-  Value *stackTop;
+  Value* stackTop;
 } VM;
 
-typedef enum
-{
+typedef enum {
   INTERPRET_OK,
   INTERPRET_COMPILE_ERROR,
   INTERPRET_RUNTIME_ERROR
@@ -22,7 +20,8 @@ typedef enum
 
 void initVM();
 void freeVM();
-InterpretResult interpret(Chunk *chunk);
+
+InterpretResult interpret(const char* source);
 
 void push(Value value);
 Value pop();
