@@ -16,7 +16,7 @@ typedef enum {
   S_SLASH, S_LESS, S_GREATER, S_QUESTION,    // / < > ? 
 
   //DOUBLE CHARACTER
-  D_NOT_EQUAL, D_EQUAL_EQUAL,       // !~ ==
+  D_NOT_EQUAL, D_EQUAL,       // !~ ==
   D_GREATER_EQUAL, D_LESS_EQUAL,    // >= <=
   D_EXPONENT, D_DOT, D_COLON,       // ^* .. ::
   
@@ -29,10 +29,10 @@ typedef enum {
   K_CLASS, K_DEFINE, K_AS, K_END, K_RETURN,
   K_TRUE, K_FALSE, K_SELF,
 
-} TokenId;
+} TokenType;
 
 typedef struct {
-  TokenId type;
+  TokenType type;
   const char* start;
   int length;
   int line;
