@@ -21,34 +21,35 @@ typedef enum {
   D_RAISE_STAR,
   
   //LITERALS
-  L_IDENTIFIER, L_STRING, L_FLOAT,
+  L_IDENTIFIER,
+  L_STRING, L_ARRAY, L_TUPLE, L_RECORD,
+  L_FLOAT,
   
   //KEYWORDS
-  K_AND, K_AS, K_AWAIT, K_ALWAYS,
-  K_BUILD, K_BIND,
+  K_AND, K_AS, K_ALWAYS,
+  K_BUILD,
   K_CALL,
   K_DEFINE, K_DELETE,
   K_ELSE, K_END, K_EACH,
   K_FALSE, K_FROM, // K_FINALLY,
   K_GIVE,
   K_HOLD,
-  K_IF, K_IS,
+  K_IF, K_IS, K_IN,
   K_JOIN, 
-  K_LIFT, K_LET,
-  // K_MODEL, K_MAKE,
-  // K_NOT,
+  K_LET,
+
+  K_NOT, // unsure if ! or not is better
   K_OR, 
   K_PRINT, K_PANIC,
   K_QUIT,
-  K_RETURN, K_REDO, // K_READ,
+  K_RETURN, K_REDO, 
   K_SELF, K_SPECIFY, K_SHARE, K_SHIFT,
   K_TRUE, K_TRY, K_TYPE, K_THEN,
   K_UNLESS, K_UNTIL, K_USE,
-  K_VOID, K_VIEW, // alternative to read
-  K_WHEN,
+  K_VOID, K_VIEW, // alternative to readonly
+  K_WHEN, K_WHILE,
   K_XOR,
   K_YIELD,
-  K_ZONE, // possible word for arena
 } TokenType;
 
 typedef struct {

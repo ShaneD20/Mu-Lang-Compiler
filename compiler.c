@@ -3,6 +3,12 @@
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
+#include "precedence.h"
+#include "value.h"
+
+#ifdef DEBUG_PRINT_CODE
+#include "debug.h"
+#endif
 
 typedef struct {
   Token current;
@@ -10,22 +16,8 @@ typedef struct {
   bool hadError;
   bool panic;
 } Parser;
+
 Parser parser;
-
-typedef enum {
-  PREC_NONE,
-  PREC_ASSIGNMENT,// =
-  PREC_OR,        // or
-  PREC_AND,       // and
-  PREC_EQUALITY,  // !~ ==
-  PREC_COMPARISON, // < <= > >=
-  PREC_TERM,      // + -
-  PREC_FACTOR,    // * /
-  PREC_UNARY,     // ! - ~
-  PREC_CALL,      // . ()
-  PREC_PRIMARY,
-} Precedence;
-
 Chunk* compilingChunk;
 
 static Chunk* currentChunk() {
@@ -46,6 +38,46 @@ bool compile(const char* source, Chunk* chunk) {
 
 static void quitCompiler() {
   emitReturn();
+  #ifdef DEBUG_PRINT_CODE
+    if (!parser.hadError) {
+      disassembleChunk(currentChunk(), "code");
+    }
+  #endif
+}
+static void expression();
+static void parsePrecedence(Precedence rule) {
+  advance();
+  ParseFn prefix = getRule(parser.previous.type)->prefix;
+  if (prefix == NULL) {
+    error("Expect an expression.");
+    return;
+  }
+  prefixRule();
+
+  while (rule <= getRule(parser.current.type)->precedence) {
+    advance();
+    ParseFn infix = getRule(parser.previous.type)->infix;
+    infixRule();
+  }
+}
+
+static void binary() {
+  TokenType operator = parser.previous.type;
+  ParseRule* rule = getRule(operator);
+  parsePrecedence((Precedence)(rule->precedence + 1));
+
+  switch (operator) {
+    case S_PLUS: emitByte(OP_ADD);
+      break;
+    case S_MINUS: emitByte(OP_SUBTRACT);
+      break;
+    case S_STAR: emitByte(OP_MULTIPLY);
+      break;
+    case S_SLASH: emitByte(OP_DIVIDE);
+      break;
+    default: 
+      return; // unreachable
+  }
 }
 
 static void grouping() {
@@ -56,7 +88,7 @@ static void grouping() {
 static void unary() {
   TokenType operator = parser.previous.type;
   expression(); //compiles the operand
-  parsePrecedence(PREC_UNARY);
+  parsePrecedence(UNARY_PRECEDENCE);
 
   switch (operator) {
     case S_MINUS: emitByte(OP_NEGATE);
@@ -67,11 +99,11 @@ static void unary() {
 
 static void number() {
   double value = strtod(parser.previous.start, NULL);
-  emitConstant(value);
+  emitConstant(NUMBER_VAL(value));
 }
 
 static void expression() {
-  parsePrecedence(PREC_ASSIGNMENT);
+  parsePrecedence(ASSIGNMENT_PRECEDENCE);
 }
 
 static void consume(TokenType current, const char* message) {
@@ -149,5 +181,4 @@ static void advance() {
     }
     errorAtCurrent(parser.current.start);
   }
-
 }
