@@ -189,10 +189,9 @@ static TokenType KeywordOrLiteral() {
       }
     }
     case 'v' : return testKeyword(1, 3, "oid", K_VOID);
-    case 'w' : return testKeyword(1, 3, "hen", K_WHEN);
+    case 'w' : return testKeyword(1, 4, "hile", K_WHILE);
     case 'x' : return testKeyword(1, 2, "or", K_XOR);
     case 'y' : return testKeyword(1, 4, "ield", K_YIELD);
-    case 'z' : return testKeyword(1, 3, "one", K_ZONE);
   }
   return L_IDENTIFIER;
 }
