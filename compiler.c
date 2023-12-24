@@ -107,8 +107,8 @@ static void number() {
 }
 void parsePrecedence(Precedence rule) {
   advance();
-  ParseFn prefix = getRule(parser.previous.type)->prefix;
-  if (prefix == NULL) {
+  ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+  if (prefixRule == NULL) {
     error("Expect an expression.");
     return;
   }
@@ -118,7 +118,7 @@ void parsePrecedence(Precedence rule) {
 
   while (rule <= getRule(parser.current.type)->precedence) {
     advance();
-    ParseFn infix = getRule(parser.previous.type)->infix;
+    ParseFn infixRule = getRule(parser.previous.type)->infix;
     infixRule(canAssign);
   }
   // if (canAssign && match(S_EQUAL)) {

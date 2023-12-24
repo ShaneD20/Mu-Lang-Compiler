@@ -94,6 +94,10 @@ static InterpretResult run() {
         push(TF_VALUE(valuesEqual(a, b)));
         break;
       }
+      case OP_GREATER: BINARY_OP(TF_VALUE, >);
+        break;
+      case OP_LESS: BINARY_OP(TF_VALUE, <);
+        break;
       case OP_ADD: BINARY_OP(NUMBER_VALUE, +);
         break;
       case OP_SUBTRACT: BINARY_OP(NUMBER_VALUE, -); 
