@@ -64,8 +64,8 @@ typedef struct {
 } Value;
 
 #define TF_VAL(value)   ((Value){TF_VALUE, {.boolean = value}})
-#define VOID_VAL           ((Value){VAL_NIL, {.number = 0}})
-#define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
+#define VOID_VAL           ((Value){VOID_VALUE, {.number = 0}})
+#define NUMBER_VAL(value) ((Value){FLOAT_VALUE, {.number = value}})
 #define AS_TF(value)    ((value).as.TF)
 #define AS_NUMBER(value)  ((value).as.number)
 #define IS_TF(value)    ((value).type == TF_VALUE)
