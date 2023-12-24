@@ -3,12 +3,10 @@
 #include "debug.h"
 #include "compiler.h"
 #include <stdio.h>
+#include <stdarg.h>
 
 VM vm;
 
-void initVM() {
-  // resetStack();
-}
 void freeVM() {
   //TODO
 }
@@ -26,21 +24,42 @@ static Value peek(int distance) {
 static void resetStack() {
   vm.stackTop = vm.stack;
 }
+void initVM() {
+  resetStack();
+}
+static bool isFalsey(Value value) {
+  return (IS_TF(value) && !AS_TF(value));
+}
+
+static void runtimeError(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+  fputs("\n", stderr);
+
+  size_t instruction = vm.ip - vm.chunk->code - 1;
+  int line = vm.chunk->lines[instruction];
+
+  fprintf(stderr, "[line %d] in script\n", line);
+  resetStack();
+
+}
 
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip += 1)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 //lazily treats all numbers as doubles
 #define BINARY_OP(valueType, op) \
-    // do { \
-    //   if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
-    //     runtimeError("Operands must be numbers."); \
-    //     return INTERPRET_RUNTIME_ERROR; \
-    //   } \
-    //   double b = AS_NUMBER(pop()); \
-    //   double a = AS_NUMBER(pop()); \
-    //   push(valueType(a op b)); \
-    // } while (false)
+  do { \
+    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+      runtimeError("Operands must be numbers."); \
+      return INTERPRET_RUNTIME_ERROR; \
+    } \
+    double b = AS_NUMBER(pop()); \
+    double a = AS_NUMBER(pop()); \
+    push(valueType(a op b)); \
+  } while (false)
 // while (false) is to manage trailing semicolons 
 
   while (true) {
@@ -56,26 +75,35 @@ static InterpretResult run() {
     /* end Stack Tracking */
     disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
 #endif
-    uint8_t instruction;
+    uint8_t instruction; //TODO
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT : {
-
         Value constant = READ_CONSTANT();
         push(constant);
         break;
       }
-      case OP_SUBTRACT: BINARY_OP(FLOAT_VALUE, -); 
-          break;
-      case OP_MULTIPLY: BINARY_OP(FLOAT_VALUE, *); 
+      case OP_VOID: push(VOID_VALUE);
         break;
-      case OP_DIVIDE:   BINARY_OP(FLOAT_VALUE, /); 
+      case OP_TRUE: push(TF_VALUE(true));
+        break;
+      case OP_FALSE: push(TF_VALUE(false));
+        break;
+      case OP_ADD: BINARY_OP(NUMBER_VALUE, +);
+        break;
+      case OP_SUBTRACT: BINARY_OP(NUMBER_VALUE, -); 
+        break;
+      case OP_MULTIPLY: BINARY_OP(NUMBER_VALUE, *); 
+        break;
+      case OP_DIVIDE: BINARY_OP(NUMBER_VALUE, /); 
+        break;
+      case OP_NOT: push(TF_VALUE(isFalsey(pop())));
         break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
-          // runtimeError("Operand must be a number.");
+          runtimeError("Operand must be a number.");
           return INTERPRET_RUNTIME_ERROR;
         }
-        // push(FLOAT_VALUE(-AS_NUMBER(pop())));
+        push(NUMBER_VALUE(-AS_NUMBER(pop())));
         break;
       case OP_RETURN : { //TODO change after implementing functions
         printValue(pop());
@@ -97,7 +125,6 @@ InterpretResult interpret(const char* source) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }
-
   vm.chunk = &chunk;
   vm.ip = vm.chunk->code;
 
