@@ -5,9 +5,9 @@
 #include "vm.h"
 
 bool compile(const char* source, Chunk* chunk);
-void grouping();
-void unary();
-void binary();
-void number();
+static void grouping();
+static void unary();
+static void binary();
+static void number();
 
 #endif

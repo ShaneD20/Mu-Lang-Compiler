@@ -9,21 +9,20 @@ VM vm;
 void initVM() {
   // resetStack();
 }
-
 void freeVM() {
   //TODO
 }
-
 void push(Value value) {
   *vm.stackTop = value;
   vm.stackTop += 1;
 }
-
 Value pop() {
   vm.stackTop += -1; // moving down is enough to show a value as no longer in use.
   return *vm.stackTop;
 }
-
+static Value peek(int distance) {
+  return vm.stackTop[-1 - distance];
+}
 static void resetStack() {
   vm.stackTop = vm.stack;
 }
@@ -32,12 +31,16 @@ static InterpretResult run() {
 #define READ_BYTE() (*vm.ip += 1)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 //lazily treats all numbers as doubles
-#define BINARY_OP(op) \
-  do { \
-    double b = pop(); \
-    double a = pop(); \
-    push(a op b); \
-  } while (false)
+#define BINARY_OP(valueType, op) \
+    // do { \
+    //   if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+    //     runtimeError("Operands must be numbers."); \
+    //     return INTERPRET_RUNTIME_ERROR; \
+    //   } \
+    //   double b = AS_NUMBER(pop()); \
+    //   double a = AS_NUMBER(pop()); \
+    //   push(valueType(a op b)); \
+    // } while (false)
 // while (false) is to manage trailing semicolons 
 
   while (true) {
@@ -61,15 +64,18 @@ static InterpretResult run() {
         push(constant);
         break;
       }
-      case OP_ADD : BINARY_OP(+);
+      case OP_SUBTRACT: BINARY_OP(FLOAT_VALUE, -); 
+          break;
+      case OP_MULTIPLY: BINARY_OP(FLOAT_VALUE, *); 
         break;
-      case OP_SUBTRACT : BINARY_OP(-);
+      case OP_DIVIDE:   BINARY_OP(FLOAT_VALUE, /); 
         break;
-      case OP_MULTIPLY : BINARY_OP(*);
-        break;
-      case OP_DIVIDE : BINARY_OP(/);
-        break;
-      case OP_NEGATE : push(-pop());
+      case OP_NEGATE:
+        if (!IS_NUMBER(peek(0))) {
+          // runtimeError("Operand must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        // push(FLOAT_VALUE(-AS_NUMBER(pop())));
         break;
       case OP_RETURN : { //TODO change after implementing functions
         printValue(pop());

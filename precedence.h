@@ -25,6 +25,6 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
-ParseRule* getRule(TokenType token);
+static ParseRule* getRule(TokenType token);
 
 #endif
