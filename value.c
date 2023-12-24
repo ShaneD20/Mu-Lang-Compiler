@@ -27,5 +27,13 @@ void freeValueArray(ValueArray *array) {
 }
 
 void printValue(Value value) {
+  switch(value.type) {
+    case TF_TYPE: printf(AS_TF(value) ? "true" : "false");
+      break;
+    case VOID_TYPE: printf("void");
+      break;
+    case FLOAT_TYPE: printf("%g", AS_NUMBER(value));
+      break;
+  }
   printf("%g", AS_NUMBER(value));
 }

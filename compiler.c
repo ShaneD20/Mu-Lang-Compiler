@@ -103,7 +103,7 @@ static void quitCompiler() {
 
 static void number() {
   double value = strtod(parser.previous.start, NULL);
-  emitConstant(NUMBER_VAL(value));
+  emitConstant(NUMBER_VALUE(value));
 }
 void parsePrecedence(Precedence rule) {
   advance();
@@ -165,6 +165,18 @@ static void unary() {
     default: return; //unreachable
   }
 }
+static void literal() {
+  switch (parser.previous.type) {
+    case K_FALSE: emitByte(OP_FALSE);
+      break;
+    case K_VOID: emitByte(OP_VOID);
+      break;
+    case K_TRUE: emitByte(OP_TRUE);
+      break;
+    default: //unreachable
+      return;
+  }
+}
 
 ParseRule rules[] = {
   [END_OF_FILE] = {NULL, NULL, ZERO_PRECEDENCE},
@@ -176,34 +188,34 @@ ParseRule rules[] = {
   [S_SLASH] = {NULL, binary, FACTOR_PRECEDENCE},
   [S_MINUS] = {unary, binary, SUM_PRECEDENCE},
   [S_PLUS] = {NULL, binary, SUM_PRECEDENCE},
-  [S_LEFT_PARENTHESIS] = {grouping, NULL, ZERO_PRECEDENCE},
+  [S_BANG] = {unary, NULL, ZERO_PRECEDENCE},
+  [D_BANG_TILDE] = {NULL, binary, EQUALITY_PRECEDENCE},
+  [S_LEFT_PARENTHESIS] = {grouping, NULL, CALL_PRECEDENCE},
+  [S_DOT] = {NULL, NULL, CALL_PRECEDENCE},
   [S_RIGHT_PARENTHESIS] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_LEFT_CURLYBRACE] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_RIGHT_CURLYBRACE] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_COMMA] = {NULL, NULL, ZERO_PRECEDENCE},
-  [S_DOT] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_SEMICOLON] = {NULL, NULL, ZERO_PRECEDENCE},
-  [S_BANG] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_GREATER] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_LESS] = {NULL, NULL, ZERO_PRECEDENCE},
-  [D_BANG_TILDE] = {NULL, NULL, ZERO_PRECEDENCE},
   [D_EQUAL] = {NULL, NULL, ZERO_PRECEDENCE},
   [D_GREATER_EQUAL] = {NULL, NULL, ZERO_PRECEDENCE},
   [D_LESS_EQUAL] = {NULL, NULL, ZERO_PRECEDENCE},
-  [K_AND] = {NULL, NULL, ZERO_PRECEDENCE},
+  [K_AND] = {NULL, NULL, AND_PRECEDENCE},
+  [K_OR] = {NULL, NULL, OR_PRECEDENCE},
   [K_BUILD] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_DEFINE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_ELSE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_END] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_JOIN] = {NULL, NULL, ZERO_PRECEDENCE},
-  [K_OR] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_RETURN] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_SELF] = {NULL, NULL, ZERO_PRECEDENCE},
-  [K_FALSE] = {NULL, NULL, ZERO_PRECEDENCE},
-  [K_TRUE] = {NULL, NULL, ZERO_PRECEDENCE},
+  [K_FALSE] = {literal, NULL, ZERO_PRECEDENCE},
+  [K_TRUE] = {literal, NULL, ZERO_PRECEDENCE},
+  [K_VOID] = {literal, NULL, ZERO_PRECEDENCE}, 
   [K_UNLESS] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_UNTIL] = {NULL, NULL, ZERO_PRECEDENCE},
-  [K_VOID] = {NULL, NULL, ZERO_PRECEDENCE}, 
   [K_WHILE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_XOR] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_YIELD] = {NULL, NULL, ZERO_PRECEDENCE},
