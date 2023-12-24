@@ -37,3 +37,16 @@ void printValue(Value value) {
   }
   printf("%g", AS_NUMBER(value));
 }
+
+bool valuesEqual(Value a, Value b) {
+  if (a.type != b.type) {
+    return false;
+  }
+
+  switch (a.type) {
+    case TF_TYPE: return AS_TF(a) == AS_TF(b);
+    case VOID_TYPE: return true;
+    case FLOAT_TYPE: return AS_NUMBER(a) == AS_NUMBER(b);
+    default: return false;
+  }
+}
