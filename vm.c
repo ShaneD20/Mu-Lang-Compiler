@@ -88,6 +88,12 @@ static InterpretResult run() {
         break;
       case OP_FALSE: push(TF_VALUE(false));
         break;
+      case OP_EQUAL: {
+        Value b = pop();
+        Value a = pop();
+        push(TF_VALUE(valuesEqual(a, b)));
+        break;
+      }
       case OP_ADD: BINARY_OP(NUMBER_VALUE, +);
         break;
       case OP_SUBTRACT: BINARY_OP(NUMBER_VALUE, -); 

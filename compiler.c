@@ -142,6 +142,18 @@ static void binary() {
   parsePrecedence((Precedence)(rule->precedence + 1));
 
   switch (operator) {
+    case D_BANG_TILDE: emitBytes(OP_EQUAL, OP_NOT);
+      break;
+    case D_EQUAL: emitByte(OP_EQUAL);
+      break;
+    case S_GREATER: emitByte(OP_GREATER);
+      break;
+    case D_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT);
+      break;
+    case S_LESS: emitByte(OP_LESS);
+      break;
+    case D_LESS_EQUAL: emitBytes(OP_GREATER, OP_NOT);
+      break;
     case S_PLUS: emitByte(OP_ADD);
       break;
     case S_MINUS: emitByte(OP_SUBTRACT);
@@ -189,7 +201,6 @@ ParseRule rules[] = {
   [S_MINUS] = {unary, binary, SUM_PRECEDENCE},
   [S_PLUS] = {NULL, binary, SUM_PRECEDENCE},
   [S_BANG] = {unary, NULL, ZERO_PRECEDENCE},
-  [D_BANG_TILDE] = {NULL, binary, EQUALITY_PRECEDENCE},
   [S_LEFT_PARENTHESIS] = {grouping, NULL, CALL_PRECEDENCE},
   [S_DOT] = {NULL, NULL, CALL_PRECEDENCE},
   [S_RIGHT_PARENTHESIS] = {NULL, NULL, ZERO_PRECEDENCE},
@@ -197,11 +208,12 @@ ParseRule rules[] = {
   [S_RIGHT_CURLYBRACE] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_COMMA] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_SEMICOLON] = {NULL, NULL, ZERO_PRECEDENCE},
-  [S_GREATER] = {NULL, NULL, ZERO_PRECEDENCE},
-  [S_LESS] = {NULL, NULL, ZERO_PRECEDENCE},
-  [D_EQUAL] = {NULL, NULL, ZERO_PRECEDENCE},
-  [D_GREATER_EQUAL] = {NULL, NULL, ZERO_PRECEDENCE},
-  [D_LESS_EQUAL] = {NULL, NULL, ZERO_PRECEDENCE},
+  [S_GREATER] = {NULL, binary, COMPARISON_PRECEDENCE},
+  [D_BANG_TILDE] = {NULL, binary, EQUALITY_PRECEDENCE},
+  [D_EQUAL] = {NULL, binary, EQUALITY_PRECEDENCE},
+  [S_LESS] = {NULL, binary, COMPARISON_PRECEDENCE},
+  [D_GREATER_EQUAL] = {NULL, binary, COMPARISON_PRECEDENCE},
+  [D_LESS_EQUAL] = {NULL, binary, COMPARISON_PRECEDENCE},
   [K_AND] = {NULL, NULL, AND_PRECEDENCE},
   [K_OR] = {NULL, NULL, OR_PRECEDENCE},
   [K_BUILD] = {NULL, NULL, ZERO_PRECEDENCE},
