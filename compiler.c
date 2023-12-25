@@ -85,6 +85,7 @@ static uint8_t makeConstant(Value value) {
   }
   return (uint8_t)constant;
 }
+// ADD to constant table
 static void emitConstant(Value value) {
   emitBytes(OP_CONSTANT, makeConstant(value));
 }
@@ -189,12 +190,18 @@ static void literal() {
       return;
   }
 }
+static void string() {
+  emitConstant(OBJECT_VALUE(
+    copyString(parser.previous.start + 1, parser.previous.length - 2))
+  );
+  // TODO add escape characters
+}
 
 ParseRule rules[] = {
   [END_OF_FILE] = {NULL, NULL, ZERO_PRECEDENCE},
   [TOKEN_ERROR] = {NULL, NULL, ZERO_PRECEDENCE},
   [L_IDENTIFIER] = {NULL, NULL, ZERO_PRECEDENCE},
-  [L_STRING] = {NULL, NULL, ZERO_PRECEDENCE},
+  [L_STRING] = {string, NULL, ZERO_PRECEDENCE},
   [L_FLOAT] = {number, NULL, ZERO_PRECEDENCE},
   [S_STAR] = {NULL, binary, FACTOR_PRECEDENCE},
   [S_SLASH] = {NULL, binary, FACTOR_PRECEDENCE},
