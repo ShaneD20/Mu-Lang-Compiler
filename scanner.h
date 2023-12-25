@@ -30,7 +30,7 @@ typedef enum {
   K_BUILD,
   K_CALL,
   K_DEFINE, K_DELETE,
-  K_ELSE, K_END, K_EACH,
+  K_ELSE, K_END, K_EACH, K_EXISTS,
   K_FALSE, K_FROM, // K_FINALLY,
   K_GIVE,
   K_HOLD,
