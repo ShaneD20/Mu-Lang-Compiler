@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "memory.h"
 #include "value.h"
+#include "object.h"
+#include <string.h>
 //TODO string, object
 
 void initValueArray(ValueArray* array) {
@@ -28,13 +30,13 @@ void freeValueArray(ValueArray *array) {
 
 void printValue(Value value) {
   switch(value.type) {
-    case TF_TYPE: printf(AS_TF(value) ? "true" : "false");
+    case VALUE_TF: printf(AS_TF(value) ? "true" : "false");
       break;
-    case VOID_TYPE: printf("void");
+    case VALUE_VOID: printf("void");
       break;
-    case FLOAT_TYPE: printf("%g", AS_NUMBER(value));
+    case VALUE_FLOAT: printf("%g", AS_NUMBER(value));
       break;
-    case OBJECT_TYPE: printObject(value);
+    case VALUE_OBJECT: printObject(value);
       break;
   }
   printf("%g", AS_NUMBER(value));
@@ -46,10 +48,10 @@ bool valuesEqual(Value a, Value b) {
   }
 
   switch (a.type) {
-    case TF_TYPE: return AS_TF(a) == AS_TF(b);
-    case VOID_TYPE: return true;
-    case FLOAT_TYPE: return AS_NUMBER(a) == AS_NUMBER(b);
-    case OBJECT_TYPE: return AS_OBJECT(a) == AS_OBJECT(b);
+    case VALUE_TF: return AS_TF(a) == AS_TF(b);
+    case VALUE_VOID: return true;
+    case VALUE_FLOAT: return AS_NUMBER(a) == AS_NUMBER(b);
+    case VALUE_OBJECT: return AS_OBJECT(a) == AS_OBJECT(b);
     default: return false;
   }
 }

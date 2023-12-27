@@ -192,8 +192,8 @@ static void literal() {
 }
 static void string() {
   emitConstant(OBJECT_VALUE(
-    copyString(parser.previous.start + 1, parser.previous.length - 2))
-  );
+    copyString(parser.previous.start + 1, parser.previous.length - 2)
+  ));
   // TODO add escape characters
 }
 
