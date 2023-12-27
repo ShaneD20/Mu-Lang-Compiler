@@ -2,16 +2,17 @@
 #define mu_value_h
 
 //TODO string
+#include <string.h>
 #include "common.h"
 
 typedef struct Object Object;
-typedef struct StringObj StringObj;
+// typedef struct StringObject StringObject;
 
 typedef enum {
-  VOID_TYPE,
-  TF_TYPE,
-  FLOAT_TYPE,
-  OBJECT_TYPE,
+  VALUE_VOID,
+  VALUE_TF,
+  VALUE_FLOAT,
+  VALUE_OBJECT,
 } ValueType;
 
 typedef struct {
@@ -73,15 +74,15 @@ static inline Value numToValue(double num) {
 #define AS_NUMBER(value)  ((value).as.number)
 #define AS_OBJECT(value) ((value).as.object)
 
-#define IS_TF(value)    ((value).type == TF_TYPE)
-#define IS_VOID(value)     ((value).type == VOID_TYPE)
-#define IS_NUMBER(value)  ((value).type == FLOAT_TYPE)
-#define IS_OBJECT(value) ((value).type == OBJECT_TYPE)
+#define IS_TF(value)    ((value).type == VALUE_TF)
+#define IS_VOID(value)     ((value).type == VALUE_VOID)
+#define IS_NUMBER(value)  ((value).type == VALUE_FLOAT)
+#define IS_OBJECT(value) ((value).type == VALUE_OBJECT)
 
-#define TF_VALUE(value)   ((Value){TF_TYPE, {.TF = value}})
-#define VOID_VALUE           ((Value){VOID_TYPE, {.number = 0}})
-#define NUMBER_VALUE(value) ((Value){FLOAT_TYPE, {.number = value}})
-#define OBJECT_VALUE(input) ((Value){OBJECT_TYPE, {.object = (Object*)input}})
+#define TF_VALUE(value)   ((Value){VALUE_TF, {.TF = value}})
+#define VOID_VALUE           ((Value){VALUE_VOID, {.number = 0}})
+#define NUMBER_VALUE(value) ((Value){VALUE_FLOAT, {.number = value}})
+#define OBJECT_VALUE(input) ((Value){VALUE_OBJECT, {.object = (Object*)input}})
 
 //#define IS_OBJ(value)     ((value).type == VAL_OBJ)
 //#define AS_OBJ(value)     ((value).as.obj)

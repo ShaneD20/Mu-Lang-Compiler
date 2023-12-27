@@ -2,13 +2,16 @@
 #include "vm.h"
 #include "debug.h"
 #include "compiler.h"
+#include "object.h"
+#include "memory.h"
+#include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
 
 VM vm;
 
 void freeVM() {
-  //TODO
+  freeObjects();
 }
 void push(Value value) {
   *vm.stackTop = value;
@@ -22,7 +25,8 @@ static Value peek(int distance) {
   return vm.stackTop[-1 - distance];
 }
 static void resetStack() {
-  vm.stackTop = vm.stack;
+  // vm.stackTop = vm.stack;
+  vm.objects = NULL;
 }
 void initVM() {
   resetStack();
@@ -43,6 +47,21 @@ static void runtimeError(const char* format, ...) {
 
   fprintf(stderr, "[line %d] in script\n", line);
   resetStack();
+
+}
+
+static void concatenate() {
+  StringObject* right = AS_STRING(pop());
+  StringObject* left = AS_STRING(pop());
+  int length = left->length + right->length;
+
+  char* runes = ALLOCATE(char, length + 1);
+  memcpy(runes, left->runes, left->length);
+  memcpy(runes + left->length, right->runes, right->length);
+  runes[length] = '\0';
+
+  StringObject* result = takeString(runes, length);
+  push(OBJECT_VALUE(result));
 
 }
 
@@ -100,6 +119,15 @@ static InterpretResult run() {
         break;
       case OP_ADD: BINARY_OP(NUMBER_VALUE, +);
         break;
+      case OP_CONCATENATE: { //   TODO get to be polish notation
+        if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+          concatenate();
+        } else {
+          runtimeError("both operands must be strings.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
       case OP_SUBTRACT: BINARY_OP(NUMBER_VALUE, -); 
         break;
       case OP_MULTIPLY: BINARY_OP(NUMBER_VALUE, *); 

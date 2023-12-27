@@ -127,6 +127,7 @@ static TokenType KeywordOrLiteral() {
     case 'f' : return testKeyword(1, 4, "alse", K_FALSE);
     case 'i' : return testKeyword(1, 1, "f", K_IF);
     case 'j' : return testKeyword(1, 3, "oin", K_JOIN);
+    case 'n' : return testKeyword(1, 2, "ot", K_NOT);
     case 'o' : return testKeyword(1, 1, "r", K_OR);
     case 'r' : return testKeyword(1, 5, "eturn", K_RETURN);
     case 's' : return testKeyword(1, 3, "elf", K_SELF);

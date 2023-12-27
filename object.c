@@ -9,22 +9,36 @@
 #define ALLOCATE_OBJECT(type, objectType) \
     (type*)allocateObject(sizeof(type), objectType)
 
-static Object* allocateObject(size_t size, ObjectBase type) {
+static Object* allocateObject(size_t size, ObjectType type) {
     Object* object = (Object*)reallocate(NULL, 0, size);
     object->type = type;
+    object->next = vm.objects;
+    vm.objects = object;
     return object;
 }
 
-static ObjectString* allocateString(char* runes, int length) {
-    ObjectString* string = ALLOCATE_OBJECT(ObjectString, STRING_BASE);
+static StringObject* allocateString(char* runes, int length) {
+    StringObject* string = ALLOCATE_OBJECT(StringObject, STRING_TYPE);
     string->length = length;
     string->runes = runes;
     return string;
 }
 
-ObjectString* copyString(const char* runes, int length) {
+StringObject* copyString(const char* runes, int length) {
     char* heapRunes = ALLOCATE(char, length + 1);
     memcpy(heapRunes, runes, length);
     heapRunes[length] = '\0';
-    return alloateString(heapRunes, length);
+    return allocateString(heapRunes, length);
+}
+
+StringObject* takeString(char* runes, int length) {
+    return allocateString(runes, length);
+}
+
+void printObject(Value value) {
+    switch (OBJECT_TYPE(value)) {
+        case STRING_TYPE: 
+            printf("%s", AS_C_STRING(value));
+            break;
+    }
 }

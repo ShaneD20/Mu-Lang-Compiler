@@ -26,14 +26,15 @@ typedef enum {
   L_FLOAT,
   
   //KEYWORDS
-  K_AND, K_AS, K_ALWAYS,
+  K_AND, K_AS, 
+  // K_ALWAYS,
   K_BUILD,
   K_CALL,
   K_DEFINE, K_DELETE,
   K_ELSE, K_END, K_EACH, K_EXISTS,
-  K_FALSE, K_FROM, // K_FINALLY,
+  K_FALSE, K_FROM,
   K_GIVE,
-  K_HOLD,
+  // K_HOLD,
   K_IF, K_IS, K_IN,
   K_JOIN, 
   K_LET,
@@ -44,7 +45,8 @@ typedef enum {
   K_QUIT,
   K_RETURN, K_REDO, 
   K_SELF, K_SPECIFY, K_SHARE, K_SHIFT,
-  K_TRUE, K_TRY, K_TYPE, K_THEN,
+  K_TRUE, K_TYPE,
+  // K_TRY,
   K_UNLESS, K_UNTIL, K_USE,
   K_VOID, K_VIEW, // alternative to readonly
   K_WHEN, K_WHILE,
