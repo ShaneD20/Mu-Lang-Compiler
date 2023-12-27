@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "object.h"
 #include "value.h"
+#include "table.h"
 #include "vm.h"
 
 #define ALLOCATE_OBJECT(type, objectType) \
@@ -32,11 +33,16 @@ static StringObject* allocateString(char* runes, int length, uint32_t hash) {
     string->length = length;
     string->runes = runes;
     string->hash = hash;
+    tableSet(&vm.strings, string, VOID_VALUE);
     return string;
 }
 
 StringObject* copyString(const char* runes, int length) {
     uint32_t hash = hashString(runes, length);
+    StringObject* interned = tableFindString(&vm.strings, runes, length, hash);
+
+    if (interned != NULL) return interned;
+
     char* heapRunes = ALLOCATE(char, length + 1);
     memcpy(heapRunes, runes, length);
     heapRunes[length] = '\0';
@@ -45,6 +51,13 @@ StringObject* copyString(const char* runes, int length) {
 
 StringObject* takeString(char* runes, int length) {
     uint32_t hash = hashString(runes, length);
+    StringObject* interned = tableFindString(&vm.strings, runes, length, hash);
+
+    if (interned != NULL) {
+        FREE_ARRAY(char, runes, length + 1);
+        return interned;
+    }
+
     return allocateString(runes, length, hash);
 }
 

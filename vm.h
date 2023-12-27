@@ -4,6 +4,7 @@
 #include "chunk.h"
 #include "object.h"
 #include "value.h"
+#include "table.h"
 #define STACK_MAX 256
 
 typedef struct {
@@ -11,6 +12,7 @@ typedef struct {
   uint8_t* ip; // always points to the next instruction, not the one currently being handled
   Value stack[STACK_MAX];
   Value* stackTop;
+  Table strings;
   Object* objects; // for Garbage Collection
 } VM;
 
