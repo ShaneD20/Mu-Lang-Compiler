@@ -11,6 +11,7 @@
 VM vm;
 
 void freeVM() {
+  freeTable(&vm.strings);
   freeObjects();
 }
 void push(Value value) {
@@ -28,8 +29,9 @@ static void resetStack() {
   // vm.stackTop = vm.stack;
   vm.objects = NULL;
 }
-void initVM() {
+void initVM() { //TODO compare
   resetStack();
+  initTable(&vm.strings);
 }
 static bool isFalsey(Value value) {
   return (IS_TF(value) && !AS_TF(value));
