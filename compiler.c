@@ -70,6 +70,16 @@ static void consume(TokenType current, const char* message) {
   }
   errorAtCurrent(message);
 }
+static bool check(TokenType type) {
+  return parser.current.type == type;
+}
+static bool match(TokenType type) {
+  if (!check(type)) {
+    return false;
+  }
+  advance();
+  return true;
+}
 static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
@@ -100,7 +110,9 @@ static void quitCompiler() {
     }
   #endif
 }
-// static void expression();
+static void expression();
+static void statement();
+static void declaration();
 
 static void number() {
   double value = strtod(parser.previous.start, NULL);
@@ -126,8 +138,104 @@ void parsePrecedence(Precedence rule) {
   //   error("Invalid assignment target.");
   // }
 }
+
+static uint8_t identifierConstant(Token* name) {
+  return makeConstant(OBJECT_VALUE(copyString(name->start, name->length)));
+  // assigns global
+}
+
+parseVariable(const char* message) {
+  consume(L_IDENTIFIER, message);
+  return identifierConstant(&parser.previous);
+}
+
+static void defineVariable(uint8_t global) {
+  emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+static void synchronize() {
+  parser.panic = false;
+
+  // search for what ends a statement, then what begins a statement
+  while (parser.current.type != END_OF_FILE) {
+    if (parser.previous.type == S_SEMICOLON) {
+      return;
+    }
+    switch (parser.current.type) {
+      case K_BUILD :
+      case K_DEFINE :
+      case S_OCTO :
+      case K_WHILE :
+      case K_UNTIL :
+      case K_IF :
+      case K_UNLESS :
+      case K_PRINT :
+      case K_RETURN :
+        return;
+      default : // no operations
+        ;
+    }
+    advance();
+  }
+}
+
+static void variableDeclaration() {
+  // for globals
+  uint8_t global = parseVariable("Expect variable name.");
+  if (match(S_COLON)) { // replacing equals with the humble colon
+    expression();
+  } else {
+    emitByte(OP_VOID);
+  }
+  consume(S_SEMICOLON, "Expect ';' to end variable declaration");
+
+  defineVariable(global);
+}
+
+static void declaration() {
+  if (match(K_BUILD)) {
+    // classDeclaration();
+  } else if (match(K_DEFINE)) {
+    // todo replace soley with lambda expression
+    // functionDeclaration();
+  } else if (match(S_OCTO)) {
+    // todo figure out how to get identifier :
+    // #identifer =
+    variableDeclaration();
+  } else {
+    statement();
+  }
+
+  if (parser.panic) {
+    synchronize();
+  }
+}
+
 static void expression() {
   parsePrecedence(ASSIGNMENT_PRECEDENCE);
+}
+static void expressionStatement() {
+  expression();
+  consume(S_SEMICOLON, "Expect ';' after expression"); 
+  /* when it finds the token pops and rolls back
+     the value is popped and forgotten
+     which is debatedly what is desirable with \n
+  */
+  emitByte(OP_POP);
+}
+
+static void printStatement() {
+  expression();
+  consume(S_SEMICOLON, "Expect ';' after value.");
+  emitByte(OP_PRINT); // hands off to vm.c
+}
+
+static void statement() {
+  if (match(K_PRINT)) {
+    printStatement();
+  } else {
+    expressionStatement();
+  }
 }
 
 static void grouping() {
@@ -196,11 +304,23 @@ static void string() {
   ));
   // TODO add escape characters
 }
+static void namedVariable(Token name) {
+  uint8_t arg = identifierConstant(&name);
+  if (match(S_EQUAL)) {
+    expression();
+    emitBytes(OP_SET_GLOBAL, arg);
+  } else {
+    emitBytes(OP_GET_GLOBAL, arg);
+  }
+}
+static void variable() {
+  namedVariable(parser.previous);
+}
 
 ParseRule rules[] = {
   [END_OF_FILE] = {NULL, NULL, ZERO_PRECEDENCE},
   [TOKEN_ERROR] = {NULL, NULL, ZERO_PRECEDENCE},
-  [L_IDENTIFIER] = {NULL, NULL, ZERO_PRECEDENCE},
+  [L_IDENTIFIER] = {variable, NULL, ZERO_PRECEDENCE},
   [L_STRING] = {string, NULL, ZERO_PRECEDENCE},
   [L_FLOAT] = {number, NULL, ZERO_PRECEDENCE},
   [S_STAR] = {NULL, binary, FACTOR_PRECEDENCE},
@@ -250,8 +370,13 @@ bool compile(const char* source, Chunk* chunk) {
   parser.hadError = false;
   parser.panic = false;
   advance();
-  expression();
-  consume(END_OF_FILE, "Expect complete expression");
+
+  while (!match(END_OF_FILE)) {
+    declaration();
+  }
+  //expression();
+  //consume(END_OF_FILE, "Expect complete expression");
+
   quitCompiler();
   return !parser.hadError;
 }

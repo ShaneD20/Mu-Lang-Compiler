@@ -12,6 +12,7 @@ VM vm;
 
 void freeVM() {
   freeTable(&vm.strings);
+  freeTable(&vm.globals);
   freeObjects();
 }
 void push(Value value) {
@@ -32,6 +33,7 @@ static void resetStack() {
 void initVM() { //TODO compare
   resetStack();
   initTable(&vm.strings);
+  initTable(&vm.globals);
 }
 static bool isFalsey(Value value) {
   return (IS_TF(value) && !AS_TF(value));
@@ -71,6 +73,7 @@ static InterpretResult run() {
 #define READ_BYTE() (*vm.ip += 1)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 //lazily treats all numbers as doubles
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
   do { \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -103,12 +106,39 @@ static InterpretResult run() {
         push(constant);
         break;
       }
-      case OP_VOID: push(VOID_VALUE);
+      case OP_VOID : push(VOID_VALUE);
         break;
-      case OP_TRUE: push(TF_VALUE(true));
+      case OP_TRUE : push(TF_VALUE(true));
         break;
-      case OP_FALSE: push(TF_VALUE(false));
+      case OP_FALSE : push(TF_VALUE(false));
         break;
+      case OP_POP : pop();
+        break;
+      case OP_GET_GLOBAL : {
+        StringObject* name = READ_STRING();
+        Value value; //TODO ???
+        if (!tableGet(&vm.globals, name, &value)) {
+          runtimeError("Undefined variable '%s'.", name->runes);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        push(value);
+        break;
+      }
+      case OP_SET_GLOBAL : {
+        StringObject* name = READ_STRING();
+        if (tableSet(&vm.globals, name, peek(0))) {
+          tableDelete(&vm.globals, name);
+          runtimeError("Undefined variable '%s'.", name->runes);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
+      case OP_DEFINE_GLOBAL : {
+        StringObject* name = READ_STRING();
+        tableSet(&vm.globals, name, peek(0));
+        pop();
+        break;
+      }
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();
@@ -145,9 +175,14 @@ static InterpretResult run() {
         }
         push(NUMBER_VALUE(-AS_NUMBER(pop())));
         break;
-      case OP_RETURN : { //TODO change after implementing functions
+      case OP_PRINT : { // hand off to debug
         printValue(pop());
         printf("\n");
+        break;
+      }
+      case OP_RETURN : { //TODO change after implementing functions
+        // printValue(pop());
+        // printf("\n");
         return INTERPRET_OK;
       }
     }
@@ -155,6 +190,7 @@ static InterpretResult run() {
 #undef READ_CONSTANT // undefining macros might seem solely fastidious but it helps the C preprocessor
 #undef READ_BYTE
 #undef BINARY_OP
+#undef READ_STRING
 }
 
 InterpretResult interpret(const char* source) {
