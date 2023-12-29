@@ -4,6 +4,7 @@
 #include "compiler.h"
 #include "object.h"
 #include "memory.h"
+#include "table.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -127,7 +128,7 @@ static InterpretResult run() {
       case OP_SET_GLOBAL : {
         StringObject* name = READ_STRING();
         if (tableSet(&vm.globals, name, peek(0))) {
-          tableDelete(&vm.globals, name);
+          deleteEntry(&vm.globals, name);
           runtimeError("Undefined variable '%s'.", name->runes);
           return INTERPRET_RUNTIME_ERROR;
         }
