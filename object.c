@@ -66,5 +66,19 @@ void printObject(Value value) {
         case STRING_TYPE: 
             printf("%s", AS_C_STRING(value));
             break;
+        case BOUND_METHOD_TYPE :
+            break;
+        case CLASS_TYPE :
+            break;
+        case CLOSURE_TYPE :
+            break;
+        case FUNCTION_TYPE :
+            break;
+        case INSTANCE_TYPE :
+            break;
+        case NATIVE_TYPE :
+            break;
+        case UPVALUE_TYPE :
+            break;
     }
 }

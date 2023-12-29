@@ -25,12 +25,26 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 
 static void freeObject(Object* object) {
   switch (object->type) {
-    case STRING_TYPE: {
+    case STRING_TYPE : {
       StringObject* string = (StringObject*)object;
       FREE_ARRAY(char, string->runes, string->length + 1);
       FREE(StringObject, object);
       break;
     }
+    case BOUND_METHOD_TYPE :
+      break;
+    case CLASS_TYPE :
+      break;
+    case CLOSURE_TYPE :
+      break;
+    case FUNCTION_TYPE :
+      break;
+    case INSTANCE_TYPE :
+      break;
+    case NATIVE_TYPE :
+      break;
+    case UPVALUE_TYPE :
+      break;
   }
 }
 

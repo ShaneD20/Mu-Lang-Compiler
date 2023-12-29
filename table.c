@@ -91,7 +91,7 @@ bool tableSet(Table* table, StringObject* key, Value value) {
     return isNewKey;
 }
 
-bool tableDelete(Table* table, StringObject* key) {
+bool deleteEntry(Table* table, StringObject* key) {
     if (table->count == 0) return false;
 
     Entry* entry = findEntry(table->entries, table->capacity, key);
