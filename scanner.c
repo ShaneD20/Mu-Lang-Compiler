@@ -121,9 +121,7 @@ static TokenType KeywordOrLiteral() {
     case 'a' : return testKeyword(1, 2, "nd", K_AND);
     case 'b' : return testKeyword(1, 4, "uild", K_BUILD);
     case 'd' : return testKeyword(1, 5, "efine", K_DEFINE);
-    case 'e' : return (scanner.current - scanner.start > 1 && scanner.start[1] == 'n') 
-      ? testKeyword(1, 2, "nd", K_END) 
-      : testKeyword(1, 3, "lse", K_ELSE);
+    case 'e' : return testKeyword(1, 3, "lse", K_ELSE);
     case 'f' : return testKeyword(1, 4, "alse", K_FALSE);
     case 'i' : return testKeyword(1, 1, "f", K_IF);
     case 'j' : return testKeyword(1, 3, "oin", K_JOIN);
@@ -141,7 +139,7 @@ static TokenType KeywordOrLiteral() {
     case 'v' : return testKeyword(1, 3, "oid", K_VOID);
     case 'w' : return testKeyword(1, 4, "hile", K_WHILE);
     case 'x' : return testKeyword(1, 2, "or", K_XOR);
-    case 'y' : return testKeyword(1, 4, "ield", K_YIELD);
+    // case 'y' : return testKeyword(1, 4, "ield", K_YIELD);
   }
   return L_IDENTIFIER;
 }

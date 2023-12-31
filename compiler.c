@@ -167,6 +167,10 @@ static bool identifiersEqual(Token* a, Token* b) {
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
+static void markInitialized() {
+  current->locals[current->localCount - 1].depth = current->scopeDepth;
+}
+
 static void addLocal(Token name) {
   if (current->localCount == UNIT8_COUNT) {
     error("Too many local variables for this function.");
@@ -174,7 +178,8 @@ static void addLocal(Token name) {
   }
   Local* data = &current->locals[current->localCount += 1];
   data->name = name;
-  data->depth = current->scopeDepth;
+  // data->depth = current->scopeDepth;
+  data->depth = -1;
 }
 
 static void declareVariable() {
@@ -207,6 +212,7 @@ static uint8_t parseVariable(const char* message) {
 
 static void defineVariable(uint8_t global) {
   if (current->scopeDepth > 0) {
+    markInitialized();
     return;
   }
   emitBytes(OP_DEFINE_GLOBAL, global);
@@ -331,6 +337,9 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   for (int i = compiler->localCount - 1; i >= 0; i += -1) {
     Local* data = &compiler->locals[i];
     if (identifiersEqual(name, &data->name)) {
+      if (data->depth == -1) {
+        error("Cannot read local variable in its own initializer.");
+      }
       return i;
     }
   }
@@ -450,7 +459,6 @@ ParseRule rules[] = {
   [K_BUILD] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_DEFINE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_ELSE] = {NULL, NULL, ZERO_PRECEDENCE},
-  [K_END] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_JOIN] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_RETURN] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_SELF] = {NULL, NULL, ZERO_PRECEDENCE},
