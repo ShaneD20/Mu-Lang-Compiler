@@ -39,8 +39,7 @@ static void initCompiler(Compiler* compiler) {
   current = compiler;
 }
 
-/* Start HELPER functions 
-*/
+/* Start HELPER functions */
 static Chunk* currentChunk() {
   return compilingChunk;
 }
@@ -106,6 +105,32 @@ static void emitBytes(uint8_t byteA, uint8_t byteB) {
   emitByte(byteA);
   emitByte(byteB);
 }
+static void emitLoop(int start) {
+  emitByte(OP_LOOP);
+
+  int offset = currentChunk()->count - start + 2;
+  if (offset > UINT16_MAX) {
+    error("Loop context too large.");
+  }
+  emitByte((offset >> 8) & 0xff);
+  emitByte(offset& 0xff);
+}
+static int emitJump(uint8_t instruction) {
+  emitByte(instruction);
+  emitByte(0xff);
+  emitByte(0xff);
+  return currentChunk()->count - 2;
+}
+static void patchJump(int offset) {
+  int jump = currentChunk()->count - offset - 2;
+
+  //TODO
+}
+static void emitReturn() {
+  //TODO initializer
+  emitByte(OP_VOID);
+  emitByte(OP_RETURN);
+}
 static uint8_t makeConstant(Value value) {
   int constant = addConstant(currentChunk(), value);
   if (constant > UINT8_MAX) {
@@ -114,13 +139,11 @@ static uint8_t makeConstant(Value value) {
   }
   return (uint8_t)constant;
 }
-// ADD to constant table
+
 static void emitConstant(Value value) {
   emitBytes(OP_CONSTANT, makeConstant(value));
 }
-static void emitReturn() {
-  emitByte(OP_RETURN);
-}
+
 static void quitCompiler() {
   emitReturn();
   #ifdef DEBUG_PRINT_CODE
@@ -218,6 +241,10 @@ static void defineVariable(uint8_t global) {
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
+static void expression() {
+  parsePrecedence(ASSIGNMENT_PRECEDENCE);
+}
+
 static void synchronize() {
   parser.panic = false;
 
@@ -244,6 +271,29 @@ static void synchronize() {
   }
 }
 
+static void beginScope() {
+  current->scopeDepth += 1;
+}
+static void endScope() {
+  current->scopeDepth -= 1;
+
+  while (current->localCount > 0 &&
+    current->locals[current->localCount - 1].depth > current->scopeDepth) {
+      emitByte(OP_POP);
+      current->localCount += -1;
+  }
+}
+
+// oddities
+static void expression();
+static void statement();
+static void declaration();
+
+static void grouping(bool assignable) {
+  expression();
+  consume(S_RIGHT_PARENTHESIS, "Expext a ')' to complete expression");
+}
+
 static void variableDeclaration() {
   // for globals
   uint8_t global = parseVariable("Expect variable name.");
@@ -257,28 +307,6 @@ static void variableDeclaration() {
   defineVariable(global);
 }
 
-static void declaration() {
-  if (match(K_BUILD)) {
-    // classDeclaration();
-  } else if (match(K_DEFINE)) {
-    // todo replace soley with lambda expression
-    // functionDeclaration();
-  } else if (match(S_OCTO)) {
-    // todo figure out how to get identifier :
-    // #identifer =
-    variableDeclaration();
-  } else {
-    statement();
-  }
-
-  if (parser.panic) {
-    synchronize();
-  }
-}
-
-static void expression() {
-  parsePrecedence(ASSIGNMENT_PRECEDENCE);
-}
 static void expressionStatement() {
   expression();
   consume(S_SEMICOLON, "Expect ';' after expression"); 
@@ -295,23 +323,21 @@ static void printStatement() {
   emitByte(OP_PRINT); // hands off to vm.c
 }
 
-static void beginScope() {
-  current->scopeDepth += 1;
-}
-
-static void endScope() {
-  current->scopeDepth -= 1;
-
-  while (current->localCount > 0 &&
-    current->locals[current->localCount - 1].depth > current->scopeDepth) {
-      emitByte(OP_POP);
-      current->localCount += -1;
+static void declaration() {
+  if (match(K_BUILD)) {
+    // classDeclaration();
+  } else if (match(K_DEFINE)) {
+    // todo replace soley with lambda expression
+  } else if (match(S_OCTO)) {
+    // todo figure out how to get identifier : // #identifer =
+    variableDeclaration();
+  } else {
+    statement();
   }
-}
 
-static void grouping(bool assignable) {
-  expression();
-  consume(S_RIGHT_PARENTHESIS, "Expext a ')' to complete expression");
+  if (parser.panic) {
+    synchronize();
+  }
 }
 
 static void block() {
@@ -479,7 +505,7 @@ static ParseRule* getRule(TokenType token) {
 bool compile(const char* source, Chunk* chunk) {
   initScanner(source);
   Compiler compiler;
-  initCompilers(&compiler);
+  initCompiler(&compiler);
   compilingChunk = chunk;
   parser.hadError = false;
   parser.panic = false;
