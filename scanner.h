@@ -14,11 +14,13 @@ typedef enum {
   S_PIPE, S_BACKSLASH, S_COLON, S_SEMICOLON, // | \ : ; 
   S_QUOTE, S_APOSTROPHE, S_COMMA, S_DOT,     // " ' , .
   S_SLASH, S_LESS, S_GREATER, S_QUESTION,    // / < > ? 
+  S_NEW_LINE,                                // \n
 
   //DOUBLE CHARACTER
+  D_BANG_TILDE,
   D_COLON, D_DOT, D_EQUAL, D_QUESTION,        // :: .. == ?? 
-  D_BANG_TILDE, D_GREATER_EQUAL, D_LESS_EQUAL, // !~ >= <=
-  D_RAISE_STAR,
+  D_DIAMOND, D_GREATER_EQUAL, D_LESS_EQUAL,   // <> >= <=
+  D_COMMA, D_STAR, D_RIGHT_ARROW,             // ,, ** -> 
   
   //LITERALS
   L_IDENTIFIER,
@@ -31,24 +33,23 @@ typedef enum {
   K_BUILD,
   K_CALL,
   K_DEFINE, K_DELETE,
-  K_ELSE, K_END, K_EACH, K_EXISTS,
+  K_ELSE, K_EACH, K_EXISTS, // K_END,
   K_FALSE, K_FROM,
-  K_GIVE,
+  // K_GIVE,
   // K_HOLD,
-  K_IF, K_IS, K_IN,
+  K_IF, K_ITERATES, //K_IS,
   K_JOIN, 
-  K_LET,
-
+  // k ... l
   K_NOT, // unsure if ! or not is better
   K_OR, 
   K_PRINT, K_PANIC,
   K_QUIT,
   K_RETURN, K_REDO, 
-  K_SELF, K_SPECIFY, K_SHARE, K_SHIFT,
+  K_SELF, K_SHARE, // K_SHIFT, K_SPECIFY, (could also be define)
   K_TRUE, K_TYPE,
   // K_TRY,
-  K_UNLESS, K_UNTIL, K_USE,
-  K_VOID, K_VIEW, // alternative to readonly
+  K_UNLESS, K_UNTIL, // K_USE,
+  K_VOID, // K_VIEW, // alternative to readonly
   K_WHEN, K_WHILE,
   K_XOR,
   K_YIELD,
