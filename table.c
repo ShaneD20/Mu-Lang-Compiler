@@ -7,71 +7,70 @@
 
 #define TABLE_MAX_LOAD 0.75
 
-void initTable(Table* table) {
-    table->count = 0;
-    table->capacity = 0;
-    table->entries = NULL;
+void initTable(Table* iTable) {
+    iTable->count = 0;
+    iTable->capacity = 0;
+    iTable->entries_pointer = NULL;
 }
 
-void freeTable(Table* table) {
-    FREE_ARRAY(Entry, table->entries, table->capacity);
-    initTable(table);
+void freeTable(Table* iTable) {
+    FREE_ARRAY(Entry, iTable->entries_pointer, iTable->capacity);
+    initTable(iTable);
 }
 
-static Entry* findEntry(Entry* entries, int capacity, StringObject* key) {
-    uint32_t index = key->hash % capacity;
+static Entry* findEntry(Entry* iEntries, int capacity, StringObject* iKey) {
+    uint32_t index = iKey->hash % capacity;
     Entry* tombstone = NULL;
     /* 
         case for why loops should be expressions
         and shows the short-comings of for() while()
     */
     for (;;) {
-        Entry* entry = &entries[index];
-        if (entry->key == NULL) {
-            if (IS_VOID(entry->value)) {
-                return tombstone != NULL ? tombstone : entry;
+        Entry* iEntry = &iEntries[index];
+        if (iEntry->key_pointer == NULL) {
+            if (IS_VOID(iEntry->value)) {
+                return tombstone != NULL ? tombstone : iEntry;
             } else {
                 if (tombstone == NULL) {
-                    tombstone = entry;
+                    tombstone = iEntry;
                 }
             } 
-        } else if (entry->key == key) {
-            return entry;
+        } else if (iEntry->key_pointer == iKey) {
+            return iEntry;
         }
-
         index = (index + 1) % capacity;
     }
 }
 
-static void adjustCapacity(Table* table, int capacity) {
+static void adjustCapacity(Table* iTable, int capacity) {
     Entry* entries = ALLOCATE(Entry, capacity);
 
     for (int i = 0; i < capacity; i++) {
-        entries[i].key = NULL;
+        entries[i].key_pointer = NULL;
         entries[i].value = VOID_VALUE;
     }
-    table->count = 0; // to manage tombstones
-    for (int i = 0; i < table->capacity; i += 1) {
-        Entry* entry = &table->entries[i];
-        if (entry->key == NULL) continue;
+    iTable->count = 0; // to manage tombstones
+    for (int i = 0; i < iTable->capacity; i += 1) {
+        Entry* iEntry = &iTable->entries_pointer[i];
+        if (iEntry->key_pointer == NULL) continue;
 
-        Entry* destination = findEntry(entries, capacity, entry->key);
-        destination->key = entry->key;
-        destination->value = entry->value;
-        table->count += 1; // to manage tombstones
+        Entry* iDestination = findEntry(entries, capacity, iEntry->key_pointer);
+        iDestination->key_pointer = iEntry->key_pointer;
+        iDestination->value = iEntry->value;
+        iTable->count += 1; // to manage tombstones
     }
-    FREE_ARRAY(Entry, table->entries, table->capacity);
-    table->entries = entries;
-    table->capacity = capacity;
+    FREE_ARRAY(Entry, iTable->entries_pointer, iTable->capacity);
+    iTable->entries_pointer = entries;
+    iTable->capacity = capacity;
 }
 
-bool tableGet(Table* table, StringObject* key, Value* value) {
-    if (table->count == 0) return false;
+bool tableGet(Table* iTable, StringObject* iKey, Value* iValue) {
+    if (iTable->count == 0) return false;
     
-    Entry* entry = findEntry(table->entries, table->capacity, key);
-    if (entry->key == NULL) return false;
+    Entry* iEntry = findEntry(iTable->entries_pointer, iTable->capacity, iKey);
+    if (iEntry->key_pointer == NULL) return false;
     
-    *value = entry->value;
+    *iValue = iEntry->value;
     return true;
 }
 
@@ -81,12 +80,12 @@ bool tableSet(Table* table, StringObject* key, Value value) {
         adjustCapacity(table, capacity);
     }
 
-    Entry* entry = findEntry(table->entries, table->capacity, key);
-    bool isNewKey = entry->key == NULL;
+    Entry* entry = findEntry(table->entries_pointer, table->capacity, key);
+    bool isNewKey = entry->key_pointer == NULL;
     if (isNewKey && IS_VOID(entry->value)) {
         table->count += 1;
     }
-    entry->key = key;
+    entry->key_pointer = key;
     entry->value = value;
     return isNewKey;
 }
@@ -94,39 +93,42 @@ bool tableSet(Table* table, StringObject* key, Value value) {
 bool deleteEntry(Table* table, StringObject* key) {
     if (table->count == 0) return false;
 
-    Entry* entry = findEntry(table->entries, table->capacity, key);
-    if (entry->key == NULL) return false;
+    Entry* entry = findEntry(table->entries_pointer, table->capacity, key);
+    if (entry->key_pointer == NULL) return false;
 
-    entry->key = NULL;
+    entry->key_pointer = NULL;
     entry->value = TF_VALUE(true);
     return true;
 }
 
-void tableAddAll(Table* from, Table* to) {
+void tableAddAll(Table* from, Table* iTable) {
     for (int i = 0; i < from->capacity; i += 1) {
-        Entry* entry = &from->entries[i];
+        Entry* entry = &from->entries_pointer[i];
 
-        if(entry->key != NULL) {
-            tableSet(to, entry->key, entry->value);
+        if(entry->key_pointer != NULL) {
+            tableSet(iTable, entry->key_pointer, entry->value);
         }
     }
 }
 
-StringObject* tableFindString(Table* table, const char* runes, int length, uint32_t hash) {
-    if (table->count == 0) return NULL; 
-
-    uint32_t index = hash % table->capacity;
+StringObject* tableFindString(Table* iTable, const char* iRunes, int length, uint32_t hash) {
+    if (iTable->count == 0) {
+        return NULL;
+    }  
+    uint32_t index = hash % iTable->capacity;
 
     for(;;) {
-        Entry* entry = &table->entries[index];
-        if (entry->key == NULL) {
-            // stop if we find a non-tombstone
-            if (IS_VOID(entry->value)) return NULL;
-        } else if (entry->key->length == length &&
-            entry->key->hash == hash &&
-            memcmp(entry->key->runes, runes, length) == 0) {
-                return entry->key;
+        Entry* entry = &iTable->entries_pointer[index];
+        if (entry->key_pointer == NULL) {
+            if (IS_VOID(entry->value)) {
+                return NULL; // stop if we find a non-tombstone
+            }
+        } else if (
+            entry->key_pointer->length == length &&
+            entry->key_pointer->hash == hash &&
+            memcmp(entry->key_pointer->runes_pointer, iRunes, length) == 0) {
+                return entry->key_pointer;
         }
-        index = (index + 1) % table->capacity;
+        index = (index + 1) % iTable->capacity;
     }
 }

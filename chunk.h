@@ -49,14 +49,14 @@ typedef enum {
 typedef struct {
   int count;
   int capacity;
-  uint8_t* code; // array of bytecode
-  int* lines;    // array of lines
+  uint8_t* code_pointer; // array of bytecode
+  int* lines_pointer;    // array of lines
   ValueArray constants;
 } Chunk;
 
-void initChunk(Chunk* chunk);
-void freeChunk(Chunk* chunk);
-void writeChunk(Chunk* chunk, uint8_t byte, int line);
-int addConstant(Chunk* chunk, Value value);
+void initChunk(Chunk* iChunk);
+void freeChunk(Chunk* iChunk);
+void writeChunk(Chunk* iChunk, uint8_t byte, int line);
+int addConstant(Chunk* iChunk, Value value);
 
 #endif

@@ -11,54 +11,54 @@
     (type*)allocateObject(sizeof(type), objectType)
 
 static Object* allocateObject(size_t size, ObjectType type) {
-    Object* object = (Object*)reallocate(NULL, 0, size);
-    object->type = type;
-    object->next = vm.objects;
-    vm.objects = object;
-    return object;
+    Object* iObject = (Object*)reallocate(NULL, 0, size);
+    iObject->type = type;
+    iObject->next_pointer = vm.objects;
+    vm.objects = iObject;
+    return iObject;
 }
 
-static uint32_t hashString(const char* key, int length) {
+static uint32_t hashString(const char* pointer, int length) {
     // FNV-1a
     uint32_t hash = 2166136261u;
     for (int i = 0; i < length; i += 1) {
-        hash ^= (uint8_t)key[i];
+        hash ^= (uint8_t)pointer[i];
         hash *= 16777619;
     }
     return hash;
 }
 
-static StringObject* allocateString(char* runes, int length, uint32_t hash) {
+static StringObject* allocateString(char* iRunes, int length, uint32_t hash) {
     StringObject* string = ALLOCATE_OBJECT(StringObject, STRING_TYPE);
     string->length = length;
-    string->runes = runes;
+    string->runes_pointer = iRunes;
     string->hash = hash;
     tableSet(&vm.strings, string, VOID_VALUE);
     return string;
 }
 
-StringObject* copyString(const char* runes, int length) {
-    uint32_t hash = hashString(runes, length);
-    StringObject* interned = tableFindString(&vm.strings, runes, length, hash);
+StringObject* copyString(const char* iRunes, int length) {
+    uint32_t hash = hashString(iRunes, length);
+    StringObject* interned = tableFindString(&vm.strings, iRunes, length, hash);
 
     if (interned != NULL) return interned;
 
     char* heapRunes = ALLOCATE(char, length + 1);
-    memcpy(heapRunes, runes, length);
+    memcpy(heapRunes, iRunes, length);
     heapRunes[length] = '\0';
     return allocateString(heapRunes, length, hash);
 }
 
-StringObject* takeString(char* runes, int length) {
-    uint32_t hash = hashString(runes, length);
-    StringObject* interned = tableFindString(&vm.strings, runes, length, hash);
+StringObject* takeString(char* iRunes, int length) {
+    uint32_t hash = hashString(iRunes, length);
+    StringObject* interned = tableFindString(&vm.strings, iRunes, length, hash);
 
     if (interned != NULL) {
-        FREE_ARRAY(char, runes, length + 1);
+        FREE_ARRAY(char, iRunes, length + 1);
         return interned;
     }
 
-    return allocateString(runes, length, hash);
+    return allocateString(iRunes, length, hash);
 }
 
 void printObject(Value value) {

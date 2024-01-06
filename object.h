@@ -21,7 +21,7 @@
 #define AS_FUNCTION(value)((FunctionObject)AS_OBJECT(value))
 #define AS_NATIVE(value) ((NativeObject)AS_OBJECT(value))
 #define AS_STRING(value) ((StringObject*)AS_OBJECT(value))
-#define AS_C_STRING(value)(((StringObject*)AS_OBJECT(value))->runes)
+#define AS_C_STRING(value)(((StringObject*)AS_OBJECT(value))->runes_pointer)
 
 typedef enum {
     BOUND_METHOD_TYPE,
@@ -37,13 +37,13 @@ typedef enum {
 struct Object {
     ObjectType type;
     //bool isMarked;
-    struct Object* next; // makes the object heap a linked list for garbage collection
+    struct Object* next_pointer; // makes the object heap a linked list for garbage collection
 };
 
 typedef struct {
     Object object;
     int length;
-    char* runes;
+    char* runes_pointer;
     uint32_t hash;
 } StringObject; //ObjString etc
 
@@ -52,7 +52,7 @@ typedef struct {
     int arity;
     int upvalueCount;
     Chunk chunk;
-    StringObject* name;
+    StringObject* name_pointer;
 } FunctionObject;
 
 // typedef struct {
@@ -62,50 +62,50 @@ typedef struct {
 
 typedef struct {
     Object object;
-    Value* location;
+    Value* location_pointer;
     Value closed;
-    struct UpvalueObject* next;
+    struct UpvalueObject* next_pointer;
 } UpvalueObject;
 
 typedef struct {
     Object object;
-    FunctionObject* function;
-    UpvalueObject** upvalues;
+    FunctionObject* function_pointer;
+    UpvalueObject** upvalues_pp;
     int upvalueCount;
 } ClosureObject;
 
 typedef struct {
     Object object;
-    StringObject* name;
+    StringObject* name_pointer;
     // Table methods;
 } ClassObject;
 
 typedef struct {
     Object object;
-    ClassObject* model;
+    ClassObject* class_pointer;
     // Table fields;
 } InstanceObject;
 
 typedef struct {
     Object object;
     Value reciever;
-    ClosureObject* method;
+    ClosureObject* method_pointer;
 } BoundMethod;
 
 // typedef class
 // typedef instance
 
-typedef Value (*NativeFn)(int argCount, Value* args);
+typedef Value (*NativeFn)(int argCount, Value* iArgs);
 
-BoundMethod* newBoundMethod(Value reciever, ClosureObject* method);
-ClassObject* newClass(StringObject* name);
-InstanceObject* newInstance(ClassObject* model);
-ClosureObject* newClosure(FunctionObject* function);
+BoundMethod* newBoundMethod(Value reciever, ClosureObject* iMethod);
+ClassObject* newClass(StringObject* iName);
+InstanceObject* newInstance(ClassObject* iClass);
+ClosureObject* newClosure(FunctionObject* iFunction);
 FunctionObject* newFunction();
 //NativeObject* newNative(NativeFn function);
-StringObject* copyString(const char* runes, int length);
-StringObject* takeString(char* runes, int length);
-UpvalueObject* newUpvalue(Value* slot);
+StringObject* copyString(const char* iRunes, int length);
+StringObject* takeString(char* iRunes, int length);
+UpvalueObject* newUpvalue(Value* iSlot);
 void printObject(Value value);
 
 static inline bool isObjectType(Value value, ObjectType type) {
