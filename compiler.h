@@ -5,9 +5,9 @@
 #include "object.h"
 #include "vm.h"
 
-bool compile(const char* source, Chunk* chunk);
+bool compile(const char* iSource, Chunk* iChunk);
 static void grouping(bool assignable);
-static void unary();
+static void unary(bool assignable);
 static void binary(bool assignable);
 static void number(bool assignable);
 

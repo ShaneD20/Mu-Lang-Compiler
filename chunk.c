@@ -4,37 +4,36 @@
 #include "vm.h"
 
 // provided a chunk of bytes, it will print instructions
-void initChunk(Chunk* chunk) {
-  chunk->count = 0;
-  chunk->capacity = 0;
-  chunk->code = NULL;
-  chunk->lines = NULL;
-  initValueArray(&chunk->constants);
+void initChunk(Chunk* iChunk) {
+  iChunk->count = 0;
+  iChunk->capacity = 0;
+  iChunk->code_pointer = NULL;
+  iChunk->lines_pointer = NULL;
+  initValueArray(&iChunk->constants);
+}
+void freeChunk(Chunk* iChunk) {
+  FREE_ARRAY(uint8_t, iChunk->code_pointer, iChunk->capacity);
+  FREE_ARRAY(int, iChunk->lines_pointer, iChunk->capacity);
+  freeValueArray(&iChunk->constants);
+  initChunk(iChunk);
 }
 
-void writeChunk(Chunk* chunk, uint8_t byte, int line) {
-  if (chunk->capacity < chunk->count + 1) {
-    int size = chunk->capacity;
-    chunk->capacity = GROW_CAPACITY(size);
-    chunk->code  = GROW_ARRAY(uint8_t, chunk->code, size, chunk->capacity);
-    chunk->lines = GROW_ARRAY(int, chunk->lines, size, chunk->capacity); // Book had oldCapacity??
+void writeChunk(Chunk* iChunk, uint8_t byte, int line) {
+  if (iChunk->capacity <iChunk->count + 1) {
+    int size = iChunk->capacity;
+    iChunk->capacity = GROW_CAPACITY(size);
+    iChunk->code_pointer  = GROW_ARRAY(uint8_t, iChunk->code_pointer, size, iChunk->capacity);
+    iChunk->lines_pointer = GROW_ARRAY(int, iChunk->lines_pointer, size, iChunk->capacity); // Book had oldCapacity??
   }
 
-  chunk->code[chunk->count] = byte;
-  chunk->lines[chunk->count] = line;
-  chunk->count += 1;
+  iChunk->code_pointer[iChunk->count] = byte;
+  iChunk->code_pointer[iChunk->count] = line;
+  iChunk->count += 1;
 }
 
-int addConstant(Chunk* chunk, Value value) {
+int addConstant(Chunk* iChunk, Value value) {
   push(value);
-  writeValueArray(&chunk->constants, value);
+  writeValueArray(&iChunk->constants, value);
   pop();
-  return chunk->constants.count - 1;
-}
-
-void freeChunk(Chunk* chunk) {
-  FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
-  FREE_ARRAY(int, chunk->lines, chunk->capacity);
-  freeValueArray(&chunk->constants);
-  initChunk(chunk);
+  return iChunk->constants.count - 1;
 }

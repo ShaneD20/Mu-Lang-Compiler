@@ -4,43 +4,43 @@
 #include "scanner.h"
 
 typedef struct {
-  const char* start;
-  const char* current;
+  const char* start_pointer;
+  const char* current_pointer;
   int line;
 } Scanner;
 
 Scanner scanner;
 
-void initScanner(const char* source) {
-  scanner.start = source;
-  scanner.current = source;
+void initScanner(const char* iSource) {
+  scanner.start_pointer = iSource;
+  scanner.current_pointer = iSource;
   scanner.line = 1;
 }
 
 /* start HELPER functions
 */
 static bool isAtEnd() {
-  return *scanner.current == '\0';
+  return *scanner.current_pointer == '\0';
 }
 static char advance() {
-  scanner.current += 1;
-  return scanner.current[-1];
+  scanner.current_pointer += 1;
+  return scanner.current_pointer[-1];
 }
 static char peek() {
-  return *scanner.current;
+  return *scanner.current_pointer;
 }
 static char peekNext() {
   if (isAtEnd()) {
     return '\0';
   }
-  return scanner.current[1];
+  return scanner.current_pointer[1];
 }
 
 static bool match(char expected) {
-  if (isAtEnd() || *scanner.current != expected) { //TODO 
+  if (isAtEnd() || *scanner.current_pointer != expected) { //TODO 
     return false;
   }
-  scanner.current += 1;
+  scanner.current_pointer += 1;
   return true;
 }
 static bool isAlpha(char rune) {
@@ -54,8 +54,8 @@ static bool isDigit(char rune) {
 static Token tokenize(TokenType type) { // can see how this could easily be non-exhaustive
   Token token;
   token.type = type;
-  token.start = scanner.start;
-  token.length = (int)(scanner.current - scanner.start);
+  token.start_pointer = scanner.start_pointer;
+  token.length = (int)(scanner.current_pointer - scanner.start_pointer);
   token.line = scanner.line;
   return token;
 }
@@ -71,11 +71,11 @@ static Token numberize() {
   }
   return tokenize(L_FLOAT);
 }
-static Token errorToken(const char* message) {
+static Token errorToken(const char* iMessage) {
   Token token;
   token.type = TOKEN_ERROR;
-  token.start = message;
-  token.length = (int)strlen(message);
+  token.start_pointer = iMessage;
+  token.length = (int)strlen(iMessage);
   token.line = scanner.line;
   return token;
 }
@@ -109,15 +109,15 @@ static void handleWhitespace() {
 }
 /* end HELPER functions
 */
-static TokenType testKeyword(int start, int length, const char* remaining, TokenType token) {
-  if (scanner.current - scanner.start == start + length
-      && memcmp(scanner.start + start, remaining, length) == 0) {
+static TokenType testKeyword(int start, int length, const char* iRemaining, TokenType token) {
+  if (scanner.current_pointer - scanner.start_pointer == start + length
+      && memcmp(scanner.start_pointer + start, iRemaining, length) == 0) {
         return token;
   }
   return L_IDENTIFIER;
 }
 static TokenType KeywordOrLiteral() {
-  switch (scanner.start[0]) {
+  switch (scanner.start_pointer[0]) {
     case 'a' : return testKeyword(1, 2, "nd", K_AND);
     case 'b' : return testKeyword(1, 4, "uild", K_BUILD);
     case 'd' : return testKeyword(1, 5, "efine", K_DEFINE);
@@ -130,8 +130,8 @@ static TokenType KeywordOrLiteral() {
     case 'r' : return testKeyword(1, 5, "eturn", K_RETURN);
     case 's' : return testKeyword(1, 3, "elf", K_SELF);
     case 't' : return testKeyword(1, 4, "rue", K_TRUE);
-    case 'u' : if (scanner.current - scanner.start > 1 && scanner.start[1] == 'n') {
-      switch (scanner.start[2]) {
+    case 'u' : if (scanner.current_pointer - scanner.start_pointer > 1 && scanner.start_pointer[1] == 'n') {
+      switch (scanner.start_pointer[2]) {
         case 'l' : return testKeyword(1, 3, "ess", K_UNLESS);
         case 't' : return testKeyword(1, 2, "il", K_UNTIL);
       }
@@ -166,7 +166,7 @@ static Token string() {
 
 Token scanToken() { //used in compiler.c
   handleWhitespace();
-  scanner.start = scanner.current;
+  scanner.start_pointer = scanner.current_pointer;
 
   if (isAtEnd()) {
     return tokenize(END_OF_FILE);

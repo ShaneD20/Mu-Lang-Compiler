@@ -30,42 +30,43 @@ typedef struct {
 } Compiler;
 
 Parser parser;
-Compiler* current = NULL;
-Chunk* compilingChunk;
+Compiler* iCurrent = NULL;
+Chunk* iCompilingChunk = NULL; //TODO remove
 
 static void initCompiler(Compiler* compiler) {
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
-  current = compiler;
+  iCurrent = compiler;
 }
 
 /* Start HELPER functions */
 static Chunk* currentChunk() {
-  return compilingChunk;
+  return iCompilingChunk;
 }
-static void errorAt(Token* token, const char* message) {
+static void errorAt(Token* iToken, const char* iMessage) {
   if (parser.panic) {
     return;
   }
   parser.panic = true;
-  fprintf(stderr, "[line %d] Error", token->line);
+  fprintf(stderr, "[line %d] Error", iToken->line);
 
-  if (token->type == END_OF_FILE) {
+  if (iToken->type == END_OF_FILE) {
     fprintf(stderr, "at end of file");
-  } else if (token->type == TOKEN_ERROR) {
+  } else if (iToken->type == TOKEN_ERROR) {
     //nothing
   } else {
-    fprintf(stderr, " at '%.*s'", token->length, token->start);
+    fprintf(stderr, " at '%.*s'", iToken->length, iToken->start_pointer);
   }
 
-  fprintf(stderr, ": %s\n", message);
+  fprintf(stderr, ": %s\n", iMessage);
   parser.hadError = true;
 }
-static void error(const char* message) {
-  errorAt(&parser.previous, message);
+
+static void error(const char* iMessage) {
+  errorAt(&parser.previous, iMessage);
 }
-static void errorAtCurrent(const char* message) {
-  errorAt(&parser.current, message);
+static void errorAtCurrent(const char* iMessage) {
+  errorAt(&parser.current, iMessage);
 }
 static void advance() {
   parser.previous = parser.current;
@@ -78,15 +79,15 @@ static void advance() {
     if (parser.current.type != TOKEN_ERROR) {
       break;
     }
-    errorAtCurrent(parser.current.start);
+    errorAtCurrent(parser.current.start_pointer);
   }
 }
-static void consume(TokenType current, const char* message) {
+static void consume(TokenType current, const char* iMessage) {
   if (parser.current.type == current) {
     advance();
     return;
   }
-  errorAtCurrent(message);
+  errorAtCurrent(iMessage);
 }
 static bool check(TokenType type) {
   return parser.current.type == type;
@@ -124,7 +125,11 @@ static int emitJump(uint8_t instruction) {
 static void patchJump(int offset) {
   int jump = currentChunk()->count - offset - 2;
 
-  //TODO
+  if (jump > UINT16_MAX) {
+    error("Too much code to jump over.");
+  }
+  currentChunk()->code_pointer[offset] = (jump >> 8) & 0xff;
+  currentChunk()->code_pointer[offset + 1] = jump & 0xff;
 }
 static void emitReturn() {
   //TODO initializer
@@ -154,7 +159,7 @@ static void quitCompiler() {
 }
 
 static void number(bool assignable) {
-  double value = strtod(parser.previous.start, NULL);
+  double value = strtod(parser.previous.start_pointer, NULL);
   emitConstant(NUMBER_VALUE(value));
 }
 void parsePrecedence(Precedence rule) {
@@ -178,63 +183,63 @@ void parsePrecedence(Precedence rule) {
   }
 }
 
-static uint8_t identifierConstant(Token* name) {
-  return makeConstant(OBJECT_VALUE(copyString(name->start, name->length)));
+static uint8_t identifierConstant(Token* iName) {
+  return makeConstant(OBJECT_VALUE(copyString(iName->start_pointer, iName->length)));
   // assigns global
 }
 
-static bool identifiersEqual(Token* a, Token* b) {
-  if (a->length != b->length) {
+static bool identifiersEqual(Token* iA, Token* iB) {
+  if (iA->length != iB->length) {
     return false;
   }
-  return memcmp(a->start, b->start, a->length) == 0;
+  return memcmp(iA->start_pointer, iB->start_pointer, iA->length) == 0;
 }
 
 static void markInitialized() {
-  current->locals[current->localCount - 1].depth = current->scopeDepth;
+  iCurrent->locals[iCurrent->localCount - 1].depth = iCurrent->scopeDepth;
 }
 
 static void addLocal(Token name) {
-  if (current->localCount == UNIT8_COUNT) {
+  if (iCurrent->localCount == UNIT8_COUNT) {
     error("Too many local variables for this function.");
     return;
   }
-  Local* data = &current->locals[current->localCount += 1];
-  data->name = name;
+  Local* iLocal = &iCurrent->locals[iCurrent->localCount += 1];
+  iLocal->name = name;
   // data->depth = current->scopeDepth;
-  data->depth = -1;
+  iLocal->depth = -1;
 }
 
 static void declareVariable() {
-  if (current->scopeDepth == 0) {
+  if (iCurrent->scopeDepth == 0) {
     return;
   }
 
-  Token* name = &parser.previous;
+  Token* iName = &parser.previous;
 
-  for (int i = current->localCount - 1; i >= 0; i -= 1) {
-    Local* data = &current->locals[i];
-    if (data->depth != -1 && data->depth < current->scopeDepth) {
+  for (int i = iCurrent->localCount - 1; i >= 0; i -= 1) {
+    Local* iLocal = &iCurrent->locals[i];
+    if (iLocal->depth != -1 && iLocal->depth < iCurrent->scopeDepth) {
       break;
     }
-    if (identifiersEqual(name, &data->name)) {
+    if (identifiersEqual(iName, &iLocal->name)) {
       error("A local variable with this name is already within scope.");
     }
   }
-  addLocal(*name);
+  addLocal(*iName);
 }
 
-static uint8_t parseVariable(const char* message) {
-  consume(L_IDENTIFIER, message);
+static uint8_t parseVariable(const char* iMessage) {
+  consume(L_IDENTIFIER, iMessage);
 
   declareVariable();
-  if (current->scopeDepth > 0) return 0;
+  if (iCurrent->scopeDepth > 0) return 0;
 
   return identifierConstant(&parser.previous);
 }
 
 static void defineVariable(uint8_t global) {
-  if (current->scopeDepth > 0) {
+  if (iCurrent->scopeDepth > 0) {
     markInitialized();
     return;
   }
@@ -272,15 +277,15 @@ static void synchronize() {
 }
 
 static void beginScope() {
-  current->scopeDepth += 1;
+  iCurrent->scopeDepth += 1;
 }
 static void endScope() {
-  current->scopeDepth -= 1;
+  iCurrent->scopeDepth -= 1;
 
-  while (current->localCount > 0 &&
-    current->locals[current->localCount - 1].depth > current->scopeDepth) {
+  while (iCurrent->localCount > 0 &&
+    iCurrent->locals[iCurrent->localCount - 1].depth > iCurrent->scopeDepth) {
       emitByte(OP_POP);
-      current->localCount += -1;
+      iCurrent->localCount += -1;
   }
 }
 
@@ -347,9 +352,28 @@ static void block() {
   consume(S_RIGHT_CURLYBRACE, "Expext a '}' to finish a block context.");
 }
 
+static void ifStatement() { //TODO revise for mu
+  // consume(S_LEFT_PARENTHESIS, "expect ( after if...");
+  expression();
+  consume(S_QUESTION, "expect ? to complete condition");
+  int thenJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  statement();
+  int elseJump = emitJump(OP_JUMP);
+  patchJump(thenJump);
+  emitByte(OP_POP);
+  
+  if (match(K_ELSE)) {
+    statement();
+  }
+  patchJump(elseJump);
+}
+
 static void statement() {
   if (match(K_PRINT)) {
     printStatement();
+  } else if (match(K_IF)) {
+    ifStatement(); //TODO make expression
   } else if (match(S_LEFT_CURLYBRACE)) {
     beginScope();
     block();
@@ -376,8 +400,8 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 */
 static void binary(bool assignable) {
   TokenType operator = parser.previous.type;
-  ParseRule* rule = getRule(operator);
-  parsePrecedence((Precedence)(rule->precedence + 1));
+  ParseRule* iRule = getRule(operator);
+  parsePrecedence((Precedence)(iRule->precedence + 1));
 
   switch (operator) {
     case D_BANG_TILDE: emitBytes(OP_EQUAL, OP_NOT);
@@ -404,7 +428,7 @@ static void binary(bool assignable) {
       return; // unreachable
   }
 }
-static void unary() {
+static void unary(bool assignable) {
   TokenType operator = parser.previous.type;
   expression(); //compiles the operand
   parsePrecedence(UNARY_PRECEDENCE);
@@ -429,13 +453,13 @@ static void literal(bool assignable) {
 }
 static void string(bool assignable) {
   emitConstant(OBJECT_VALUE(
-    copyString(parser.previous.start + 1, parser.previous.length - 2)
+    copyString(parser.previous.start_pointer + 1, parser.previous.length - 2)
   ));
   // TODO add escape characters
 }
 static void namedVariable(Token name, bool assignable) {
   uint8_t getOP, setOP;
-  int arg = resolveLocal(current, &name);
+  int arg = resolveLocal(iCurrent, &name);
   if (arg != -1) {
     getOP = OP_GET_LOCAL;
     setOP = OP_SET_LOCAL;
@@ -502,11 +526,11 @@ static ParseRule* getRule(TokenType token) {
   return &rules[token];
 }
 
-bool compile(const char* source, Chunk* chunk) {
-  initScanner(source);
+bool compile(const char* iSource, Chunk* iChunk) {
+  initScanner(iSource);
   Compiler compiler;
   initCompiler(&compiler);
-  compilingChunk = chunk;
+  iCompilingChunk = iChunk;
   parser.hadError = false;
   parser.panic = false;
   advance();

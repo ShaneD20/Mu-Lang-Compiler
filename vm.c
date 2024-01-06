@@ -1,13 +1,14 @@
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 #include "common.h"
 #include "vm.h"
 #include "debug.h"
 #include "compiler.h"
 #include "object.h"
 #include "memory.h"
-#include "table.h"
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
+// #include "table.h"
 
 VM vm;
 
@@ -47,8 +48,8 @@ static void runtimeError(const char* format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-  size_t instruction = vm.ip - vm.chunk->code - 1;
-  int line = vm.chunk->lines[instruction];
+  size_t instruction = vm.ip - vm.chunk->code_pointer - 1;
+  int line = vm.chunk->lines_pointer[instruction];
 
   fprintf(stderr, "[line %d] in script\n", line);
   resetStack();
@@ -61,8 +62,8 @@ static void concatenate() {
   int length = left->length + right->length;
 
   char* runes = ALLOCATE(char, length + 1);
-  memcpy(runes, left->runes, left->length);
-  memcpy(runes + left->length, right->runes, right->length);
+  memcpy(runes, left->runes_pointer, left->length);
+  memcpy(runes + left->length, right->runes_pointer, right->length);
   runes[length] = '\0';
 
   StringObject* result = takeString(runes, length);
@@ -72,8 +73,8 @@ static void concatenate() {
 
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip += 1)
-#define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
-//lazily treats all numbers as doubles
+#define READ_SHORT() (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
+#define READ_CONSTANT() (vm.chunk->constants.values_pointer[READ_BYTE()]) //lazily treats all numbers as doubles
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
   do { \
@@ -100,6 +101,7 @@ static InterpretResult run() {
     /* end Stack Tracking */
     disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
 #endif
+  // start of run()
     uint8_t instruction; //TODO
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT : {
@@ -129,7 +131,7 @@ static InterpretResult run() {
         StringObject* name = READ_STRING();
         Value value; //TODO ???
         if (!tableGet(&vm.globals, name, &value)) {
-          runtimeError("Undefined variable '%s'.", name->runes);
+          runtimeError("Undefined variable '%s'.", name->runes_pointer);
           return INTERPRET_RUNTIME_ERROR;
         }
         push(value);
@@ -139,7 +141,7 @@ static InterpretResult run() {
         StringObject* name = READ_STRING();
         if (tableSet(&vm.globals, name, peek(0))) {
           deleteEntry(&vm.globals, name);
-          runtimeError("Undefined variable '%s'.", name->runes);
+          runtimeError("Undefined variable '%s'.", name->runes_pointer);
           return INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -191,6 +193,18 @@ static InterpretResult run() {
         printf("\n");
         break;
       }
+      case OP_JUMP : {
+        uint16_t offset = READ_SHORT();
+        vm.ip += offset;
+        break;
+      }
+      case OP_JUMP_IF_FALSE : {
+        uint16_t offset = READ_SHORT();
+        if (isFalsey(peek(0))) {
+          vm.ip += offset;
+        }
+        break;
+      }
       case OP_RETURN : { //TODO change after implementing functions
         // printValue(pop());
         // printf("\n");
@@ -202,6 +216,7 @@ static InterpretResult run() {
 #undef READ_BYTE
 #undef BINARY_OP
 #undef READ_STRING
+#undef READ_SHORT
 }
 
 InterpretResult interpret(const char* source) {
@@ -213,7 +228,7 @@ InterpretResult interpret(const char* source) {
     return INTERPRET_COMPILE_ERROR;
   }
   vm.chunk = &chunk;
-  vm.ip = vm.chunk->code;
+  vm.ip = vm.chunk->code_pointer;
 
   InterpretResult result = run();
 

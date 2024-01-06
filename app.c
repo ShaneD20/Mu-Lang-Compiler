@@ -6,8 +6,17 @@
 #include "debug.h"
 #include "vm.h"
 
+// top level pointer variables --> iVariable
+// struct property pointers --> property_pointer
+
 static void repl() {
   char line[1024];
+  // do {
+  //   printf(":: ");
+  //   interpret(line);
+  //   printf("\n");
+  // } while (fgets(line, sizeof(line), stdin)); 
+
   for (;;) {
     printf(":: ");
 
@@ -15,38 +24,40 @@ static void repl() {
       printf("\n");
       break;
     }
-
-    interpret(line);
+    interpret(line); // vm.h
   }
 }
 
-static char* readFile(const char* path) {
-  FILE* file = fopen(path, "rb");
-  if (file == NULL) {
-    fprintf(stderr, "Could not open file \"%s\".'n", path);
-    exit(74);
-  }
-  fseek(file, 0L, SEEK_END);
-  size_t fileSize = ftell(file);
-  rewind(file);
-
-  char* buffer = (char*)malloc(fileSize + 1);
-  if (buffer == NULL) {
-    fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
+static char* readFile(const char* o_path) {
+  FILE* o_file = fopen(o_path, "rb");
+  // handle no file
+  if (o_file == NULL) { 
+    fprintf(stderr, "Could not open file \"%s\".'n", o_path);
     exit(74);
   }
 
-  size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
-  buffer[bytesRead] = '\0';
+  fseek(o_file, 0L, SEEK_END);
+  size_t fileSize = ftell(o_file);
+  rewind(o_file);
 
-  fclose(file);
-  return buffer;
+  char* o_buffer = (char*)malloc(fileSize + 1);
+  //handle no buffer
+  if (o_buffer == NULL) {
+    fprintf(stderr, "Not enough memory to read \"%s\".\n", o_path);
+    exit(74);
+  }
+
+  size_t bytesRead = fread(o_buffer, sizeof(char), fileSize, o_file);
+  o_buffer[bytesRead] = '\0';
+
+  fclose(o_file);
+  return o_buffer;
 }
 
-static void runFile(const char* path) {
-  char* source = readFile(path);
-  InterpretResult result = interpret(source);
-  free(source);
+static void runFile(const char* o_path) {
+  char* o_source = readFile(o_path);
+  InterpretResult result = interpret(o_source);
+  free(o_source);
 
   if (result == INTERPRET_COMPILE_ERROR) {
     exit(65);

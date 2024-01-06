@@ -20,7 +20,7 @@ typedef struct {
   union {
     bool TF;
     double number;
-    Object* object;
+    Object* object_pointer;
   } as;
 } Value;
 
@@ -72,7 +72,7 @@ static inline Value numToValue(double num) {
 
 #define AS_TF(value)    ((value).as.TF)
 #define AS_NUMBER(value)  ((value).as.number)
-#define AS_OBJECT(value) ((value).as.object)
+#define AS_OBJECT(value) ((value).as.object_pointer)
 
 #define IS_TF(value)    ((value).type == VALUE_TF)
 #define IS_VOID(value)     ((value).type == VALUE_VOID)
@@ -82,7 +82,7 @@ static inline Value numToValue(double num) {
 #define TF_VALUE(value)   ((Value){VALUE_TF, {.TF = value}})
 #define VOID_VALUE           ((Value){VALUE_VOID, {.number = 0}})
 #define NUMBER_VALUE(value) ((Value){VALUE_FLOAT, {.number = value}})
-#define OBJECT_VALUE(input) ((Value){VALUE_OBJECT, {.object = (Object*)input}})
+#define OBJECT_VALUE(input) ((Value){VALUE_OBJECT, {.object_pointer = (Object*)input}})
 
 //#define IS_OBJ(value)     ((value).type == VAL_OBJ)
 //#define AS_OBJ(value)     ((value).as.obj)
@@ -93,13 +93,13 @@ static inline Value numToValue(double num) {
 typedef struct {
   int capacity;
   int count;
-  Value *values;
+  Value* values_pointer;
 } ValueArray;
 
 bool valuesEqual(Value a, Value b);
-void initValueArray(ValueArray *array);
-void writeValueArray(ValueArray *array, Value value);
-void freeValueArray(ValueArray *array);
+void initValueArray(ValueArray* iArray);
+void writeValueArray(ValueArray* iArray, Value value);
+void freeValueArray(ValueArray* iArray);
 void printValue(Value value);
 
 #endif
