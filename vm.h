@@ -5,16 +5,23 @@
 #include "object.h"
 #include "value.h"
 #include "table.h"
-#define STACK_MAX 256
+#define FRAMES_MAX 64
+#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
 typedef struct {
-  Chunk* chunk;
-  uint8_t* ip; // always points to the next instruction, not the one currently being handled
+  FunctionObject* function_pointer;
+  uint8_t* ip;
+  Value* slots_pointer;
+} CallFrame;
+
+typedef struct {
+  CallFrame frames[FRAMES_MAX];
+  int frameCount;
   Value stack[STACK_MAX];
-  Value* stackTop;
-  Table strings;
+  Value* top_pointer;
   Table globals;
-  Object* objects; // for Garbage Collection
+  Table strings;
+  Object* objects_pointer; // for Garbage Collection
 } VM;
 
 typedef enum {

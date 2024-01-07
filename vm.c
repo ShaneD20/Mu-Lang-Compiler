@@ -18,19 +18,20 @@ void freeVM() {
   freeObjects();
 }
 void push(Value value) {
-  *vm.stackTop = value;
-  vm.stackTop += 1;
+  *vm.top_pointer = value;
+  vm.top_pointer += 1;
 }
 Value pop() {
-  vm.stackTop += -1; // moving down is enough to show a value as no longer in use.
-  return *vm.stackTop;
+  vm.top_pointer += -1; // moving down is enough to show a value as no longer in use.
+  return *vm.top_pointer;
 }
 static Value peek(int distance) {
-  return vm.stackTop[-1 - distance];
+  return vm.top_pointer[-1 - distance];
 }
 static void resetStack() {
-  // vm.stackTop = vm.stack;
-  vm.objects = NULL;
+  vm.top_pointer = vm.stack;
+  vm.frameCount = 0;
+  // vm.openUpValues = NULL;
 }
 void initVM() { //TODO compare
   resetStack();
@@ -48,12 +49,12 @@ static void runtimeError(const char* format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-  size_t instruction = vm.ip - vm.chunk->code_pointer - 1;
-  int line = vm.chunk->lines_pointer[instruction];
+  CallFrame* oFrame = &vm.frames[vm.frameCount -= 1];
+  size_t instruction = oFrame->ip - oFrame->function_pointer->chunk.code_pointer - 1;
+  int line = oFrame->function_pointer->chunk.lines_pointer[instruction];
 
-  fprintf(stderr, "[line %d] in script\n", line);
+  fprintf(stderr, "[line %d] in script.\n", line);
   resetStack();
-
 }
 
 static void concatenate() {
@@ -72,9 +73,10 @@ static void concatenate() {
 }
 
 static InterpretResult run() {
-#define READ_BYTE() (*vm.ip += 1)
-#define READ_SHORT() (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
-#define READ_CONSTANT() (vm.chunk->constants.values_pointer[READ_BYTE()]) //lazily treats all numbers as doubles
+  CallFrame* oFrame = &vm.frames[vm.frameCount - 1];
+#define READ_BYTE() (*oFrame->ip += 1)
+#define READ_SHORT() (oFrame->ip += 2, (uint16_t)((oFrame->ip[-2] << 8) | oFrame->ip[-1]))
+#define READ_CONSTANT() (oFrame->function_pointer->chunk.constants.values_pointer[READ_BYTE()]) //lazily treats all numbers as doubles
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
   do { \
@@ -89,7 +91,7 @@ static InterpretResult run() {
 // while (false) is to manage trailing semicolons 
 
   while (true) {
-#ifdef DEBUG_TRACE_EXECUTION
+#ifdef DEBUG_TRACE_EXECUTION //TODO compare all
     /* Stack Tracing */
     printf(" ");
     for (Value* slot = vm.stack; slot < vm.stackTop; slot += 1) {
@@ -99,7 +101,7 @@ static InterpretResult run() {
     }
     printf("\n");
     /* end Stack Tracking */
-    disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
+    disassembleInstruction(&frame->function->chunk, (int)(frame->ip - frame->function->chunk.code));
 #endif
   // start of run()
     uint8_t instruction; //TODO
@@ -119,12 +121,12 @@ static InterpretResult run() {
         break;
       case OP_GET_LOCAL : {
         uint8_t slot = READ_BYTE();
-        push(vm.stack[slot]);
+        push(oFrame->slots_pointer[slot]);
         break;
       }
       case OP_SET_LOCAL : {
         uint8_t slot = READ_BYTE();
-        vm.stack[slot] = peek(0);
+        oFrame->slots_pointer[slot] = peek(0);
         break;
       }
       case OP_GET_GLOBAL : {
@@ -195,14 +197,19 @@ static InterpretResult run() {
       }
       case OP_JUMP : {
         uint16_t offset = READ_SHORT();
-        vm.ip += offset;
+        oFrame->ip += offset;
         break;
       }
-      case OP_JUMP_IF_FALSE : {
+      case OP_JUMP_IF_FALSE : { // TODO jump if true
         uint16_t offset = READ_SHORT();
         if (isFalsey(peek(0))) {
-          vm.ip += offset;
+          oFrame->ip += offset;
         }
+        break;
+      }
+      case OP_LOOP : {
+        uint16_t offset = READ_SHORT();
+        oFrame->ip -= offset;
         break;
       }
       case OP_RETURN : { //TODO change after implementing functions
@@ -220,18 +227,18 @@ static InterpretResult run() {
 }
 
 InterpretResult interpret(const char* source) {
-  Chunk chunk;
-  initChunk(&chunk);
+  FunctionObject* oFunction = compile(source);
 
-  if (!compile(source, &chunk)) {
-    freeChunk(&chunk);
+  if (oFunction == NULL) {
     return INTERPRET_COMPILE_ERROR;
   }
-  vm.chunk = &chunk;
-  vm.ip = vm.chunk->code_pointer;
 
-  InterpretResult result = run();
+  push(OBJECT_VALUE(oFunction));
 
-  freeChunk(&chunk);
-  return result;
+  CallFrame* oFrame = &vm.frames[vm.frameCount += 1];
+  oFrame->function_pointer = oFunction;
+  oFrame->ip = oFunction->chunk.code_pointer;
+  oFrame->slots_pointer = vm.stack;
+
+  return run();
 }

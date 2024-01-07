@@ -196,6 +196,7 @@ Token scanToken() { //used in compiler.c
     case '+' : return tokenize(S_PLUS);
     case '*' : return tokenize(S_STAR);
     case '/' : return tokenize(S_SLASH);
+    case '#' : return tokenize(S_OCTO);
     // double character
     case '!' : return tokenize(match('~') ? D_BANG_TILDE : S_BANG);
     case '=' : return tokenize(match('=') ? D_EQUAL : S_EQUAL);

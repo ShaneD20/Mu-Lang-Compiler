@@ -18,6 +18,23 @@ static Object* allocateObject(size_t size, ObjectType type) {
     return iObject;
 }
 
+FunctionObject* newFunction() {
+    FunctionObject* oFunction = ALLOCATE_OBJECT(FunctionObject, FUNCTION_TYPE);
+    oFunction->arity = 0;
+    oFunction->name_pointer = NULL;
+    oFunction->upvalueCount = 0; //TODO revisist
+    initChunk(&oFunction->chunk);
+    return oFunction;
+}
+
+static void printFunction(FunctionObject* iFunction) {
+    if (iFunction->name_pointer == NULL) {
+        printf("<script>");
+        return;
+    }
+    printf("<fn %s", iFunction->name_pointer->runes_pointer);
+}
+
 static uint32_t hashString(const char* pointer, int length) {
     // FNV-1a
     uint32_t hash = 2166136261u;
@@ -72,7 +89,10 @@ void printObject(Value value) {
             break;
         case CLOSURE_TYPE :
             break;
-        case FUNCTION_TYPE :
+        case FUNCTION_TYPE : {
+            printFunction(AS_FUNCTION(value));
+            break;
+        }
             break;
         case INSTANCE_TYPE :
             break;

@@ -37,7 +37,12 @@ static void freeObject(Object* iObject) {
       break;
     case CLOSURE_TYPE :
       break;
-    case FUNCTION_TYPE :
+    case FUNCTION_TYPE : {
+      FunctionObject* oFunction = (FunctionObject*)iObject;
+      freeChunk(&oFunction->chunk);
+      FREE(FunctionObject, iObject);
+      break;
+    }
       break;
     case INSTANCE_TYPE :
       break;

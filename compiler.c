@@ -23,7 +23,14 @@ typedef struct {
   int depth;
 } Local;
 
+typedef enum {
+  LAMBDA_FUNCTION,
+  SCRIPT_FUNCTION,
+} FunctionType;
+
 typedef struct {
+  FunctionObject* function_pointer;
+  FunctionType type;
   Local locals[UNIT8_COUNT];
   int localCount;
   int scopeDepth;
@@ -33,15 +40,23 @@ Parser parser;
 Compiler* iCurrent = NULL;
 Chunk* iCompilingChunk = NULL; //TODO remove
 
-static void initCompiler(Compiler* compiler) {
-  compiler->localCount = 0;
-  compiler->scopeDepth = 0;
-  iCurrent = compiler;
+static void initCompiler(Compiler* iCompiler, FunctionType type) {
+  iCompiler->function_pointer = NULL;
+  iCompiler->type = type;
+  iCompiler->localCount = 0;
+  iCompiler->scopeDepth = 0;
+  iCompiler->function_pointer = newFunction();
+  iCurrent = iCompiler;
+
+  Local* oLocal = &iCurrent->locals[iCurrent->localCount += 1];
+  oLocal->depth = 0;
+  oLocal->name.start_pointer = "";
+  oLocal->name.length = 0;
 }
 
 /* Start HELPER functions */
 static Chunk* currentChunk() {
-  return iCompilingChunk;
+  return &iCurrent->function_pointer->chunk;
 }
 static void errorAt(Token* iToken, const char* iMessage) {
   if (parser.panic) {
@@ -149,13 +164,16 @@ static void emitConstant(Value value) {
   emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
-static void quitCompiler() {
+static FunctionObject* quitCompiler() {
   emitReturn();
+  FunctionObject* oFunction = iCurrent->function_pointer;
   #ifdef DEBUG_PRINT_CODE
     if (!parser.hadError) {
-      disassembleChunk(currentChunk(), "code");
+      disassembleChunk(currentChunk(), function->name != NULL
+        ? function->name->chars : "<script>");
     }
   #endif
+  return oFunction;
 }
 
 static void number(bool assignable) {
@@ -246,6 +264,23 @@ static void defineVariable(uint8_t global) {
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
+static void and_(bool assignable) {
+  int endJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  parsePrecedence(AND_PRECEDENCE);
+  patchJump(endJump);
+}
+
+static void or_(bool assignable) { //TODO re-write with a JUMP_IF_TRUE, currently slower than 'and'
+  int elseJump = emitJump(OP_JUMP_IF_FALSE);
+  int endJump = emitJump(OP_JUMP);
+
+  patchJump(elseJump);
+  emitByte(OP_POP);
+  parsePrecedence(OR_PRECEDENCE);
+  patchJump(endJump);
+}
+
 static void expression() {
   parsePrecedence(ASSIGNMENT_PRECEDENCE);
 }
@@ -326,6 +361,31 @@ static void printStatement() {
   expression();
   consume(S_SEMICOLON, "Expect ';' after value.");
   emitByte(OP_PRINT); // hands off to vm.c
+}
+
+static void whileStatement() { //TODO add iterator
+  int loopStart = currentChunk()->count;
+  expression();
+  consume(S_QUESTION, "expect '?' after condition.");
+
+  int exitJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  statement();
+  emitLoop(loopStart);
+  patchJump(exitJump);
+  emitByte(OP_POP);
+}
+static void untilStatement() { //TODO, follow through to mirror while, add generators
+  int loopStart = currentChunk()->count;
+  expression();
+  consume(S_QUESTION, "expect '?' after condition.");
+
+  int exitJump = emitJump(OP_JUMP_IF_TRUE);
+  emitByte(OP_POP);
+  statement();
+  emitLoop(loopStart);
+  patchJump(exitJump);
+  emitByte(OP_POP);
 }
 
 static void declaration() {
@@ -504,8 +564,8 @@ ParseRule rules[] = {
   [S_LESS] = {NULL, binary, COMPARISON_PRECEDENCE},
   [D_GREATER_EQUAL] = {NULL, binary, COMPARISON_PRECEDENCE},
   [D_LESS_EQUAL] = {NULL, binary, COMPARISON_PRECEDENCE},
-  [K_AND] = {NULL, NULL, AND_PRECEDENCE},
-  [K_OR] = {NULL, NULL, OR_PRECEDENCE},
+  [K_AND] = {NULL, and_, AND_PRECEDENCE},
+  [K_OR] = {NULL, or_, OR_PRECEDENCE},
   [K_BUILD] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_DEFINE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_ELSE] = {NULL, NULL, ZERO_PRECEDENCE},
@@ -526,11 +586,11 @@ static ParseRule* getRule(TokenType token) {
   return &rules[token];
 }
 
-bool compile(const char* iSource, Chunk* iChunk) {
+FunctionObject* compile(const char* iSource) {
   initScanner(iSource);
   Compiler compiler;
-  initCompiler(&compiler);
-  iCompilingChunk = iChunk;
+  initCompiler(&compiler, SCRIPT_FUNCTION);
+  // iCompilingChunk = iChunk;
   parser.hadError = false;
   parser.panic = false;
   advance();
@@ -541,6 +601,7 @@ bool compile(const char* iSource, Chunk* iChunk) {
   //expression();
   //consume(END_OF_FILE, "Expect complete expression");
 
-  quitCompiler();
-  return !parser.hadError;
+  FunctionObject* oFunction = quitCompiler();
+  return parser.hadError ?
+    NULL : oFunction;
 }
