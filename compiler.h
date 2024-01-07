@@ -5,7 +5,7 @@
 #include "object.h"
 #include "vm.h"
 
-bool compile(const char* iSource, Chunk* iChunk);
+FunctionObject* compile(const char* iSource);
 static void grouping(bool assignable);
 static void unary(bool assignable);
 static void binary(bool assignable);

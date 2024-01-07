@@ -6,7 +6,7 @@
 #include "debug.h"
 #include "vm.h"
 
-// top level pointer variables --> iVariable
+// top level pointer variables --> iVariable | oVariable
 // struct property pointers --> property_pointer
 
 static void repl() {
@@ -28,36 +28,36 @@ static void repl() {
   }
 }
 
-static char* readFile(const char* o_path) {
-  FILE* o_file = fopen(o_path, "rb");
+static char* readFile(const char* oPath) {
+  FILE* oFile = fopen(oPath, "rb");
   // handle no file
-  if (o_file == NULL) { 
-    fprintf(stderr, "Could not open file \"%s\".'n", o_path);
+  if (oFile == NULL) { 
+    fprintf(stderr, "Could not open file \"%s\".'n", oPath);
     exit(74);
   }
 
-  fseek(o_file, 0L, SEEK_END);
-  size_t fileSize = ftell(o_file);
-  rewind(o_file);
+  fseek(oFile, 0L, SEEK_END);
+  size_t fileSize = ftell(oFile);
+  rewind(oFile);
 
-  char* o_buffer = (char*)malloc(fileSize + 1);
+  char* iBuffer = (char*)malloc(fileSize + 1);
   //handle no buffer
-  if (o_buffer == NULL) {
-    fprintf(stderr, "Not enough memory to read \"%s\".\n", o_path);
+  if (iBuffer == NULL) {
+    fprintf(stderr, "Not enough memory to read \"%s\".\n", oPath);
     exit(74);
   }
 
-  size_t bytesRead = fread(o_buffer, sizeof(char), fileSize, o_file);
-  o_buffer[bytesRead] = '\0';
+  size_t bytesRead = fread(iBuffer, sizeof(char), fileSize, oFile);
+  iBuffer[bytesRead] = '\0';
 
-  fclose(o_file);
-  return o_buffer;
+  fclose(oFile);
+  return iBuffer;
 }
 
-static void runFile(const char* o_path) {
-  char* o_source = readFile(o_path);
-  InterpretResult result = interpret(o_source);
-  free(o_source);
+static void runFile(const char* oPath) {
+  char* oSource = readFile(oPath);
+  InterpretResult result = interpret(oSource);
+  free(oSource);
 
   if (result == INTERPRET_COMPILE_ERROR) {
     exit(65);

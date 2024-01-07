@@ -16,9 +16,9 @@
 #define IS_STRING(value)  isObjectType(value, STRING_TYPE)
 
 #define AS_METHOD(value) ((BoundMethod*)AS_OBJECT(value))
-#define AS_CLASS(value) (())
-#define AS_CLOSURE(value)((ClosureObject)AS_OBJECT(value))
-#define AS_FUNCTION(value)((FunctionObject)AS_OBJECT(value))
+#define AS_CLASS(value) (()) // TODO
+#define AS_CLOSURE(value)((ClosureObject*)AS_OBJECT(value))
+#define AS_FUNCTION(value)((FunctionObject*)AS_OBJECT(value))
 #define AS_NATIVE(value) ((NativeObject)AS_OBJECT(value))
 #define AS_STRING(value) ((StringObject*)AS_OBJECT(value))
 #define AS_C_STRING(value)(((StringObject*)AS_OBJECT(value))->runes_pointer)
