@@ -27,6 +27,12 @@ FunctionObject* newFunction() {
     return oFunction;
 }
 
+NativeObject* newNative(NativeFn function) {
+    NativeObject* oNative = ALLOCATE_OBJECT(NativeObject, NATIVE_TYPE);
+    oNative->function = function;
+    return oNative;
+}
+
 static void printFunction(FunctionObject* iFunction) {
     if (iFunction->name_pointer == NULL) {
         printf("<script>");
@@ -93,7 +99,6 @@ void printObject(Value value) {
             printFunction(AS_FUNCTION(value));
             break;
         }
-            break;
         case INSTANCE_TYPE :
             break;
         case NATIVE_TYPE :

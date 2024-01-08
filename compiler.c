@@ -374,6 +374,19 @@ static void printStatement() {
   emitByte(OP_PRINT); // hands off to vm.c
 }
 
+static void returnStatement() {
+  if (iCurrent->type == SCRIPT_FUNCTION) {
+    error("Can't return from top-level code.");
+  } // disallows top level return, might be okay to have...
+  if (match(S_SEMICOLON)) {
+    emitReturn();
+  } else {
+    expression();
+    consume(S_SEMICOLON, "Expect ';' after return value");
+    emitByte(OP_RETURN);
+  }
+}
+
 static void whileStatement() { //TODO add iterator
   int loopStart = currentChunk()->count;
   expression();

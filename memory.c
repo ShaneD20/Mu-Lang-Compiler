@@ -3,9 +3,9 @@
 //TODO compiler
 #include "memory.h"
 #include "vm.h"
+#include <stdio.h>
 
 #ifdef DEBUG_LOG_GC
-#include <stdio.h>
 #include "debug.h"
 #endif
 
@@ -47,6 +47,7 @@ static void freeObject(Object* iObject) {
     case INSTANCE_TYPE :
       break;
     case NATIVE_TYPE :
+      printf("<native function>");
       break;
     case UPVALUE_TYPE :
       break;

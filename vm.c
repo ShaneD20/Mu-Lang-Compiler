@@ -12,6 +12,12 @@
 
 VM vm;
 
+// start native functions
+  static Value clockNative(int count, Value* iArgs) {
+    return NUMBER_VALUE((double)clock() / CLOCKS_PER_SEC);
+  }
+// end native functions
+
 void freeVM() {
   freeTable(&vm.strings);
   freeTable(&vm.globals);
@@ -33,10 +39,18 @@ static void resetStack() {
   vm.frameCount = 0;
   // vm.openUpValues = NULL;
 }
+static void defineNative(const char* name, NativeFn function) {
+  push(OBJECT_VALUE(copyString(name, (int)strlen(name))));
+  push(OBJECT_VALUE(newNative(function)));
+  tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+  pop();
+  pop();
+}
 void initVM() { //TODO compare
   resetStack();
   initTable(&vm.strings);
   initTable(&vm.globals);
+  defineNative("getTime", clockNative); // native fn getTime()
 }
 static bool isFalsey(Value value) {
   return (IS_TF(value) && !AS_TF(value));
@@ -49,11 +63,20 @@ static void runtimeError(const char* format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-  CallFrame* oFrame = &vm.frames[vm.frameCount -= 1];
-  size_t instruction = oFrame->ip - oFrame->function_pointer->chunk.code_pointer - 1;
-  int line = oFrame->function_pointer->chunk.lines_pointer[instruction];
+  for (int i = vm.frameCount - 1; i >= 0; i += -1) {
+    CallFrame* oFrame = &vm.frames[i];
+    FunctionObject* oFunction = oFrame->function_pointer;
+    size_t instruction = oFrame->ip - oFunction->chunk.code_pointer - 1;
+    int line = oFunction->chunk.lines_pointer[instruction];
+    fprintf(stderr, "[line %d] in ", line);
 
-  fprintf(stderr, "[line %d] in script.\n", line);
+    if (oFunction->name_pointer == NULL) {
+      fprintf(stderr, "script.\n");
+    } else {
+      fprintf(stderr, "%s().\n", oFunction->name_pointer->runes_pointer);
+    }
+  }
+
   resetStack();
 }
 
@@ -72,6 +95,13 @@ static void concatenate() {
 }
 
 static bool call(FunctionObject* iFunction, int count) {
+  if (count != iFunction->arity) {
+    runtimeError("Expected %d arguments, but recieved %d.", iFunction->arity, count);
+  }
+  if (vm.frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow: too many frames.");
+    return false;
+  }
   CallFrame* oFrame = &vm.frames[vm.frameCount++]; //TODO revisit all of these
   oFrame->function_pointer = iFunction;
   oFrame->ip = iFunction->chunk.code_pointer;
@@ -83,6 +113,13 @@ static bool callValue(Value called, int count) {
   if (IS_OBJECT(called)) {
     switch (OBJECT_TYPE(called)) {
       case FUNCTION_TYPE : return call(AS_FUNCTION(called), count);
+      case NATIVE_TYPE : {
+        NativeFn native = AS_NATIVE(called);
+        Value result = native(count, vm.top_pointer - count);
+        vm.top_pointer -= count + 1;
+        push(result);
+        return true;
+      }
       default: break;
     }
   }
@@ -239,9 +276,18 @@ static InterpretResult run() {
         break;
       }
       case OP_RETURN : { //TODO change after implementing functions
-        // printValue(pop());
-        // printf("\n");
-        return INTERPRET_OK;
+        Value result = pop();
+        vm.frameCount -= 1;
+
+        if (vm.frameCount == 0) {
+          pop();
+          return INTERPRET_OK;
+        }
+
+        vm.top_pointer = oFrame->slots_pointer;
+        push(result);
+        oFrame = &vm.frames[vm.frameCount - 1];
+        break;
       }
     }
   }
