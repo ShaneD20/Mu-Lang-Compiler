@@ -8,7 +8,7 @@
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)  //OBJ_TYPE
 
 #define IS_METHOD(value)  isObjectType(value, BOUND_METHOD_TYP)
-#define IS_CLASS(value)        isObjType(value, CLASS_TYPE)
+#define IS_CLASS(value)  isObjType(value, CLASS_TYPE)
 #define IS_CLOSURE(value) isObjectType(value, CLOSURE_TYPE)
 #define IS_FUNCTION(value) isObjectType(value, FUNCTION_TYPE)
 #define IS_INSTANCE(value) isObjectType(value, INSTANCE_TYPE)
@@ -19,7 +19,8 @@
 #define AS_CLASS(value) (()) // TODO
 #define AS_CLOSURE(value)((ClosureObject*)AS_OBJECT(value))
 #define AS_FUNCTION(value)((FunctionObject*)AS_OBJECT(value))
-#define AS_NATIVE(value) ((NativeObject)AS_OBJECT(value))
+#define AS_NATIVE(value) \
+    (((NativeObject*)AS_OBJECT(value))->function)
 #define AS_STRING(value) ((StringObject*)AS_OBJECT(value))
 #define AS_C_STRING(value)(((StringObject*)AS_OBJECT(value))->runes_pointer)
 
@@ -55,10 +56,12 @@ typedef struct {
     StringObject* name_pointer;
 } FunctionObject;
 
-// typedef struct {
-//     Object object;
-//     NativeFn function;
-// } NativeObject;
+typedef Value (*NativeFn)(int argCount, Value* iArgs);
+
+typedef struct {
+    Object object;
+    NativeFn function;
+} NativeObject;
 
 typedef struct {
     Object object;
@@ -102,7 +105,7 @@ ClassObject* newClass(StringObject* iName);
 InstanceObject* newInstance(ClassObject* iClass);
 ClosureObject* newClosure(FunctionObject* iFunction);
 FunctionObject* newFunction();
-//NativeObject* newNative(NativeFn function);
+NativeObject* newNative(NativeFn function);
 StringObject* copyString(const char* iRunes, int length);
 StringObject* takeString(char* iRunes, int length);
 UpvalueObject* newUpvalue(Value* iSlot);
