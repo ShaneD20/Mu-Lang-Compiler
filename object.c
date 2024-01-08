@@ -13,8 +13,8 @@
 static Object* allocateObject(size_t size, ObjectType type) {
     Object* iObject = (Object*)reallocate(NULL, 0, size);
     iObject->type = type;
-    iObject->next_pointer = vm.objects;
-    vm.objects = iObject;
+    iObject->next_pointer = vm.objects_pointer;
+    vm.objects_pointer = iObject;
     return iObject;
 }
 

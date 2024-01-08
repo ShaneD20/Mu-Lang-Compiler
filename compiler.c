@@ -24,11 +24,12 @@ typedef struct {
 } Local;
 
 typedef enum {
-  LAMBDA_FUNCTION,
+  FUNCTION_FUNCTION,
   SCRIPT_FUNCTION,
 } FunctionType;
 
-typedef struct {
+typedef struct Compiler {
+  struct Compiler* enclosing_pointer;
   FunctionObject* function_pointer;
   FunctionType type;
   Local locals[UNIT8_COUNT];
@@ -41,6 +42,7 @@ Compiler* iCurrent = NULL;
 Chunk* iCompilingChunk = NULL; //TODO remove
 
 static void initCompiler(Compiler* iCompiler, FunctionType type) {
+  iCompiler->enclosing_pointer = iCurrent;
   iCompiler->function_pointer = NULL;
   iCompiler->type = type;
   iCompiler->localCount = 0;
@@ -48,7 +50,11 @@ static void initCompiler(Compiler* iCompiler, FunctionType type) {
   iCompiler->function_pointer = newFunction();
   iCurrent = iCompiler;
 
-  Local* oLocal = &iCurrent->locals[iCurrent->localCount += 1];
+  if (type != SCRIPT_FUNCTION) {
+    iCurrent->function_pointer->name_pointer = copyString(parser.previous.start_pointer, parser.previous.length);
+  }
+
+  Local* oLocal = &iCurrent->locals[iCurrent->localCount++];
   oLocal->depth = 0;
   oLocal->name.start_pointer = "";
   oLocal->name.length = 0;
@@ -173,6 +179,8 @@ static FunctionObject* quitCompiler() {
         ? function->name->chars : "<script>");
     }
   #endif
+
+  iCurrent = iCurrent->enclosing_pointer;
   return oFunction;
 }
 
@@ -214,6 +222,9 @@ static bool identifiersEqual(Token* iA, Token* iB) {
 }
 
 static void markInitialized() {
+  if (iCurrent->scopeDepth == 0) {
+    return;
+  }
   iCurrent->locals[iCurrent->localCount - 1].depth = iCurrent->scopeDepth;
 }
 
@@ -222,7 +233,7 @@ static void addLocal(Token name) {
     error("Too many local variables for this function.");
     return;
   }
-  Local* iLocal = &iCurrent->locals[iCurrent->localCount += 1];
+  Local* iLocal = &iCurrent->locals[iCurrent->localCount++];
   iLocal->name = name;
   // data->depth = current->scopeDepth;
   iLocal->depth = -1;
@@ -388,11 +399,49 @@ static void untilStatement() { //TODO, follow through to mirror while, add gener
   emitByte(OP_POP);
 }
 
+static void block() {
+  while (!check(S_RIGHT_CURLYBRACE) && !check(END_OF_FILE)) {
+    declaration();
+  }
+  consume(S_RIGHT_CURLYBRACE, "Expext a '}' to finish a block context.");
+}
+
+static void function(FunctionType type) {
+  Compiler compiler;
+  initCompiler(&compiler, type);
+  beginScope();
+  //TODO revisit, refactor
+  consume(S_LEFT_PARENTHESIS, "Expect '(' after function name.");
+  if (!check(S_RIGHT_PARENTHESIS)) {
+    do {
+      iCurrent->function_pointer->arity += 1;
+      if (iCurrent->function_pointer->arity > 255) {
+        errorAtCurrent("Cannot have more that 255 parameters.");
+      }
+      uint8_t constant = parseVariable("Expect parameter name.");
+      defineVariable(constant);
+    } while (match(S_COMMA));
+  }
+
+  consume(S_RIGHT_PARENTHESIS, "Expect ')' to close parameter context.");
+  consume(S_LEFT_CURLYBRACE, "Expect '{' before function body.");
+  block();
+
+  FunctionObject* oFunction = quitCompiler();
+  emitBytes(OP_CONSTANT, makeConstant(OBJECT_VALUE(oFunction)));
+}
+static void functionDeclaration() {
+  uint8_t global = parseVariable("Expect a function name.");
+  markInitialized();
+  function(FUNCTION_FUNCTION);
+  defineVariable(global);
+}
+
 static void declaration() {
   if (match(K_BUILD)) {
     // classDeclaration();
   } else if (match(K_DEFINE)) {
-    // todo replace soley with lambda expression
+    functionDeclaration();
   } else if (match(S_OCTO)) {
     // todo figure out how to get identifier : // #identifer =
     variableDeclaration();
@@ -403,13 +452,6 @@ static void declaration() {
   if (parser.panic) {
     synchronize();
   }
-}
-
-static void block() {
-  while (!check(S_RIGHT_CURLYBRACE) && !check(END_OF_FILE)) {
-    declaration();
-  }
-  consume(S_RIGHT_CURLYBRACE, "Expext a '}' to finish a block context.");
 }
 
 static void ifStatement() { //TODO revise for mu
@@ -539,6 +581,24 @@ static void namedVariable(Token name, bool assignable) {
 static void variable(bool assignable) {
   namedVariable(parser.previous, assignable);
 }
+static uint8_t argumentList() {
+  uint8_t count = 0;
+  if (!check(S_RIGHT_PARENTHESIS)) {
+    do {
+      expression();
+      if (count >= 255) {
+        error("Cannot have more that 255 arguements.");
+      }
+      count += 1;
+    } while (match(S_COMMA));
+  }
+  consume(S_RIGHT_PARENTHESIS, "Expect ')' after arguments.");
+  return count;
+}
+static void call(bool assignable) {
+  uint8_t count = argumentList();
+  emitBytes(OP_CALL, count);
+}
 
 ParseRule rules[] = {
   [END_OF_FILE] = {NULL, NULL, ZERO_PRECEDENCE},
@@ -551,7 +611,7 @@ ParseRule rules[] = {
   [S_MINUS] = {unary, binary, SUM_PRECEDENCE},
   [S_PLUS] = {NULL, binary, SUM_PRECEDENCE},
   [S_BANG] = {unary, NULL, ZERO_PRECEDENCE},
-  [S_LEFT_PARENTHESIS] = {grouping, NULL, CALL_PRECEDENCE},
+  [S_LEFT_PARENTHESIS] = {grouping, call, CALL_PRECEDENCE},
   [S_DOT] = {NULL, NULL, CALL_PRECEDENCE},
   [S_RIGHT_PARENTHESIS] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_LEFT_CURLYBRACE] = {NULL, NULL, ZERO_PRECEDENCE},

@@ -5,8 +5,9 @@
 #include "object.h"
 #include "value.h"
 #include "table.h"
+#include "common.h"
 #define FRAMES_MAX 64
-#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+#define STACK_MAX (FRAMES_MAX * UNIT8_COUNT)
 
 typedef struct {
   FunctionObject* function_pointer;

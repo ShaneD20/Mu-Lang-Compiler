@@ -54,7 +54,7 @@ static void freeObject(Object* iObject) {
 }
 
 void freeObjects() {
-  Object* iObject = vm.objects;
+  Object* iObject = vm.objects_pointer;
   while (iObject != NULL) {
     Object* next = iObject->next_pointer;
     freeObject(iObject);

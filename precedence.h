@@ -12,7 +12,7 @@ typedef enum {
   SUM_PRECEDENCE,       // + -
   FACTOR_PRECEDENCE,     // * /
   EXPONENT_PRECEDENCE,   // ^ ^*
-  UNARY_PRECEDENCE,      // ! - ~
+  UNARY_PRECEDENCE,      // not - ~
   CALL_PRECEDENCE,       // . ()
   PRIMARY_PRECEDENCE,
 } Precedence;
