@@ -69,7 +69,25 @@ static void concatenate() {
 
   StringObject* result = takeString(runes, length);
   push(OBJECT_VALUE(result));
+}
 
+static bool call(FunctionObject* iFunction, int count) {
+  CallFrame* oFrame = &vm.frames[vm.frameCount++]; //TODO revisit all of these
+  oFrame->function_pointer = iFunction;
+  oFrame->ip = iFunction->chunk.code_pointer;
+  oFrame->slots_pointer = vm.top_pointer - count - 1;
+  return true;
+}
+
+static bool callValue(Value called, int count) {
+  if (IS_OBJECT(called)) {
+    switch (OBJECT_TYPE(called)) {
+      case FUNCTION_TYPE : return call(AS_FUNCTION(called), count);
+      default: break;
+    }
+  }
+  runtimeError("Can only call functions and classes.");
+  return false;
 }
 
 static InterpretResult run() {
@@ -212,6 +230,14 @@ static InterpretResult run() {
         oFrame->ip -= offset;
         break;
       }
+      case OP_CALL : {
+        int count = READ_BYTE();
+        if (!callValue(peek(count), count)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        oFrame = &vm.frames[vm.frameCount - 1];
+        break;
+      }
       case OP_RETURN : { //TODO change after implementing functions
         // printValue(pop());
         // printf("\n");
@@ -233,12 +259,13 @@ InterpretResult interpret(const char* source) {
     return INTERPRET_COMPILE_ERROR;
   }
 
-  push(OBJECT_VALUE(oFunction));
+  // CallFrame* oFrame = &vm.frames[vm.frameCount += 1];
+  // oFrame->function_pointer = oFunction;
+  // oFrame->ip = oFunction->chunk.code_pointer;
+  // oFrame->slots_pointer = vm.stack;
 
-  CallFrame* oFrame = &vm.frames[vm.frameCount += 1];
-  oFrame->function_pointer = oFunction;
-  oFrame->ip = oFunction->chunk.code_pointer;
-  oFrame->slots_pointer = vm.stack;
+  push(OBJECT_VALUE(oFunction));
+  call(oFunction, 0);
 
   return run();
 }
