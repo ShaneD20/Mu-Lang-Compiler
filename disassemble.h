@@ -1,8 +1,10 @@
-#ifndef mu_debug_h
-#define mu_debug_h
+//> Chunks of Bytecode debug-h
+#ifndef mu_disassemble_h
+#define mu_disassemble_h
+
 #include "chunk.h"
 
-void disassembleChunk(Chunk* iChunk, const char* iName);
-int disassembleInstruction(Chunk* iChunk, int offset);
+void disassembleChunk(Chunk* chunk, const char* name);
+int disassembleInstruction(Chunk* chunk, int offset);
 
 #endif

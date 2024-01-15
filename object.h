@@ -1,118 +1,126 @@
+//> Strings object-h
 #ifndef mu_object_h
 #define mu_object_h
 
 #include "common.h"
-#include "value.h"
 #include "chunk.h"
+#include "table.h"
+#include "value.h"
 
-#define OBJECT_TYPE(value) (AS_OBJECT(value)->type)  //OBJ_TYPE
+#define OBJ_TYPE(value)        (AS_OBJ(value)->type)
 
-#define IS_METHOD(value)  isObjectType(value, BOUND_METHOD_TYP)
-#define IS_CLASS(value)  isObjType(value, CLASS_TYPE)
-#define IS_CLOSURE(value) isObjectType(value, CLOSURE_TYPE)
-#define IS_FUNCTION(value) isObjectType(value, FUNCTION_TYPE)
-#define IS_INSTANCE(value) isObjectType(value, INSTANCE_TYPE)
-#define IS_NATIVE(value)  isObjectType(value, NATIVE_TYPE)
-#define IS_STRING(value)  isObjectType(value, STRING_TYPE)
+// is ...
+#define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
+#define IS_CLASS(value)        isObjType(value, OBJ_CLASS)
+#define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
+#define IS_FUNCTION(value)     isObjType(value, OBJ_FUNCTION)
+#define IS_INSTANCE(value)     isObjType(value, OBJ_INSTANCE)
+#define IS_NATIVE(value)       isObjType(value, OBJ_NATIVE)
+#define IS_STRING(value)       isObjType(value, OBJ_STRING)
 
-#define AS_METHOD(value) ((BoundMethod*)AS_OBJECT(value))
-#define AS_CLASS(value) (()) // TODO
-#define AS_CLOSURE(value)((ClosureObject*)AS_OBJECT(value))
-#define AS_FUNCTION(value)((FunctionObject*)AS_OBJECT(value))
+// as ...
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
+#define AS_CLASS(value)        ((ObjClass*)AS_OBJ(value))
+#define AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
+#define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
+#define AS_INSTANCE(value)     ((ObjInstance*)AS_OBJ(value))
 #define AS_NATIVE(value) \
-    (((NativeObject*)AS_OBJECT(value))->function)
-#define AS_STRING(value) ((StringObject*)AS_OBJECT(value))
-#define AS_C_STRING(value)(((StringObject*)AS_OBJECT(value))->runes_pointer)
+    (((ObjNative*)AS_OBJ(value))->function)
+#define AS_STRING(value)       ((ObjString*)AS_OBJ(value))
+#define AS_CSTRING(value)      (((ObjString*)AS_OBJ(value))->chars)
 
+// structs, enums ...
 typedef enum {
-    BOUND_METHOD_TYPE,
-    CLASS_TYPE,
-    CLOSURE_TYPE,
-    FUNCTION_TYPE,
-    INSTANCE_TYPE,
-    NATIVE_TYPE,
-    STRING_TYPE, // OBJ_STRING in book, ETC
-    UPVALUE_TYPE,
-} ObjectType;
+  OBJ_BOUND_METHOD,
+  OBJ_CLASS,
+  OBJ_CLOSURE,
+  OBJ_FUNCTION,
+  OBJ_INSTANCE,
+  OBJ_NATIVE,
+  OBJ_STRING,
+  OBJ_UPVALUE
+} ObjType;
 
-struct Object {
-    ObjectType type;
-    //bool isMarked;
-    struct Object* next_pointer; // makes the object heap a linked list for garbage collection
+struct Obj {
+  ObjType type; 
+  bool isMarked; // Garbage Collection is-marked-field
+  struct Obj* next;
 };
 
 typedef struct {
-    Object object;
-    int length;
-    char* runes_;
-    uint32_t hash;
-} StringObject; //ObjString etc
+  Obj obj;
+  int arity;
+  int upvalueCount; // Closures upvalue-count
+  Chunk chunk;
+  ObjString* name;
+} ObjFunction;
+
+//> Calls and Functions obj-native
+typedef Value (*NativeFn)(int argCount, Value* args);
 
 typedef struct {
-    Object object;
-    int arity;
-    int upvalueCount;
-    Chunk chunk;
-    StringObject* name_pointer;
-} FunctionObject;
+  Obj obj;
+  NativeFn function;
+} ObjNative;
+//^ Calls and Functions obj-native
 
-typedef Value (*NativeFn)(int argCount, Value* iArgs);
+struct ObjString {
+  Obj obj;
+  int length;
+  char* chars;
+  uint32_t hash; // Hash Tables obj-string-hash
+};
 
-typedef struct {
-    Object object;
-    NativeFn function;
-} NativeObject;
-
-typedef struct {
-    Object object;
-    Value* location_pointer;
-    Value closed;
-    struct UpvalueObject* next_pointer;
-} UpvalueObject;
-
-typedef struct {
-    Object object;
-    FunctionObject* function_pointer;
-    UpvalueObject** upvalues_pp;
-    int upvalueCount;
-} ClosureObject;
+// Closures
+typedef struct ObjUpvalue {
+  Obj obj;
+  Value* location;
+  Value closed;
+  struct ObjUpvalue* next;
+} ObjUpvalue;
 
 typedef struct {
-    Object object;
-    StringObject* name_pointer;
-    // Table methods;
-} ClassObject;
+  Obj obj;
+  ObjFunction* function;
+  ObjUpvalue** upvalues;
+  int upvalueCount;
+} ObjClosure;
+//^ Closures
+
+//> Classes and Instances
+typedef struct {
+  Obj obj;
+  ObjString* name;
+  Table methods; // Methods and Initializers class-methods
+} ObjClass;
 
 typedef struct {
-    Object object;
-    ClassObject* class_pointer;
-    // Table fields;
-} InstanceObject;
+  Obj obj;
+  ObjClass* klass;
+  Table fields; // [fields]
+} ObjInstance;
 
 typedef struct {
-    Object object;
-    Value reciever;
-    ClosureObject* method_pointer;
-} BoundMethod;
+  Obj obj;
+  Value receiver;
+  ObjClosure* method;
+} ObjBoundMethod;
+//^ Classes and Instances
 
-// typedef class
-// typedef instance
-
-typedef Value (*NativeFn)(int argCount, Value* iArgs);
-
-BoundMethod* newBoundMethod(Value reciever, ClosureObject* iMethod);
-ClassObject* newClass(StringObject* iName);
-InstanceObject* newInstance(ClassObject* iClass);
-ClosureObject* newClosure(FunctionObject* iFunction);
-FunctionObject* newFunction();
-NativeObject* newNative(NativeFn function);
-StringObject* copyString(const char* iRunes, int length);
-StringObject* takeString(char* iRunes, int length);
-UpvalueObject* newUpvalue(Value* iSlot);
+// functions ...
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
+ObjClass* newClass(ObjString* name);
+ObjClosure* newClosure(ObjFunction* function);
+ObjFunction* newFunction();
+ObjInstance* newInstance(ObjClass* klass);
+ObjNative* newNative(NativeFn function);
+ObjString* takeString(char* chars, int length);
+ObjString* copyString(const char* chars, int length);
+ObjUpvalue* newUpvalue(Value* slot);
 void printObject(Value value);
 
-static inline bool isObjectType(Value value, ObjectType type) {
-    return IS_OBJECT(value) && AS_OBJECT(value)->type == type;
+static inline bool isObjType(Value value, ObjType type) {
+  return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
 
 #endif
