@@ -1,5 +1,7 @@
+//> Hash Tables table-c
 #include <stdlib.h>
 #include <string.h>
+
 #include "memory.h"
 #include "object.h"
 #include "table.h"
@@ -7,128 +9,150 @@
 
 #define TABLE_MAX_LOAD 0.75
 
-void initTable(Table* iTable) {
-    iTable->count = 0;
-    iTable->capacity = 0;
-    iTable->entries_pointer = NULL;
+void initTable(Table* table) {
+  table->count = 0;
+  table->capacity = 0;
+  table->entries = NULL;
+}
+void freeTable(Table* table) {
+  FREE_ARRAY(Entry, table->entries, table->capacity);
+  initTable(table);
 }
 
-void freeTable(Table* iTable) {
-    FREE_ARRAY(Entry, iTable->entries_pointer, iTable->capacity);
-    initTable(iTable);
-}
+/* omit
+  NOTE: The "Optimization" chapter has a manual copy of this function.
+  If you change it here, make sure to update that copy.
+*/ 
+static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
+  uint32_t index = key->hash & (capacity - 1);
+  Entry* tombstone = NULL;
+  
+  for (;;) {
+    Entry* entry = &entries[index];
 
-static Entry* findEntry(Entry* iEntries, int capacity, StringObject* iKey) {
-    uint32_t index = iKey->hash % capacity;
-    Entry* tombstone = NULL;
-    /* 
-        case for why loops should be expressions
-        and shows the short-comings of for() while()
-    */
-    for (;;) {
-        Entry* iEntry = &iEntries[index];
-        if (iEntry->key_pointer == NULL) {
-            if (IS_VOID(iEntry->value)) {
-                return tombstone != NULL ? tombstone : iEntry;
-            } else {
-                if (tombstone == NULL) {
-                    tombstone = iEntry;
-                }
-            } 
-        } else if (iEntry->key_pointer == iKey) {
-            return iEntry;
-        }
-        index = (index + 1) % (capacity - 1);
+//> find-tombstone
+    if (entry->key == NULL) {
+      if (IS_NIL(entry->value)) {
+        // Empty entry.
+        return tombstone != NULL ? tombstone : entry;
+      } else {
+        // We found a tombstone.
+        if (tombstone == NULL) tombstone = entry;
+      }
+    } else if (entry->key == key) {
+      // We found the key.
+      return entry;
     }
+//^ find-tombstone
+    index = (index + 1) & (capacity - 1);
+  }
+}
+//< find-entry
+//> table-get
+bool tableGet(Table* table, ObjString* key, Value* value) {
+  if (table->count == 0) return false;
+
+  Entry* entry = findEntry(table->entries, table->capacity, key);
+  if (entry->key == NULL) return false;
+
+  *value = entry->value;
+  return true;
 }
 
-static void adjustCapacity(Table* iTable, int capacity) {
-    Entry* entries = ALLOCATE(Entry, capacity);
+static void adjustCapacity(Table* table, int capacity) {
+  Entry* entries = ALLOCATE(Entry, capacity);
+  for (int i = 0; i < capacity; i++) {
+    entries[i].key = NULL;
+    entries[i].value = NIL_VAL;
+  }
+//> re-hash
+  table->count = 0;
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    if (entry->key == NULL) continue;
 
-    for (int i = 0; i < capacity; i++) {
-        entries[i].key_pointer = NULL;
-        entries[i].value = VALUE_VOID;
-    }
-    iTable->count = 0; // to manage tombstones
-    for (int i = 0; i < iTable->capacity; i++) {
-        Entry* iEntry = &iTable->entries_pointer[i];
-        if (iEntry->key_pointer == NULL) continue;
+    Entry* dest = findEntry(entries, capacity, entry->key);
+    dest->key = entry->key;
+    dest->value = entry->value;
+    table->count++;
+  }
+//^ re-hash
 
-        Entry* iDestination = findEntry(entries, capacity, iEntry->key_pointer);
-        iDestination->key_pointer = iEntry->key_pointer;
-        iDestination->value = iEntry->value;
-        iTable->count++; // to manage tombstones
-    }
-    FREE_ARRAY(Entry, iTable->entries_pointer, iTable->capacity);
-    iTable->entries_pointer = entries;
-    iTable->capacity = capacity;
+  FREE_ARRAY(Entry, table->entries, table->capacity);
+  table->entries = entries;
+  table->capacity = capacity;
 }
 
-bool tableGet(Table* iTable, StringObject* iKey, Value* iValue) {
-    if (iTable->count == 0) return false;
-    
-    Entry* iEntry = findEntry(iTable->entries_pointer, iTable->capacity, iKey);
-    if (iEntry->key_pointer == NULL) return false;
-    
-    *iValue = iEntry->value;
-    return true;
+bool tableSet(Table* table, ObjString* key, Value value) {
+  if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
+    int capacity = GROW_CAPACITY(table->capacity);
+    adjustCapacity(table, capacity);
+  }
+
+  Entry* entry = findEntry(table->entries, table->capacity, key);
+  bool isNewKey = entry->key == NULL;
+
+  if (isNewKey && IS_NIL(entry->value)) table->count++;
+
+  entry->key = key;
+  entry->value = value;
+  return isNewKey;
+}
+bool tableDelete(Table* table, ObjString* key) {
+  if (table->count == 0) return false;
+
+  Entry* entry = findEntry(table->entries, table->capacity, key);
+  if (entry->key == NULL) return false;
+
+  // Place a tombstone in the entry.
+  entry->key = NULL;
+  entry->value = BOOL_VAL(true);
+  return true;
 }
 
-bool tableSet(Table* table, StringObject* key, Value value) {
-    if (1 + table->count > TABLE_MAX_LOAD * table->capacity) {
-        int capacity = GROW_CAPACITY(table->capacity);
-        adjustCapacity(table, capacity);
+void tableAddAll(Table* from, Table* to) {
+  for (int i = 0; i < from->capacity; i++) {
+    Entry* entry = &from->entries[i];
+    if (entry->key != NULL) {
+      tableSet(to, entry->key, entry->value);
     }
-
-    Entry* entry = findEntry(table->entries_pointer, table->capacity, key);
-    bool isNewKey = entry->key_pointer == NULL;
-    if (isNewKey && IS_VOID(entry->value)) {
-        table->count += 1;
-    }
-    entry->key_pointer = key;
-    entry->value = value;
-    return isNewKey;
+  }
 }
 
-bool deleteEntry(Table* table, StringObject* key) {
-    if (table->count == 0) return false;
+ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash) {
+  if (table->count == 0) return NULL;
 
-    Entry* entry = findEntry(table->entries_pointer, table->capacity, key);
-    if (entry->key_pointer == NULL) return false;
+  uint32_t index = hash & (table->capacity - 1);
 
-    entry->key_pointer = NULL;
-    entry->value = TF_VALUE(true);
-    return true;
-}
-
-void tableAddAll(Table* from, Table* iTable) {
-    for (int i = 0; i < from->capacity; i += 1) {
-        Entry* entry = &from->entries_pointer[i];
-
-        if(entry->key_pointer != NULL) {
-            tableSet(iTable, entry->key_pointer, entry->value);
-        }
+  for (;;) {
+    Entry* entry = &table->entries[index];
+    if (entry->key == NULL) {
+      // Stop if we find an empty non-tombstone entry.
+      if (IS_NIL(entry->value)) return NULL;
+    } else if (entry->key->length == length &&
+        entry->key->hash == hash &&
+        memcmp(entry->key->chars, chars, length) == 0) {
+      // We found it.
+      return entry->key;
     }
+    //find-string-next
+    index = (index + 1) & (table->capacity - 1);
+  }
 }
-
-StringObject* tableFindString(Table* iTable, const char* iRunes, int length, uint32_t hash) {
-    if (iTable->count == 0) {
-        return NULL;
-    }  
-    uint32_t index = hash % iTable->capacity;
-
-    for(;;) {
-        Entry* entry = &iTable->entries_pointer[index];
-        if (entry->key_pointer == NULL) {
-            if (IS_VOID(entry->value)) {
-                return NULL; // stop if we find a non-tombstone
-            }
-        } else if (
-            entry->key_pointer->length == length &&
-            entry->key_pointer->hash == hash &&
-            memcmp(entry->key_pointer->runes_pointer, iRunes, length) == 0) {
-                return entry->key_pointer;
-        }
-        index = (index + 1) % iTable->capacity;
+// Garbage Collection
+void tableRemoveWhite(Table* table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    if (entry->key != NULL && !entry->key->obj.isMarked) {
+      tableDelete(table, entry->key);
     }
+  }
+}
+// Garbage Collection
+void markTable(Table* table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    markObject((Obj*)entry->key);
+    markValue(entry->value);
+  }
 }

@@ -1,35 +1,34 @@
-#include <stdbool.h>
+//> Scanning on Demand compiler-h
 #ifndef mu_compiler_h
 #define mu_compiler_h
 
-#include "scanner.h"
-#include "object.h"
+#include "object.h" // Strings compiler-include-object
 #include "vm.h"
+#include "scanner.h" // tokens
 
 typedef struct {
   Token current;
   Token previous;
-  bool hasError;
-  bool panic;
+  bool hadError;
+  bool panicMode;
 } Parser;
 
 typedef enum {
-  ZERO_PRECEDENCE,
-  ASSIGNMENT_PRECEDENCE, // = :
-  OR_PRECEDENCE,         // or
-  AND_PRECEDENCE,        // and
-  EQUALITY_PRECEDENCE,   // !~ ==
-  COMPARISON_PRECEDENCE, // < <= > >=
-  SUM_PRECEDENCE,       // + -
-  FACTOR_PRECEDENCE,     // * /
-  EXPONENT_PRECEDENCE,   // ^ ^*
-  UNARY_PRECEDENCE,      // not - ~
-  CALL_PRECEDENCE,       // . ()
-  PRIMARY_PRECEDENCE,
+  PREC_NONE,
+  PREC_ASSIGNMENT,  // =
+  PREC_OR,          // or
+  PREC_AND,         // and
+  PREC_EQUALITY,    // == !=
+  PREC_COMPARISON,  // < > <= >=
+  PREC_TERM,        // + -
+  PREC_FACTOR,      // * /
+  PREC_UNARY,       // ! -
+  PREC_CALL,        // . ()
+  PREC_PRIMARY
 } Precedence;
 
-typedef void (*ParseFn)(bool assignable);
-
+//> parse-rule
+typedef void (*ParseFn)(bool canAssign); // Global Variables parse-fn-type
 typedef struct {
   ParseFn prefix;
   ParseFn infix;
@@ -39,41 +38,40 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
-  // bool isCaptured;
+  bool isCaptured; // Closures is-captured-field
 } Local;
 
 typedef struct {
   uint8_t index;
   bool isLocal;
-} Upvalue;
+} Upvalue; // for Closures
 
+//> Calls and Functions function-type-enum
 typedef enum {
   TYPE_FUNCTION,
-  TYPE_INITIALIZER,
-  TYPE_METHOD,
-  TYPE_SCRIPT,
+  TYPE_INITIALIZER, // for objects initializer-type-enum
+  TYPE_METHOD,      // for objects method-type-enum
+  TYPE_SCRIPT
 } FunctionType;
 
 typedef struct Compiler {
-  struct Compiler* enclosing_;
-  FunctionObject* function_;
+  struct Compiler* enclosing; 
+  ObjFunction* function;
   FunctionType type;
-  Local locals[UNIT8_COUNT];
+
+//< Calls and Function fields
+  Local locals[UINT8_COUNT];
   int localCount;
+  Upvalue upvalues[UINT8_COUNT]; // Closures upvalues-array
   int scopeDepth;
 } Compiler;
 
-// typedef struct ClassCompiler {
-  // struct ClassCompiler* enclosing_;
-  // bool hasSuperClass;
-// } ClassCompiler;
+typedef struct ClassCompiler {
+  struct ClassCompiler* enclosing;
+  bool hasSuperclass;
+} ClassCompiler;
 
-FunctionObject* compile(const char* source_);
-
-// TODO where will these eventuall be??
-static void grouping(bool assignable);
-static void unary(bool assignable);
-static void binary(bool assignable);
-static void number(bool assignable);
+ObjFunction* compile(const char* source); // Calls and Functions compile-h
+void markCompilerRoots(); // Garbage Collection mark-compiler-roots-h
 
 #endif

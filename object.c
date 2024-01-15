@@ -3,107 +3,168 @@
 
 #include "memory.h"
 #include "object.h"
-#include "value.h"
 #include "table.h"
+#include "value.h"
 #include "vm.h"
 
-#define ALLOCATE_OBJECT(type, objectType) \
+#define ALLOCATE_OBJ(type, objectType) \
     (type*)allocateObject(sizeof(type), objectType)
 
-static Object* allocateObject(size_t size, ObjectType type) {
-    Object* iObject = (Object*)reallocate(NULL, 0, size);
-    iObject->type = type;
-    iObject->next_pointer = vm.objects_pointer;
-    vm.objects_pointer = iObject;
-    return iObject;
+static Obj* allocateObject(size_t size, ObjType type) {
+  Obj* object = (Obj*)reallocate(NULL, 0, size);
+  object->type = type;
+  object->isMarked = false; // Garbage Collection
+  // add-to-list  
+  object->next = vm.objects;
+  vm.objects = object;
+
+// Garbage Collection debug-log-allocate
+#ifdef DEBUG_LOG_GC
+  printf("%p allocate %zu for %d\n", (void*)object, size, type);
+#endif
+
+  return object;
 }
 
-FunctionObject* newFunction() {
-    FunctionObject* oFunction = ALLOCATE_OBJECT(FunctionObject, FUNCTION_TYPE);
-    oFunction->arity = 0;
-    oFunction->name_pointer = NULL;
-    oFunction->upvalueCount = 0; //TODO revisist
-    initChunk(&oFunction->chunk);
-    return oFunction;
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
+  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+  bound->receiver = receiver;
+  bound->method = method;
+  return bound;
 }
 
-NativeObject* newNative(NativeFn function) {
-    NativeObject* oNative = ALLOCATE_OBJECT(NativeObject, NATIVE_TYPE);
-    oNative->function = function;
-    return oNative;
+ObjClass* newClass(ObjString* name) {
+  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  klass->name = name; // [klass]
+  initTable(&klass->methods); // init-methods
+  return klass;
 }
 
-static void printFunction(FunctionObject* iFunction) {
-    if (iFunction->name_pointer == NULL) {
-        printf("<script>");
-        return;
-    }
-    printf("<fn %s", iFunction->name_pointer->runes_pointer);
+ObjClosure* newClosure(ObjFunction* function) {
+  // allocate-upvalue-array
+  ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+  for (int i = 0; i < function->upvalueCount; i++) {
+    upvalues[i] = NULL;
+  }
+
+  ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+  closure->function = function;
+  closure->upvalues = upvalues;
+  closure->upvalueCount = function->upvalueCount;
+  return closure;
 }
 
-static uint32_t hashString(const char* pointer, int length) {
-    // FNV-1a
-    uint32_t hash = 2166136261u;
-    for (int i = 0; i < length; i += 1) {
-        hash ^= (uint8_t)pointer[i];
-        hash *= 16777619;
-    }
-    return hash;
+ObjFunction* newFunction() {
+  ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+  function->arity = 0;
+  function->upvalueCount = 0; // closure
+  function->name = NULL;
+  initChunk(&function->chunk);
+  return function;
 }
 
-static StringObject* allocateString(char* iRunes, int length, uint32_t hash) {
-    StringObject* string = ALLOCATE_OBJECT(StringObject, STRING_TYPE);
-    string->length = length;
-    string->runes_pointer = iRunes;
-    string->hash = hash;
-    tableSet(&vm.strings, string, VALUE_VOID);
-    return string;
+ObjInstance* newInstance(ObjClass* klass) {
+  ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+  instance->klass = klass;
+  initTable(&instance->fields);
+  return instance;
 }
 
-StringObject* copyString(const char* iRunes, int length) {
-    uint32_t hash = hashString(iRunes, length);
-    StringObject* interned = tableFindString(&vm.strings, iRunes, length, hash);
-
-    if (interned != NULL) return interned;
-
-    char* heapRunes = ALLOCATE(char, length + 1);
-    memcpy(heapRunes, iRunes, length);
-    heapRunes[length] = '\0';
-    return allocateString(heapRunes, length, hash);
+ObjNative* newNative(NativeFn function) {
+  ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+  native->function = function;
+  return native;
 }
 
-StringObject* takeString(char* iRunes, int length) {
-    uint32_t hash = hashString(iRunes, length);
-    StringObject* interned = tableFindString(&vm.strings, iRunes, length, hash);
+static ObjString* allocateString(char* chars, int length, uint32_t hash) {
+  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+  string->length = length;
+  string->chars = chars;
+  string->hash = hash;
+//> Hash Tables allocate-store-string
+  push(OBJ_VAL(string)); // Garbage Collection push-string
+  tableSet(&vm.strings, string, NIL_VAL);
+  pop(); // Garbage Collection pop-string
+//^ Hash Tables allocate-store-string
+  return string;
+}
 
-    if (interned != NULL) {
-        FREE_ARRAY(char, iRunes, length + 1);
-        return interned;
-    }
+static uint32_t hashString(const char* key, int length) {
+  uint32_t hash = 2166136261u;
+  for (int i = 0; i < length; i++) {
+    hash ^= (uint8_t)key[i];
+    hash *= 16777619;
+  }
+  return hash;
+}
 
-    return allocateString(iRunes, length, hash);
+ObjString* takeString(char* chars, int length) {
+  uint32_t hash = hashString(chars, length);
+  ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+  if (interned != NULL) {
+    FREE_ARRAY(char, chars, length + 1);
+    return interned;
+  }
+  return allocateString(chars, length, hash);
+}
+
+ObjString* copyString(const char* chars, int length) {
+//> Hash Tables copy-string-hash
+  uint32_t hash = hashString(chars, length);
+// copy-string-intern
+  ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+  if (interned != NULL) return interned;
+
+//^ Hash Tables copy-string-hash
+  char* heapChars = ALLOCATE(char, length + 1);
+  memcpy(heapChars, chars, length);
+  heapChars[length] = '\0';
+
+  return allocateString(heapChars, length, hash); // Hash Tables copy-string-allocate
+}
+// Closures initialize upvalues
+ObjUpvalue* newUpvalue(Value* slot) {
+  ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+  upvalue->closed = NIL_VAL;
+  upvalue->location = slot;
+  upvalue->next = NULL;
+  return upvalue;
+}
+
+static void printFunction(ObjFunction* function) {
+  if (function->name == NULL) {
+    printf("<script>");
+    return;
+  }
+  printf("<fn %s>", function->name->chars);
 }
 
 void printObject(Value value) {
-    switch (OBJECT_TYPE(value)) {
-        case STRING_TYPE: 
-            printf("%s", AS_C_STRING(value));
-            break;
-        case BOUND_METHOD_TYPE :
-            break;
-        case CLASS_TYPE :
-            break;
-        case CLOSURE_TYPE :
-            break;
-        case FUNCTION_TYPE : {
-            printFunction(AS_FUNCTION(value));
-            break;
-        }
-        case INSTANCE_TYPE :
-            break;
-        case NATIVE_TYPE :
-            break;
-        case UPVALUE_TYPE :
-            break;
-    }
+  switch (OBJ_TYPE(value)) {
+    case OBJ_BOUND_METHOD:
+      printFunction(AS_BOUND_METHOD(value)->method->function);
+      break;
+    case OBJ_CLASS:
+      printf("%s", AS_CLASS(value)->name->chars);
+      break;
+    case OBJ_CLOSURE:
+      printFunction(AS_CLOSURE(value)->function);
+      break;
+    case OBJ_FUNCTION:
+      printFunction(AS_FUNCTION(value));
+      break;
+    case OBJ_INSTANCE:
+      printf("%s instance",
+             AS_INSTANCE(value)->klass->name->chars);
+      break;
+    case OBJ_NATIVE:
+      printf("<native fn>");
+      break;
+    case OBJ_STRING:
+      printf("%s", AS_CSTRING(value));
+      break;
+    case OBJ_UPVALUE:
+      printf("upvalue");
+      break;
+  }
 }

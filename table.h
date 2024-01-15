@@ -2,24 +2,28 @@
 #define mu_table_h
 
 #include "common.h"
-#include "object.h"
+#include "value.h"
 
 typedef struct {
-    StringObject* key_pointer;
-    Value value;
+  ObjString* key;
+  Value value;
 } Entry;
 
 typedef struct {
-    int count;
-    int capacity;
-    Entry* entries_pointer;
+  int count;
+  int capacity;
+  Entry* entries;
 } Table;
 
-void initTable(Table* iTable);
-void freeTable(Table* iTable);
-bool tableGet(Table* iTable, StringObject* iKey, Value* iValue);
-bool tableSet(Table* iTable, StringObject* iKey, Value value);
-bool deleteEntry(Table* iTable, StringObject* iKey);
-void tableAddAll(Table* from, Table* iTable);
-StringObject* tableFindString(Table* iTable, const char* iRunes, int length, uint32_t hash);
+void initTable(Table* table);
+void freeTable(Table* table);
+bool tableGet(Table* table, ObjString* key, Value* value);
+bool tableSet(Table* table, ObjString* key, Value value);
+bool tableDelete(Table* table, ObjString* key);
+void tableAddAll(Table* from, Table* to);
+ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash);
+
+// Garbage Collection
+void tableRemoveWhite(Table* table);
+void markTable(Table* table);
 #endif

@@ -1,39 +1,41 @@
+//> Chunks of Bytecode
 #include <stdlib.h>
 #include "chunk.h"
 #include "memory.h"
-#include "vm.h"
+#include "vm.h" // Garbage Collection
 
-// provided a chunk of bytes, it will print instructions
-void initChunk(Chunk* chunk_) { 
-  chunk_->count = 0;
-  chunk_->capacity = 0;
-  chunk_->code_ = NULL;
-  chunk_->lines_ = NULL;
-  initValueArray(&chunk_->constantPool);
-}
-void freeChunk(Chunk* chunk_) { // good
-  FREE_ARRAY(uint8_t, chunk_->code_, chunk_->capacity);
-  FREE_ARRAY(int, chunk_->lines_, chunk_->capacity);
-  freeValueArray(&chunk_->constantPool);
-  initChunk(chunk_);
+void initChunk(Chunk* chunk) {
+  chunk->count = 0;
+  chunk->capacity = 0;
+  chunk->code = NULL;
+  chunk->lines = NULL;
+  initValueArray(&chunk->constants);
 }
 
-void writeChunk(Chunk* chunk_, uint8_t byte, int line) {
-  if (chunk_->capacity < chunk_->count + 1) {
-    int size = chunk_->capacity;
-    chunk_->capacity = GROW_CAPACITY(size);
-    chunk_->code_  = GROW_ARRAY(uint8_t, chunk_->code_, size, chunk_->capacity);
-    chunk_->lines_ = GROW_ARRAY(int, chunk_->lines_, size, chunk_->capacity); // Book had oldCapacity??
+void freeChunk(Chunk* chunk) {
+// chunkfree; code, lines, constantpool. chunk re-initialize
+  FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
+  FREE_ARRAY(int, chunk->lines, chunk->capacity);
+  freeValueArray(&chunk->constants);
+  initChunk(chunk);
+}
+
+void writeChunk(Chunk* chunk, uint8_t byte, int line) {
+  if (chunk->capacity < chunk->count + 1) {
+    int oldCapacity = chunk->capacity;
+    chunk->capacity = GROW_CAPACITY(oldCapacity);
+    chunk->code = GROW_ARRAY(uint8_t, chunk->code, oldCapacity, chunk->capacity);
+    chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
   }
 
-  chunk_->code_[chunk_->count] = byte;
-  chunk_->code_[chunk_->count] = line;
-  chunk_->count++;
+  chunk->code[chunk->count] = byte;
+  chunk->lines[chunk->count] = line;
+  chunk->count++;
 }
 
-int addConstant(Chunk* iChunk, Value value) {
-  push(value);
-  writeValueArray(&iChunk->constantPool, value);
-  pop();
-  return iChunk->constantPool.count - 1;
+int addConstant(Chunk* chunk, Value value) {
+  push(value); // Garbage Collection add-constant-push
+  writeValueArray(&chunk->constants, value);
+  pop(); // Garbage Collection add-constant-pop
+  return chunk->constants.count - 1;
 }
