@@ -1,4 +1,3 @@
-//> Scanning on Demand compiler-h
 #ifndef mu_compiler_h
 #define mu_compiler_h
 
@@ -27,7 +26,7 @@ typedef enum {
   PREC_PRIMARY
 } Precedence;
 
-//> parse-rule
+// parse-rule
 typedef void (*ParseFn)(bool canAssign); // Global Variables parse-fn-type
 typedef struct {
   ParseFn prefix;
@@ -46,7 +45,6 @@ typedef struct {
   bool isLocal;
 } Upvalue; // for Closures
 
-//> Calls and Functions function-type-enum
 typedef enum {
   TYPE_FUNCTION,
   TYPE_INITIALIZER, // for objects initializer-type-enum
@@ -58,8 +56,6 @@ typedef struct Compiler {
   struct Compiler* enclosing; 
   ObjFunction* function;
   FunctionType type;
-
-//< Calls and Function fields
   Local locals[UINT8_COUNT];
   int localCount;
   Upvalue upvalues[UINT8_COUNT]; // Closures upvalues-array

@@ -1,7 +1,7 @@
 #ifndef mu_scanner_h
 #define mu_scanner_h
 
-typedef enum {
+typedef enum { // TODO update to reflect mu
   // Single-character tokens.
   TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
   TOKEN_LEFT_BRACE, TOKEN_RIGHT_BRACE,
