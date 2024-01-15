@@ -1,0 +1,21 @@
+url : "https://";
+#variable = 3;
+
+#variable += 5;
+
+<asdf
+/>
+
+define shareUrl() {
+    global urlPrefix;
+}
+
+class dataManager() {
+    let url = "blahblah.com";
+
+    managerMethod(){
+        //fancy stuff
+    }
+}
+
+export { shareUrl, dataManager }

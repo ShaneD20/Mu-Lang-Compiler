@@ -6,25 +6,28 @@
 #include "debug.h"
 #include "vm.h"
 
-// top level pointer variables --> iVariable | oVariable
-// struct property pointers --> property_pointer
+// repl -> vm.c : interpret [compile(source) returns run() ],
+// compile -> compiler.c [scan and compile],
+// run() ->
 
+// pointer : pointerCase_
+
+/*
+  typo sweep : common.h,
+  chunk.h, compiler.h (functions at the bottom?),
+  chunk.c,
+
+*/
 static void repl() {
   char line[1024];
-  // do {
-  //   printf(":: ");
-  //   interpret(line);
-  //   printf("\n");
-  // } while (fgets(line, sizeof(line), stdin)); 
 
   for (;;) {
     printf(":: ");
-
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
       break;
     }
-    interpret(line); // vm.h
+    interpret(line); // vm.c
   }
 }
 
@@ -49,7 +52,6 @@ static char* readFile(const char* oPath) {
 
   size_t bytesRead = fread(iBuffer, sizeof(char), fileSize, oFile);
   iBuffer[bytesRead] = '\0';
-
   fclose(oFile);
   return iBuffer;
 }

@@ -97,12 +97,13 @@ static void concatenate() {
 static bool call(FunctionObject* iFunction, int count) {
   if (count != iFunction->arity) {
     runtimeError("Expected %d arguments, but recieved %d.", iFunction->arity, count);
+    return false;
   }
   if (vm.frameCount == FRAMES_MAX) {
     runtimeError("Stack overflow: too many frames.");
     return false;
   }
-  CallFrame* oFrame = &vm.frames[vm.frameCount++]; //TODO revisit all of these
+  CallFrame* oFrame = &vm.frames[vm.frameCount++];
   oFrame->function_pointer = iFunction;
   oFrame->ip = iFunction->chunk.code_pointer;
   oFrame->slots_pointer = vm.top_pointer - count - 1;
@@ -129,7 +130,7 @@ static bool callValue(Value called, int count) {
 
 static InterpretResult run() {
   CallFrame* oFrame = &vm.frames[vm.frameCount - 1];
-#define READ_BYTE() (*oFrame->ip += 1)
+#define READ_BYTE() (*oFrame->ip++)
 #define READ_SHORT() (oFrame->ip += 2, (uint16_t)((oFrame->ip[-2] << 8) | oFrame->ip[-1]))
 #define READ_CONSTANT() (oFrame->function_pointer->chunk.constants.values_pointer[READ_BYTE()]) //lazily treats all numbers as doubles
 #define READ_STRING() AS_STRING(READ_CONSTANT())
@@ -146,33 +147,37 @@ static InterpretResult run() {
 // while (false) is to manage trailing semicolons 
 
   while (true) {
-#ifdef DEBUG_TRACE_EXECUTION //TODO compare all
+#ifdef DEBUG_TRACE_EXECUTION //TODO ensure proper notation
     /* Stack Tracing */
     printf(" ");
-    for (Value* slot = vm.stack; slot < vm.stackTop; slot += 1) {
+    for (Value* slot = vm.stack; slot < vm.top_pointer; slot += 1) {
       printf("[ ");
       printValue(*slot);
       printf(" ]");
     }
     printf("\n");
     /* end Stack Tracking */
-    disassembleInstruction(&frame->function->chunk, (int)(frame->ip - frame->function->chunk.code));
+    disassembleInstruction(&oFrame->function->chunk, (int)(frame->ip - frame->function->chunk.code));
 #endif
   // start of run()
-    uint8_t instruction; //TODO
-    switch (instruction = READ_BYTE()) {
+    uint8_t instruction = READ_BYTE(); //TODO
+    switch (instruction) {
       case OP_CONSTANT : {
         Value constant = READ_CONSTANT();
         push(constant);
         break;
       }
-      case OP_VOID : push(VOID_VALUE);
+      case OP_VOID : 
+        push(VOID_VALUE);
         break;
-      case OP_TRUE : push(TF_VALUE(true));
+      case OP_TRUE : 
+        push(TF_VALUE(true));
         break;
-      case OP_FALSE : push(TF_VALUE(false));
+      case OP_FALSE : 
+        push(TF_VALUE(false));
         break;
-      case OP_POP : pop();
+      case OP_POP : 
+        pop();
         break;
       case OP_GET_LOCAL : {
         uint8_t slot = READ_BYTE();
@@ -186,12 +191,18 @@ static InterpretResult run() {
       }
       case OP_GET_GLOBAL : {
         StringObject* name = READ_STRING();
-        Value value; //TODO ???
+        Value value;
         if (!tableGet(&vm.globals, name, &value)) {
           runtimeError("Undefined variable '%s'.", name->runes_pointer);
           return INTERPRET_RUNTIME_ERROR;
         }
         push(value);
+        break;
+      }
+      case OP_DEFINE_GLOBAL : {
+        StringObject* name = READ_STRING();
+        tableSet(&vm.globals, name, peek(0));
+        pop();
         break;
       }
       case OP_SET_GLOBAL : {
@@ -203,27 +214,24 @@ static InterpretResult run() {
         }
         break;
       }
-      case OP_DEFINE_GLOBAL : {
-        StringObject* name = READ_STRING();
-        tableSet(&vm.globals, name, peek(0));
-        pop();
-        break;
-      }
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();
         push(TF_VALUE(valuesEqual(a, b)));
         break;
       }
-      case OP_GREATER: BINARY_OP(TF_VALUE, >);
+      case OP_GREATER: 
+        BINARY_OP(TF_VALUE, >);
         break;
-      case OP_LESS: BINARY_OP(TF_VALUE, <);
+      case OP_LESS: 
+        BINARY_OP(TF_VALUE, <);
         break;
-      case OP_ADD: BINARY_OP(NUMBER_VALUE, +);
+      case OP_ADD: 
+        BINARY_OP(NUMBER_VALUE, +);
         break;
-      case OP_CONCATENATE: { //   TODO get to be polish notation
+      case OP_CONCATENATE: { 
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
-          concatenate();
+          concatenate(); //   TODO get to be polish notation
         } else {
           runtimeError("both operands must be strings.");
           return INTERPRET_RUNTIME_ERROR;
@@ -298,17 +306,12 @@ static InterpretResult run() {
 #undef READ_SHORT
 }
 
-InterpretResult interpret(const char* source) {
-  FunctionObject* oFunction = compile(source);
+InterpretResult interpret(const char* iSource) {
+  FunctionObject* oFunction = compile(iSource);
 
   if (oFunction == NULL) {
     return INTERPRET_COMPILE_ERROR;
   }
-
-  // CallFrame* oFrame = &vm.frames[vm.frameCount += 1];
-  // oFrame->function_pointer = oFunction;
-  // oFrame->ip = oFunction->chunk.code_pointer;
-  // oFrame->slots_pointer = vm.stack;
 
   push(OBJECT_VALUE(oFunction));
   call(oFunction, 0);

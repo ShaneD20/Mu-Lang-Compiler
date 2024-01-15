@@ -189,6 +189,7 @@ Token scanToken() { //used in compiler.c
     case ')' : return tokenize(S_RIGHT_PARENTHESIS);
     case ']' : return tokenize(S_RIGHT_SQUARE_BRACE);
     case '}' : return tokenize(S_RIGHT_CURLYBRACE);
+    case ':' : return tokenize(S_COLON);
     case ';' : return tokenize(S_SEMICOLON);
     case ',' : return tokenize(S_COMMA);
     case '.' : return tokenize(S_DOT);
@@ -205,7 +206,6 @@ Token scanToken() { //used in compiler.c
     //literal
     case '"' : return string();
   }
-
   return errorToken("unexpected character");
 }
 
