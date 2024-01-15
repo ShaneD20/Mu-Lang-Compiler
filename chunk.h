@@ -1,4 +1,4 @@
-//> Chunks of Bytecode chunk-h
+// Chunks of Bytecode
 #ifndef mu_chunk_h
 #define mu_chunk_h
 
@@ -13,7 +13,7 @@ typedef enum {
   OP_FALSE,
 // Global Variables pop-op
   OP_POP,
-//> Local Variable operations
+// Local Variable operations
   OP_GET_LOCAL,
   OP_SET_LOCAL,
 // Global Variables get-global-op

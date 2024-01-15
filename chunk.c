@@ -1,4 +1,3 @@
-//> Chunks of Bytecode
 #include <stdlib.h>
 #include "chunk.h"
 #include "memory.h"
