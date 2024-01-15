@@ -1,12 +1,12 @@
 #include <stdio.h>
+#include <string.h>
+#include "object.h"
 #include "memory.h"
 #include "value.h"
-#include "object.h"
-#include <string.h>
 //TODO string, object
 
 void initValueArray(ValueArray* array) {
-  array->values_pointer = NULL;
+  array->values_ = NULL;
   array->capacity = 0;
   array->count = 0;
 }
@@ -16,15 +16,15 @@ void writeValueArray(ValueArray* array, Value value) {
   if (array->capacity < array->count + 1) {
     int oldCapacity = array->capacity;
     array->capacity = GROW_CAPACITY(oldCapacity);
-    array->values_pointer = GROW_ARRAY(Value, array->values_pointer, oldCapacity, array->capacity);
+    array->values_ = GROW_ARRAY(Value, array->values_, oldCapacity, array->capacity);
   }
 
-  array->values_pointer[array->count] = value;
+  array->values_[array->count] = value;
   array->count += 1;
 }
 
 void freeValueArray(ValueArray *array) {
-  FREE_ARRAY(Value, array->values_pointer, array->capacity);
+  FREE_ARRAY(Value, array->values_, array->capacity);
   initValueArray(array);
 }
 

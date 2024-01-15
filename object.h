@@ -44,7 +44,7 @@ struct Object {
 typedef struct {
     Object object;
     int length;
-    char* runes_pointer;
+    char* runes_;
     uint32_t hash;
 } StringObject; //ObjString etc
 

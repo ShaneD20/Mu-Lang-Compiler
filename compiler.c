@@ -422,10 +422,6 @@ void parsePrecedence(Precedence rule) {
   }
 }
 
-static ParseRule* getRule(TokenType token) {
-  return &rules[token];
-}
-
 static void expression() {
   parsePrecedence(ASSIGNMENT_PRECEDENCE);
 }
@@ -661,6 +657,9 @@ ParseRule rules[] = {
   [END_OF_FILE] = {NULL, NULL, ZERO_PRECEDENCE},
   [TOKEN_ERROR] = {NULL, NULL, ZERO_PRECEDENCE},
 };
+static ParseRule* getRule(TokenType token) {
+  return &rules[token];
+}
 
 FunctionObject* compile(const char* source_) {
   initScanner(source_);

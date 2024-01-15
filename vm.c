@@ -6,8 +6,8 @@
 #include "vm.h"
 #include "disassemble.h"
 #include "compiler.h"
-#include "object.h"
 #include "memory.h"
+#include "object.h"
 // #include "table.h"
 
 VM vm;
@@ -65,7 +65,7 @@ static void runtimeError(const char* format, ...) {
 
   for (int i = vm.frameCount - 1; i >= 0; i += -1) {
     CallFrame* oFrame = &vm.frames[i];
-    FunctionObject* oFunction = oFrame->function_pointer;
+    FunctionObject* oFunction = oFrame->function_;
     size_t instruction = oFrame->ip - oFunction->chunk.code_- 1;
     int line = oFunction->chunk.lines_[instruction];
     fprintf(stderr, "[line %d] in ", line);
@@ -73,7 +73,7 @@ static void runtimeError(const char* format, ...) {
     if (oFunction->name_pointer == NULL) {
       fprintf(stderr, "script.\n");
     } else {
-      fprintf(stderr, "%s().\n", oFunction->name_pointer->runes_pointer);
+      fprintf(stderr, "%s().\n", oFunction->name_pointer->runes_);
     }
   }
 
@@ -86,8 +86,8 @@ static void concatenate() {
   int length = left->length + right->length;
 
   char* runes = ALLOCATE(char, length + 1);
-  memcpy(runes, left->runes_pointer, left->length);
-  memcpy(runes + left->length, right->runes_pointer, right->length);
+  memcpy(runes, left->runes_, left->length);
+  memcpy(runes + left->length, right->runes_, right->length);
   runes[length] = '\0';
 
   StringObject* result = takeString(runes, length);
@@ -104,9 +104,9 @@ static bool call(FunctionObject* iFunction, int count) {
     return false;
   }
   CallFrame* oFrame = &vm.frames[vm.frameCount++];
-  oFrame->function_pointer = iFunction;
+  oFrame->function_ = iFunction;
   oFrame->ip = iFunction->chunk.code_;
-  oFrame->slots_pointer = vm.top_pointer - count - 1;
+  oFrame->slots_ = vm.top_pointer - count - 1;
   return true;
 }
 
@@ -132,7 +132,7 @@ static InterpretResult run() {
   CallFrame* oFrame = &vm.frames[vm.frameCount - 1];
 #define READ_BYTE() (*oFrame->ip++)
 #define READ_SHORT() (oFrame->ip += 2, (uint16_t)((oFrame->ip[-2] << 8) | oFrame->ip[-1]))
-#define READ_CONSTANT() (oFrame->function_pointer->chunk.constants.values_pointer[READ_BYTE()]) //lazily treats all numbers as doubles
+#define READ_CONSTANT() (oFrame->function_->chunk.constantPool.values_[READ_BYTE()]) //lazily treats all numbers as doubles
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
   do { \
@@ -181,19 +181,19 @@ static InterpretResult run() {
         break;
       case OP_GET_LOCAL : {
         uint8_t slot = READ_BYTE();
-        push(oFrame->slots_pointer[slot]);
+        push(oFrame->slots_[slot]);
         break;
       }
       case OP_SET_LOCAL : {
         uint8_t slot = READ_BYTE();
-        oFrame->slots_pointer[slot] = peek(0);
+        oFrame->slots_[slot] = peek(0);
         break;
       }
       case OP_GET_GLOBAL : {
         StringObject* name = READ_STRING();
         Value value;
         if (!tableGet(&vm.globals, name, &value)) {
-          runtimeError("Undefined variable '%s'.", name->runes_pointer);
+          runtimeError("Undefined variable '%s'.", name->runes_);
           return INTERPRET_RUNTIME_ERROR;
         }
         push(value);
@@ -206,10 +206,10 @@ static InterpretResult run() {
         break;
       }
       case OP_SET_GLOBAL : {
-        StringObject* name = READ_STRING();
-        if (tableSet(&vm.globals, name, peek(0))) {
-          deleteEntry(&vm.globals, name);
-          runtimeError("Undefined variable '%s'.", name->runes_pointer);
+        StringObject* name_ = READ_STRING();
+        if (tableSet(&vm.globals, name_, peek(0))) {
+          deleteEntry(&vm.globals, name_);
+          runtimeError("Undefined variable '%s'.", name_->runes_);
           return INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -292,7 +292,7 @@ static InterpretResult run() {
           return INTERPRET_OK;
         }
 
-        vm.top_pointer = oFrame->slots_pointer;
+        vm.top_pointer = oFrame->slots_;
         push(result);
         oFrame = &vm.frames[vm.frameCount - 1];
         break;

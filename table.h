@@ -5,14 +5,14 @@
 #include "object.h"
 
 typedef struct {
-    StringObject* key_pointer;
+    StringObject* key_;
     Value value;
 } Entry;
 
 typedef struct {
     int count;
     int capacity;
-    Entry* entries_pointer;
+    Entry* entries_;
 } Table;
 
 void initTable(Table* iTable);

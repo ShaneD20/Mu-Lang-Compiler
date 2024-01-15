@@ -12,7 +12,7 @@ void disassembleChunk(Chunk* chunk_, const char* name_) {
 static int constantInstruction(const char* name_, Chunk* chunk_, int offset) {
   uint8_t constant = chunk_->code_[offset + 1];
   printf("%-16s %4d '", name_, constant);
-  printValue(chunk_->constantPool.values_pointer[constant]);
+  printValue(chunk_->constantPool.values_[constant]);
   printf("'\n");
   return offset + 2;
 }
@@ -21,7 +21,7 @@ static int invokeInstruction(const char* name_, Chunk* chunk_, int offset) {
   uint8_t constant = chunk_->code_[offset + 1];
   uint8_t argCount = chunk_->code_[offset + 2];
   printf("%-16s (%d args) %4d '", name_, argCount, constant);
-  printValue(chunk_->constantPool.values_pointer[constant]);
+  printValue(chunk_->constantPool.values_[constant]);
   printf("'\n");
   return offset + 3;
 }

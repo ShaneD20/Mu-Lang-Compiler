@@ -17,6 +17,8 @@
   disassemble.h, scanner.h, chunk.h, compiler.h (functions at the bottom?),
   disassemble.c, scanner.c, chunk.c, compiler.c
 
+  value.h has problems
+
 */
 static void repl() {
   char line[1024];

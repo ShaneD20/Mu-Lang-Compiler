@@ -1,12 +1,12 @@
 #ifndef mu_value_h
 #define mu_value_h
 
-//TODO string
 #include <string.h>
 #include "common.h"
 
 typedef struct Object Object;
-// typedef struct StringObject StringObject;
+typedef struct StringObject StringObject;
+
 
 typedef enum {
   VALUE_VOID,
@@ -15,28 +15,14 @@ typedef enum {
   VALUE_OBJECT,
 } ValueType;
 
-typedef struct {
-  ValueType type;
-  union {
-    bool TF;
-    double number;
-    Object* object_pointer;
-  } as;
-} Value;
-
-// typedef struct Obj obj;
-// typedef struct ObjString ObjString;
+/*
+#ifdef NAN_BOXING
 #define SIGN_BIT ((uint64_t)0x8000000000000000)
 #define QNAN     ((uint64_t)0x7ffc000000000000)
 #define TAG_VOID  1 // 01.
 #define TAG_FALSE 2 // 10.
 #define TAG_TRUE  3 // 11.
 
-#ifdef NAN_BOXING
-
-#define FALSE_VALUE ((Value)(uint64_t)(QNAN | TAG_FALSE))
-#define TRUE_VALUE  ((Value)(uint64_t)(QNAN | TAG_TRUE))
-#define NIL_VAL     ((Value)(uint64_t)(QNAN | TAG_VOID))
 typedef uint64_t Value;
 
 #define IS_TF(value)      (((value) | 1) == TRUE_VAL)
@@ -69,31 +55,36 @@ static inline Value numToValue(double num) {
 }
 
 #else
-
-#define AS_TF(value)    ((value).as.TF)
-#define AS_NUMBER(value)  ((value).as.number)
-#define AS_OBJECT(value) ((value).as.object_pointer)
+*/
+typedef struct {
+  ValueType type;
+  union {
+    bool TF;
+    double number;
+    Object* object_;
+  } as;
+} Value;
 
 #define IS_TF(value)    ((value).type == VALUE_TF)
 #define IS_VOID(value)     ((value).type == VALUE_VOID)
 #define IS_NUMBER(value)  ((value).type == VALUE_FLOAT)
 #define IS_OBJECT(value) ((value).type == VALUE_OBJECT)
 
-#define TF_VALUE(value)   ((Value){VALUE_TF, {.TF = value}})
-#define VOID_VALUE           ((Value){VALUE_VOID, {.number = 0}})
+#define AS_OBJECT(value) ((value).as.object_)
+#define AS_TF(value)    ((value).as.TF)
+#define AS_NUMBER(value)  ((value).as.number)
+
+#define TF_VALUE(value)     ((Value){VALUE_TF, {.TF = value}})
+#define VOID_VALUE          ((Value){VALUE_VOID, {.number = 0}})
 #define NUMBER_VALUE(value) ((Value){VALUE_FLOAT, {.number = value}})
-#define OBJECT_VALUE(input) ((Value){VALUE_OBJECT, {.object_pointer = (Object*)input}})
+#define OBJECT_VALUE(input) ((Value){VALUE_OBJECT, {.object_ = (Object*)input}})
 
-//#define IS_OBJ(value)     ((value).type == VAL_OBJ)
-//#define AS_OBJ(value)     ((value).as.obj)
-//#define OBJ_VAL(object)   ((Value){VAL_OBJ, {.obj = (Obj*)object}})
-
-#endif
+// #endif
 
 typedef struct {
   int capacity;
   int count;
-  Value* values_pointer;
+  Value* values_;
 } ValueArray;
 
 bool valuesEqual(Value a, Value b);

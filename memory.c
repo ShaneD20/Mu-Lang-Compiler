@@ -3,6 +3,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "vm.h"
+#include "object.h"
 
 #ifdef DEBUG_LOG_GC
 #include <stdio.h>
@@ -25,8 +26,8 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 static void freeObject(Object* iObject) {
   switch (iObject->type) {
     case STRING_TYPE : {
-      StringObject* iString = (StringObject*)iObject;
-      FREE_ARRAY(char, iString->runes_pointer, iString->length + 1);
+      StringObject* string_ = (StringObject*)iObject;
+      FREE_ARRAY(char, string_->runes_, string_->length + 1);
       FREE(StringObject, iObject);
       break;
     }
