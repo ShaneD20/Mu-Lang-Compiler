@@ -56,7 +56,7 @@ static StringObject* allocateString(char* iRunes, int length, uint32_t hash) {
     string->length = length;
     string->runes_pointer = iRunes;
     string->hash = hash;
-    tableSet(&vm.strings, string, VOID_VALUE);
+    tableSet(&vm.strings, string, VALUE_VOID);
     return string;
 }
 

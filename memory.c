@@ -1,11 +1,11 @@
 #include <stdlib.h>
 
-//TODO compiler
+#include "compiler.h"
 #include "memory.h"
 #include "vm.h"
-#include <stdio.h>
 
 #ifdef DEBUG_LOG_GC
+#include <stdio.h>
 #include "debug.h"
 #endif
 
