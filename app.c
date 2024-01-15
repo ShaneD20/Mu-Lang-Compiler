@@ -3,7 +3,7 @@
 #include <string.h>
 #include "common.h"
 #include "chunk.h"
-#include "debug.h"
+#include "disassemble.h"
 #include "vm.h"
 
 // repl -> vm.c : interpret [compile(source) returns run() ],
@@ -14,8 +14,8 @@
 
 /*
   typo sweep : common.h,
-  chunk.h, compiler.h (functions at the bottom?),
-  chunk.c,
+  disassemble.h, scanner.h, chunk.h, compiler.h (functions at the bottom?),
+  disassemble.c, scanner.c, chunk.c, compiler.c
 
 */
 static void repl() {

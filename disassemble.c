@@ -1,60 +1,59 @@
 #include <stdio.h>
-#include "debug.h"
-//TODO object
+#include "disassemble.h"
 #include "value.h"
 
-void disassembleChunk(Chunk* iChunk, const char* iName) {
-  printf("== %s ==\n", iName);
-  for (int offset = 0; offset < iChunk->count;) {
-    offset = disassembleInstruction(iChunk, offset);
+void disassembleChunk(Chunk* chunk_, const char* name_) {
+  printf("== %s ==\n", name_);
+  for (int offset = 0; offset < chunk_->count;) {
+    offset = disassembleInstruction(chunk_, offset);
   }
 }
 
-static int constantInstruction(const char* iName, Chunk* iChunk, int offset) {
-  uint8_t constant = iChunk->code_pointer[offset + 1];
-  printf("%-16s %4d '", iName, constant);
-  printValue(iChunk->constants.values_pointer[constant]);
+static int constantInstruction(const char* name_, Chunk* chunk_, int offset) {
+  uint8_t constant = chunk_->code_[offset + 1];
+  printf("%-16s %4d '", name_, constant);
+  printValue(chunk_->constantPool.values_pointer[constant]);
   printf("'\n");
   return offset + 2;
 }
 
-static int simpleInstruction(const char* name, int offset) {
-  printf("%s\n", name);
-  return offset + 1;
-}
-
-static int byteInstruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t slot = chunk->code_pointer[offset + 1];
-  printf("%-16s %4d\n", name, slot);
-  return offset + 2; // TODO debug
-}
-
-static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t constant = chunk->code_pointer[offset + 1];
-  uint8_t argCount = chunk->code_pointer[offset + 2];
-  printf("%-16s (%d args) %4d '", name, argCount, constant);
-  printValue(chunk->constants.values_pointer[constant]);
+static int invokeInstruction(const char* name_, Chunk* chunk_, int offset) {
+  uint8_t constant = chunk_->code_[offset + 1];
+  uint8_t argCount = chunk_->code_[offset + 2];
+  printf("%-16s (%d args) %4d '", name_, argCount, constant);
+  printValue(chunk_->constantPool.values_pointer[constant]);
   printf("'\n");
   return offset + 3;
 }
 
-static int jumpInstruction(const char* name, int sign, Chunk* chunk, int offset) {
-  uint16_t jump = (uint16_t)(chunk->code_pointer[offset + 1] << 8);
-  jump |= chunk->code_pointer[offset + 2];
-  printf("%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+static int simpleInstruction(const char* name_, int offset) {
+  printf("%s\n", name_);
+  return offset + 1;
+}
+
+static int byteInstruction(const char* name_, Chunk* chunk_, int offset) {
+  uint8_t slot = chunk_->code_[offset + 1];
+  printf("%-16s %4d\n", name_, slot);
+  return offset + 2; // TODO debug
+}
+
+static int jumpInstruction(const char* name_, int sign, Chunk* chunk_, int offset) {
+  uint16_t jump = (uint16_t)(chunk_->code_[offset + 1] << 8);
+  jump |= chunk_->code_[offset + 2];
+  printf("%-16s %4d -> %d\n", name_, offset, offset + 3 + sign * jump);
   return offset + 3;
 }
 
 int disassembleInstruction(Chunk* iChunk, int offset) {
   printf("%04d ", offset);
 
-  if (offset > 0 && iChunk->lines_pointer[offset] == iChunk->lines_pointer[offset - 1]) {
+  if (offset > 0 && iChunk->lines_[offset] == iChunk->lines_[offset - 1]) {
     printf(" | ");
   } else {
-    printf("%4d ", iChunk->lines_pointer[offset]);
+    printf("%4d ", iChunk->lines_[offset]);
   }
 
-  uint8_t instruction = iChunk->code_pointer[offset];
+  uint8_t instruction = iChunk->code_[offset];
 
   switch (instruction) {
     case OP_CONSTANT : return constantInstruction("OP_CONSTANT", iChunk, offset);

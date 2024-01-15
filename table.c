@@ -47,7 +47,7 @@ static void adjustCapacity(Table* iTable, int capacity) {
 
     for (int i = 0; i < capacity; i++) {
         entries[i].key_pointer = NULL;
-        entries[i].value = VOID_VALUE;
+        entries[i].value = VALUE_VOID;
     }
     iTable->count = 0; // to manage tombstones
     for (int i = 0; i < iTable->capacity; i++) {

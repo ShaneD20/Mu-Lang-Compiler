@@ -4,7 +4,7 @@
 #include <time.h>
 #include "common.h"
 #include "vm.h"
-#include "debug.h"
+#include "disassemble.h"
 #include "compiler.h"
 #include "object.h"
 #include "memory.h"
@@ -66,8 +66,8 @@ static void runtimeError(const char* format, ...) {
   for (int i = vm.frameCount - 1; i >= 0; i += -1) {
     CallFrame* oFrame = &vm.frames[i];
     FunctionObject* oFunction = oFrame->function_pointer;
-    size_t instruction = oFrame->ip - oFunction->chunk.code_pointer - 1;
-    int line = oFunction->chunk.lines_pointer[instruction];
+    size_t instruction = oFrame->ip - oFunction->chunk.code_- 1;
+    int line = oFunction->chunk.lines_[instruction];
     fprintf(stderr, "[line %d] in ", line);
 
     if (oFunction->name_pointer == NULL) {
@@ -105,7 +105,7 @@ static bool call(FunctionObject* iFunction, int count) {
   }
   CallFrame* oFrame = &vm.frames[vm.frameCount++];
   oFrame->function_pointer = iFunction;
-  oFrame->ip = iFunction->chunk.code_pointer;
+  oFrame->ip = iFunction->chunk.code_;
   oFrame->slots_pointer = vm.top_pointer - count - 1;
   return true;
 }
@@ -168,7 +168,7 @@ static InterpretResult run() {
         break;
       }
       case OP_VOID : 
-        push(VOID_VALUE);
+        push(VALUE_VOID);
         break;
       case OP_TRUE : 
         push(TF_VALUE(true));

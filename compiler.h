@@ -36,8 +36,6 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
-static ParseRule* getRule(TokenType token);
-
 typedef struct {
   Token name;
   int depth;
