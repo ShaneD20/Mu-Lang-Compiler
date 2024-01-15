@@ -13,7 +13,7 @@
 #define UNIT8_COUNT (UINT8_MAX + 1)
 
 #endif
-#undef NAN_BOXING
+
 #undef DEBUG_PRINT_CODE
 #undef DEBUG_TRACE_EXECUTION
 #undef DEBUG_STRESS_GC

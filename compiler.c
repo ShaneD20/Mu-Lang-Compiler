@@ -1,57 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "common.h"
 #include "compiler.h"
+#include "memory.h"
 #include "scanner.h"
-#include "precedence.h"
-#include "value.h"
-#include <string.h>
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
 #endif
 
-typedef struct {
-  Token current;
-  Token previous;
-  bool hadError;
-  bool panic;
-} Parser;
-
-typedef struct {
-  Token name;
-  int depth;
-} Local;
-
-typedef enum {
-  FUNCTION_FUNCTION,
-  SCRIPT_FUNCTION,
-} FunctionType;
-
-typedef struct Compiler {
-  struct Compiler* enclosing_pointer;
-  FunctionObject* function_pointer;
-  FunctionType type;
-  Local locals[UNIT8_COUNT];
-  int localCount;
-  int scopeDepth;
-} Compiler;
-
 Parser parser;
 Compiler* iCurrent = NULL;
 Chunk* iCompilingChunk = NULL; //TODO remove
 
-static void initCompiler(Compiler* iCompiler, FunctionType type) {
-  iCompiler->enclosing_pointer = iCurrent;
-  iCompiler->function_pointer = NULL;
-  iCompiler->type = type;
-  iCompiler->localCount = 0;
-  iCompiler->scopeDepth = 0;
-  iCompiler->function_pointer = newFunction();
-  iCurrent = iCompiler;
+static void initCompiler(Compiler* compiler_, FunctionType type) {
+  compiler_->enclosing_ = iCurrent;
+  compiler_->function_ = NULL;
+  compiler_->type = type;
+  compiler_->localCount = 0;
+  compiler_->scopeDepth = 0;
+  compiler_->function_ = newFunction();
+  iCurrent = compiler_;
 
-  if (type != SCRIPT_FUNCTION) {
-    iCurrent->function_pointer->name_pointer = copyString(parser.previous.start_pointer, parser.previous.length);
+  if (type != TYPE_SCRIPT) {
+    iCurrent->function_->name_pointer = copyString(parser.previous.start_pointer, parser.previous.length);
   }
 
   Local* oLocal = &iCurrent->locals[iCurrent->localCount++];
@@ -82,7 +56,6 @@ static void errorAt(Token* iToken, const char* iMessage) {
   fprintf(stderr, ": %s\n", iMessage);
   parser.hadError = true;
 }
-
 static void error(const char* iMessage) {
   errorAt(&parser.previous, iMessage);
 }
@@ -91,20 +64,19 @@ static void errorAtCurrent(const char* iMessage) {
 }
 static void advance() {
   parser.previous = parser.current;
-  /* 
-    almost certain could move token = scanToken to above and the bottom
-    and make do {} while (token.type == TokenError)
-  */
-  for (;;) {
+
+  while (true) { // TODO attempt a re-write without true
     parser.current = scanToken();
+    printf("%d", parser.current.type);
     if (parser.current.type != TOKEN_ERROR) {
       break;
     }
     errorAtCurrent(parser.current.start_pointer);
   }
 }
-static void consume(TokenType current, const char* iMessage) {
-  if (parser.current.type == current) {
+
+static void consume(TokenType token, const char* iMessage) {
+  if (parser.current.type == token) {
     advance();
     return;
   }
@@ -153,7 +125,6 @@ static void patchJump(int offset) {
   currentChunk()->code_pointer[offset + 1] = jump & 0xff;
 }
 static void emitReturn() {
-  //TODO initializer
   emitByte(OP_VOID);
   emitByte(OP_RETURN);
 }
@@ -204,7 +175,7 @@ void parsePrecedence(Precedence rule) {
     ParseFn infixRule = getRule(parser.previous.type)->infix;
     infixRule(canAssign);
   }
-  if (canAssign && match(S_EQUAL)) {
+  if (canAssign && match(S_COLON)) {
     error("Invalid assignment target.");
   }
 }
@@ -347,24 +318,20 @@ static void grouping(bool assignable) {
 
 static void variableDeclaration() {
   // for globals
-  uint8_t global = parseVariable("Expect variable name.");
+  uint8_t identifier = parseVariable("Expect variable name.");
   if (match(S_COLON)) { // replacing equals with the humble colon
     expression();
   } else {
     emitByte(OP_VOID);
   }
-  consume(S_SEMICOLON, "Expect ';' to end variable declaration");
+  consume(S_SEMICOLON, "for constants expect \": value|expression ;\" to complete variable declaration");
 
-  defineVariable(global);
+  defineVariable(identifier);
 }
 
 static void expressionStatement() {
   expression();
-  consume(S_SEMICOLON, "Expect ';' after expression"); 
-  /* when it finds the token pops and rolls back
-     the value is popped and forgotten
-     which is debatedly what is desirable with \n
-  */
+  consume(S_SEMICOLON, "Expect ';' after expression"); //TODO doesn't get consumed..?
   emitByte(OP_POP);
 }
 
@@ -378,6 +345,7 @@ static void returnStatement() {
   if (iCurrent->type == SCRIPT_FUNCTION) {
     error("Can't return from top-level code.");
   } // disallows top level return, might be okay to have...
+
   if (match(S_SEMICOLON)) {
     emitReturn();
   } else {
@@ -584,7 +552,7 @@ static void namedVariable(Token name, bool assignable) {
     setOP = OP_SET_GLOBAL;
   }
 
-  if (assignable && match(S_EQUAL)) {
+  if (assignable && match(S_COLON)) {
     expression();
     emitBytes(setOP, (uint8_t)arg);
   } else {
@@ -614,35 +582,35 @@ static void call(bool assignable) {
 }
 
 ParseRule rules[] = {
-  [END_OF_FILE] = {NULL, NULL, ZERO_PRECEDENCE},
-  [TOKEN_ERROR] = {NULL, NULL, ZERO_PRECEDENCE},
-  [L_IDENTIFIER] = {variable, NULL, ZERO_PRECEDENCE},
-  [L_STRING] = {string, NULL, ZERO_PRECEDENCE},
-  [L_FLOAT] = {number, NULL, ZERO_PRECEDENCE},
-  [S_STAR] = {NULL, binary, FACTOR_PRECEDENCE},
-  [S_SLASH] = {NULL, binary, FACTOR_PRECEDENCE},
-  [S_MINUS] = {unary, binary, SUM_PRECEDENCE},
-  [S_PLUS] = {NULL, binary, SUM_PRECEDENCE},
-  [S_BANG] = {unary, NULL, ZERO_PRECEDENCE},
   [S_LEFT_PARENTHESIS] = {grouping, call, CALL_PRECEDENCE},
-  [S_DOT] = {NULL, NULL, CALL_PRECEDENCE},
   [S_RIGHT_PARENTHESIS] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_LEFT_CURLYBRACE] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_RIGHT_CURLYBRACE] = {NULL, NULL, ZERO_PRECEDENCE},
   [S_COMMA] = {NULL, NULL, ZERO_PRECEDENCE},
+  [S_DOT] = {NULL, NULL, CALL_PRECEDENCE},
+  [S_MINUS] = {unary, binary, SUM_PRECEDENCE},
+  [S_PLUS] = {NULL, binary, SUM_PRECEDENCE},
   [S_SEMICOLON] = {NULL, NULL, ZERO_PRECEDENCE},
-  [S_GREATER] = {NULL, binary, COMPARISON_PRECEDENCE},
+  [S_SLASH] = {NULL, binary, FACTOR_PRECEDENCE},
+  [S_STAR] = {NULL, binary, FACTOR_PRECEDENCE},
+  [S_BANG] = {unary, NULL, ZERO_PRECEDENCE},
   [D_BANG_TILDE] = {NULL, binary, EQUALITY_PRECEDENCE},
+  [S_COLON] = {NULL, NULL, ZERO_PRECEDENCE},
   [D_EQUAL] = {NULL, binary, EQUALITY_PRECEDENCE},
+  [S_GREATER] = {NULL, binary, COMPARISON_PRECEDENCE},
   [S_LESS] = {NULL, binary, COMPARISON_PRECEDENCE},
   [D_GREATER_EQUAL] = {NULL, binary, COMPARISON_PRECEDENCE},
   [D_LESS_EQUAL] = {NULL, binary, COMPARISON_PRECEDENCE},
+  [L_IDENTIFIER] = {variable, NULL, ZERO_PRECEDENCE},
+  [L_STRING] = {string, NULL, ZERO_PRECEDENCE},
+  [L_FLOAT] = {number, NULL, ZERO_PRECEDENCE},
   [K_AND] = {NULL, and_, AND_PRECEDENCE},
   [K_OR] = {NULL, or_, OR_PRECEDENCE},
   [K_BUILD] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_DEFINE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_ELSE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_JOIN] = {NULL, NULL, ZERO_PRECEDENCE},
+  [K_PRINT] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_RETURN] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_SELF] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_FALSE] = {literal, NULL, ZERO_PRECEDENCE},
@@ -653,6 +621,8 @@ ParseRule rules[] = {
   [K_WHILE] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_XOR] = {NULL, NULL, ZERO_PRECEDENCE},
   [K_YIELD] = {NULL, NULL, ZERO_PRECEDENCE},
+  [END_OF_FILE] = {NULL, NULL, ZERO_PRECEDENCE},
+  [TOKEN_ERROR] = {NULL, NULL, ZERO_PRECEDENCE},
 };
 
 static ParseRule* getRule(TokenType token) {
@@ -675,6 +645,5 @@ FunctionObject* compile(const char* iSource) {
   //consume(END_OF_FILE, "Expect complete expression");
 
   FunctionObject* oFunction = quitCompiler();
-  return parser.hadError ?
-    NULL : oFunction;
+  return parser.hadError ? NULL : oFunction;
 }

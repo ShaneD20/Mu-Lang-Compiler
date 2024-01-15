@@ -17,10 +17,10 @@ typedef enum {
   S_NEW_LINE,                                // \n
 
   //DOUBLE CHARACTER
-  D_BANG_TILDE,
+  D_BANG_TILDE,  D_COMMA, D_STAR,             // !~ ,, **
   D_COLON, D_DOT, D_EQUAL, D_QUESTION,        // :: .. == ?? 
   D_DIAMOND, D_GREATER_EQUAL, D_LESS_EQUAL,   // <> >= <=
-  D_COMMA, D_STAR, D_RIGHT_ARROW,             // ,, ** -> 
+  D_RIGHT_ARROW, D_LEFT_ARROW,            // -> <-
   
   //LITERALS
   L_IDENTIFIER,
@@ -35,11 +35,13 @@ typedef enum {
   K_DEFINE, K_DELETE,
   K_ELSE, K_EACH, K_EXISTS, // K_END,
   K_FALSE, K_FROM,
-  // K_GIVE,
-  // K_HOLD,
+  K_GENERATES, // K_GIVE,
+  K_HOLD,
   K_IF, K_ITERATES, //K_IS,
   K_JOIN, 
-  // k ... l
+  // k ...
+  K_LIKE, // pattern matching when... like...
+  // ... m
   K_NOT, // unsure if ! or not is better
   K_OR, 
   K_PRINT, K_PANIC,

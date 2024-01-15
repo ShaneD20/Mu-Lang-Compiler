@@ -38,7 +38,7 @@ static Entry* findEntry(Entry* iEntries, int capacity, StringObject* iKey) {
         } else if (iEntry->key_pointer == iKey) {
             return iEntry;
         }
-        index = (index + 1) % capacity;
+        index = (index + 1) % (capacity - 1);
     }
 }
 
@@ -50,14 +50,14 @@ static void adjustCapacity(Table* iTable, int capacity) {
         entries[i].value = VOID_VALUE;
     }
     iTable->count = 0; // to manage tombstones
-    for (int i = 0; i < iTable->capacity; i += 1) {
+    for (int i = 0; i < iTable->capacity; i++) {
         Entry* iEntry = &iTable->entries_pointer[i];
         if (iEntry->key_pointer == NULL) continue;
 
         Entry* iDestination = findEntry(entries, capacity, iEntry->key_pointer);
         iDestination->key_pointer = iEntry->key_pointer;
         iDestination->value = iEntry->value;
-        iTable->count += 1; // to manage tombstones
+        iTable->count++; // to manage tombstones
     }
     FREE_ARRAY(Entry, iTable->entries_pointer, iTable->capacity);
     iTable->entries_pointer = entries;
