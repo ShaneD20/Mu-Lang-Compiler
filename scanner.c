@@ -43,7 +43,7 @@ static char peekNext() {
 static bool match(char expected) {
   if (isAtEnd()) return false;
   if (*scanner.current != expected) return false;
-  scanner.current++;
+  scanner.current++; // TODO would implement something similar for meaningful new lines
   return true;
 }
 //^ Scanner Helpers
@@ -87,7 +87,7 @@ static void skipWhitespace() {
           return;
         }
         break;
-      default:
+      default: //encountering anything not defined as whitespace
         return;
     }
   }
@@ -161,7 +161,7 @@ static Token number() {
 }
 
 static Token string() {
-  while (peek() != '"' && !isAtEnd()) {
+  while (peek() != '"' && !isAtEnd()) { // TODO use similar logic if implementing meaningufl new lines
     if (peek() == '\n') scanner.line++;
     advance();
   }
@@ -184,13 +184,13 @@ Token scanToken() {
 
   switch (c) {
     // single character
-    case '(': return makeToken(S_LEFT_PARENTHESES);
+    case '(': return makeToken(S_LEFT_PARENTHESES); // TODO would be new line aware
     case ')': return makeToken(S_RIGHT_PARENTHESES);
-    case '{': return makeToken(S_LEFT_CURLY);
+    case '{': return makeToken(S_LEFT_CURLY); // TODO would be new line aware
     case '}': return makeToken(S_RIGHT_CURLY);
-    case '?': return makeToken(S_QUESTION);
+    case '?': return makeToken(S_QUESTION); // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON);
-    case ':': return makeToken(S_COLON);
+    case ':': return makeToken(S_COLON); // TODO would be new line aware
     case '.': return makeToken(S_DOT);
     case '-': return makeToken(S_MINUS);
     case '+': return makeToken(S_PLUS);

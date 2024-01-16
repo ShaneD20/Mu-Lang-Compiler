@@ -1,5 +1,6 @@
-print "Mu sample start";
+print "===Mu sample start===";
 
+print " --While Loop";
 let x : 1;
 
 while x < 100 ? 
@@ -7,12 +8,22 @@ while x < 100 ?
     x : x * 2; 
 ,,
 
-if 0 > -5 ? 
-    print "yes"; 
+print " --Until Loop";
+x : 1;
+
+until x > 100 ?
+    print x;
+    x : x * 3;
 ,,
 
-if 0 > 10 ? print "yes"; 
-else print "no";
+print " --If Clause";
+if 0 > -5 ? 
+    print "yes, zero is greater than negative five"; 
+,,
+
+if 0 > 10 ? 
+    print "yes zero is greater than ten"; 
+else print "no, zero is not greater than ten";
 
 if false ? 
     print "one"; 
@@ -21,10 +32,10 @@ else if false ?
 else 
     print "three";
 
-
+print " --String Concatenation";
 let name : "steve";
 let last : " poe";
 let full_name : name + last;
 print full_name;
 
-print "Mu sample end";
+print "===Mu sample end===";

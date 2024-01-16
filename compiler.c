@@ -368,11 +368,11 @@ static void and_(bool canAssign) {
 
 //> Jumping Back and Forth or
 static void or_(bool canAssign) {
-  int elseJump = emitJump(OP_JUMP_IF_FALSE);
-  int endJump = emitJump(OP_JUMP); // testing
+  // int elseJump = emitJump(OP_JUMP_IF_FALSE);
+  // int endJump = emitJump(OP_JUMP); // JUMP_IF_TRUE seems to be working TODO remove
+  //patchJump(elseJump);
 
-  patchJump(elseJump);
-  // int endJump = emitJump(OP_JUMP_IF_TRUE);
+  int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
   parsePrecedence(PREC_OR);
   patchJump(endJump);
@@ -799,6 +799,7 @@ static void varDeclaration() {
 static void expressionStatement() {
   expression();
   consume(S_SEMICOLON, "Expect ';' after expression.");
+    // for new lines would have to add... if (match(S_SEMICOLON)) { ... } else
   emitByte(OP_POP);
 }
 

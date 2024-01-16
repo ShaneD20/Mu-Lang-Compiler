@@ -479,6 +479,11 @@ static InterpretResult run() {
         if (isFalsey(peek(0))) frame->ip += offset;
         break;
       }
+      case OP_JUMP_IF_TRUE: {
+        uint16_t offset = READ_SHORT(); // TODO why does this segfault ?
+        if (!isFalsey(peek(0))) frame->ip += offset;
+        break;
+      }
 // Jumping Back and Forth op-loop
       case OP_LOOP: {
         uint16_t offset = READ_SHORT();
