@@ -117,7 +117,7 @@ static TokenType identifierType() { // tests for keywords
         }
       }
       break;
-//< keyword-f
+//^ keyword-f
     case 'i': return checkKeyword(1, 1, "f", K_IF);
     case 'l': return checkKeyword(1, 2, "et", K_LET);
     case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
@@ -134,8 +134,16 @@ static TokenType identifierType() { // tests for keywords
         }
       }
       break;
-//< keyword-t
-    case 'u': return checkKeyword(1, 4, "ntil", K_UNTIL);
+//^ keyword-t
+    case 'u': if (scanner.current - scanner.start > 1) {
+      if (scanner.start[1] == 'n') {
+        switch (scanner.start[2]) {
+          case 'l': return checkKeyword(3, 3, "ess", K_UNLESS);
+          case 't': return checkKeyword(3, 2, "il", K_UNTIL);
+        }
+      }
+    }
+      // return checkKeyword(1, 4, "ntil", K_UNTIL);
     case 'w': return checkKeyword(1, 4, "hile", K_WHILE);
   }
 
@@ -200,7 +208,7 @@ Token scanToken() {
     case ',': 
       return makeToken(match(',') ? D_COMMA : S_COMMA);
     case '!':
-      return makeToken(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
+      return makeToken(match('~') ? D_BANG_TILDE : TOKEN_BANG);
     case '=':
       return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : S_EQUAL);
     case '<':

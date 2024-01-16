@@ -10,10 +10,9 @@ typedef enum { // TODO update to reflect mu
   S_LEFT_SQUARE, S_RIGHT_SQUARE, TOKEN_BANG, 
   S_EQUAL, TOKEN_GREATER, TOKEN_LESS,
   // two character tokens.
-  D_COMMA,
+  D_COMMA, D_BANG_TILDE,
   TOKEN_BANG_EQUAL, TOKEN_EQUAL_EQUAL,
-  TOKEN_GREATER_EQUAL, 
-  TOKEN_LESS_EQUAL,
+  TOKEN_GREATER_EQUAL, TOKEN_LESS_EQUAL,
   // Literals.
   L_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER, 
   // L_MUTABLE, // todo add, would replace s_octo ?
@@ -33,7 +32,7 @@ typedef enum { // TODO update to reflect mu
   K_LET, // TODO remove 
   K_OR,
   K_RETURN, 
-  K_UNTIL,
+  K_UNLESS, K_UNTIL,
   K_WHILE,
   K_TRUE, 
 
