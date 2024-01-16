@@ -289,7 +289,7 @@ static InterpretResult run() {
     (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 
 #define READ_CONSTANT() \
-    (frame->closure->function->chunk.constants.values[READ_BYTE()])
+    (frame->closure->function->chunk.constantPool.values[READ_BYTE()])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
@@ -329,7 +329,6 @@ static InterpretResult run() {
         (int)(frame->ip - frame->closure->function->chunk.code));
 //< Closures disassemble-instruction
 #endif
-
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT: {
@@ -441,7 +440,7 @@ static InterpretResult run() {
 
       case OP_ADD: {
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
-          concatenate();
+          concatenate();  // TODO update to be like mu spec
         } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
           double b = AS_NUMBER(pop());
           double a = AS_NUMBER(pop());

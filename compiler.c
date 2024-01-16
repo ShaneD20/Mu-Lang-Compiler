@@ -35,7 +35,7 @@ static void errorAt(Token* token, const char* message) {
   }
 
   fprintf(stderr, ": %s\n", message);
-  parser.hadError = true;
+  parser.hasError = true;
 }
 static void error(const char* message) {
   errorAt(&parser.previous, message);
@@ -103,7 +103,7 @@ static int emitJump(uint8_t instruction) {
 }
 
 static void emitReturn() {
-  if (current->type == TYPE_INITIALIZER) {
+  if (current->type == FT_INITIALIZER) {
     emitBytes(OP_GET_LOCAL, 0);
   } else {
     emitByte(OP_NIL);
@@ -144,7 +144,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler;
-  if (type != TYPE_SCRIPT) {
+  if (type != FT_SCRIPT) {
     current->function->name = copyString(parser.previous.start, parser.previous.length);
   }
 
@@ -152,7 +152,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   local->depth = 0;
   local->isCaptured = false;
 // Methods and Initializers slot-zero
-  if (type != TYPE_FUNCTION) {
+  if (type != FT_FUNCTION) {
     local->name.start = "this";
     local->name.length = 4;
   } else {
@@ -712,12 +712,12 @@ static void function(FunctionType type) {
 static void method() {
   consume(L_IDENTIFIER, "Expect method name.");
   uint8_t constant = identifierConstant(&parser.previous);
-  FunctionType type = TYPE_METHOD;
+  FunctionType type = FT_METHOD;
 
   //> initializer-name
   if (parser.previous.length == 4 &&
       memcmp(parser.previous.start, "init", 4) == 0) {
-    type = TYPE_INITIALIZER;
+    type = FT_INITIALIZER;
   }
   function(type); // method-body
   emitBytes(OP_METHOD, constant);
@@ -780,7 +780,7 @@ static void classDeclaration() {
 static void funDeclaration() {
   uint8_t global = parseVariable("Expect function name.");
   markInitialized();
-  function(TYPE_FUNCTION);
+  function(FT_FUNCTION);
   defineVariable(global);
 }
 
@@ -944,7 +944,7 @@ static void printStatement() {
 // Calls and Functions return-statement
 static void returnStatement() {
 //> return-from-script
-  if (current->type == TYPE_SCRIPT) {
+  if (current->type == FT_SCRIPT) {
     error("Can't return from top-level code.");
   }
 
@@ -953,7 +953,7 @@ static void returnStatement() {
     emitReturn();
   } else {
 // Methods and Initializers return-from-init
-    if (current->type == TYPE_INITIALIZER) {
+    if (current->type == FT_INITIALIZER) {
       error("Can't return a value from an initializer.");
     }
 //^ Methods and Initializers return-from-init
@@ -1077,10 +1077,10 @@ ObjFunction* compile(const char* source) {
   initScanner(source);
 
   Compiler compiler; // Local Variables compiler
-  initCompiler(&compiler, TYPE_SCRIPT); // Calls and Functions call-init-compiler
+  initCompiler(&compiler, FT_SCRIPT); // Calls and Functions call-init-compiler
 
   // init-parser-error
-  parser.hadError = false;
+  parser.hasError = false;
   parser.panicMode = false;
 
   advance();
@@ -1091,7 +1091,7 @@ ObjFunction* compile(const char* source) {
 
   // Calls and Functions call-end-compiler
   ObjFunction* function = endCompiler();
-  return parser.hadError ? NULL : function;
+  return parser.hasError ? NULL : function;
 }
 //> Garbage Collection 
 void markCompilerRoots() {
