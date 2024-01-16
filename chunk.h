@@ -37,6 +37,7 @@ typedef enum {
   OP_SUBTRACT,
   OP_MULTIPLY,
   OP_DIVIDE,
+  OP_MODULO,
   OP_CONCATENATE, // TODO implement
 // Types of Values unary-ops
   OP_NOT,

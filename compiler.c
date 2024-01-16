@@ -386,9 +386,9 @@ static void binary(bool canAssign) {
   parsePrecedence((Precedence)(rule->precedence + 1));
 
   switch (operatorType) {
-    case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
+    case D_BANG_TILDE:        emitBytes(OP_EQUAL, OP_NOT); 
       break;
-    case S_EQUAL:   emitByte(OP_EQUAL); 
+    case S_EQUAL:             emitByte(OP_EQUAL); 
       break;
     case TOKEN_GREATER:       emitByte(OP_GREATER); 
       break;
@@ -406,6 +406,7 @@ static void binary(bool canAssign) {
       break;
     case S_SLASH:         emitByte(OP_DIVIDE); 
       break;
+    case S_MODULO:        emitByte(OP_MODULO);
     default: return; // Unreachable.
   }
 }
@@ -549,37 +550,40 @@ static void unary(bool canAssign) {
 
   // Emit the operator instruction.
   switch (operatorType) {
-    case TOKEN_BANG: emitByte(OP_NOT); break;
+    case S_BANG: emitByte(OP_NOT); break;
     case S_MINUS: emitByte(OP_NEGATE); break;
     default: return; // Unreachable.
   }
 }
 
 ParseRule rules[] = {
-//> Calls and Functions infix-left-paren
-  [S_LEFT_PARENTHESES]    = {grouping, call,   PREC_CALL},
-//< Calls and Functions infix-left-paren
-  [S_RIGHT_PARENTHESES]   = {NULL,     NULL,   PREC_NONE},
+// Calls and Functions 
+  [S_LEFT_PARENTHESES]  = {grouping, call,   PREC_CALL},
+  [S_RIGHT_PARENTHESES] = {NULL,     NULL,   PREC_NONE},
+  [S_DOT]               = {NULL,     dot,    PREC_CALL},
+// Sructures
   [S_LEFT_CURLY]    = {NULL,     NULL,   PREC_NONE}, 
   [S_RIGHT_CURLY]   = {NULL,     NULL,   PREC_NONE},
+// Delimiters, Guards, and Terminators
   [S_COMMA]         = {NULL,     NULL,   PREC_NONE},
   [D_COMMA]         = {NULL,     NULL,   PREC_NONE},
-  [S_QUESTION]      = {NULL,     NULL,   PREC_NONE},
-//> Classes and Instances table-dot
-  [S_DOT]           = {NULL,     dot,    PREC_CALL},
-//< Classes and Instances table-dot
-  [S_MINUS]         = {unary,    binary, PREC_TERM},
-  [S_PLUS]          = {NULL,     binary, PREC_TERM},
   [S_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
-  [S_SLASH]         = {NULL,     binary, PREC_FACTOR},
-  [S_STAR]          = {NULL,     binary, PREC_FACTOR},
-//> Types of Values table-equality
-  [TOKEN_BANG]          = {unary,    NULL,   PREC_NONE},
-  [D_BANG_TILDE]    = {NULL,     binary, PREC_EQUALITY},
-  [S_COLON]         = {NULL,     NULL,   PREC_NONE},
-  [D_COLON_EQUAL]   = {NULL,     NULL,   PREC_NONE},
-//> Types of Values table-comparisons
-  [S_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
+  [NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
+  [S_QUESTION]      = {NULL,     NULL,   PREC_NONE},
+// Assignment Operators
+  [S_COLON]       = {NULL,     NULL,   PREC_NONE},
+  [D_COLON_EQUAL] = {NULL,     NULL,   PREC_NONE},
+// Arithmetic Operators
+  [S_MINUS]       = {unary,    binary, PREC_TERM},
+  [S_PLUS]        = {NULL,     binary, PREC_TERM},
+  [S_SLASH]       = {NULL,     binary, PREC_FACTOR},
+  [S_MODULO]      = {NULL,     binary, PREC_FACTOR},
+  [S_STAR]        = {NULL,     binary, PREC_FACTOR},
+// Types of Values table-equality
+  [S_BANG]        = {unary,    NULL,   PREC_NONE},
+  [D_BANG_TILDE]  = {NULL,     binary, PREC_EQUALITY},
+  [S_EQUAL]       = {NULL,     binary, PREC_EQUALITY},
+// Types of Values table-comparisons
   [TOKEN_GREATER]       = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
@@ -610,8 +614,8 @@ ParseRule rules[] = {
   [K_LET]           = {NULL,     NULL,   PREC_NONE},
   [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
   [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_ERROR]     = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_EOF]       = {NULL,     NULL,   PREC_NONE},
 };
 
 static void parsePrecedence(Precedence precedence) {
@@ -643,6 +647,7 @@ static ParseRule* getRule(TokenType type) {
 }
 
 static void expression() {
+  // TODO why does this error for else ?
   parsePrecedence(PREC_ASSIGNMENT);
 //^ expression-body
 }
@@ -800,6 +805,9 @@ static void varDeclaration() {
 
 //> Global Variables expression-statement
 static void expressionStatement() {
+  // if (check(D_COMMA)) {
+  //   consume(D_COMMA, "Expect ,, to complete an expression statement.");
+  // }
   expression();
   consume(S_SEMICOLON, "Expect ';' after expression."); // TODO this error goes out for incorrect assignment operator, fix
     // for new lines would have to add... if (match(S_SEMICOLON)) { ... } else
@@ -879,7 +887,11 @@ static void ifStatement() {
   emitByte(OP_POP); // pop-end
 
   if (match(K_ELSE)) { // compile else
-    statement(); // TODO could enforce 'else' scope
+    // statement(); // TODO could enforce 'else' scope
+    consume(K_ELSE, "need else to branch further.");
+    beginScope();
+    blockBubble();
+    endScope();
   } 
   // patch-else
   patchJump(elseJump);
@@ -938,6 +950,9 @@ static void unlessStatement() {
 static void printStatement() {
   expression();
   consume(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+  if (match(NEW_LINE)) {
+    consume(NEW_LINE, "new line to close statement"); // TODO test
+  }
   emitByte(OP_PRINT);
 }
 
@@ -971,7 +986,6 @@ static void untilStatement() {
 
   int exitJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
-  // statement(); // TEST was successful TODO remove.
   beginScope();
   blockBubble();
   endScope();
