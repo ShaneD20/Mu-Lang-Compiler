@@ -15,6 +15,9 @@ VM vm; // [one]
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
+static void showText(const char array[]) {
+  printf("%s\n", array);
+}
 //^ Native Functions
 
 static void resetStack() {
@@ -76,7 +79,8 @@ void initVM() {
   vm.initString = NULL;
   vm.initString = copyString("init", 4);
 
-  defineNative("clock", clockNative);
+  defineNative("clock", clockNative); // TODO add print native function
+  // defineNative("show", showText); // TODO segfault ...
 }
 
 //> VM Helpers

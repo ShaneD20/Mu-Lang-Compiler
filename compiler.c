@@ -388,7 +388,7 @@ static void binary(bool canAssign) {
   switch (operatorType) {
     case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
       break;
-    case TOKEN_EQUAL_EQUAL:   emitByte(OP_EQUAL); 
+    case S_EQUAL:   emitByte(OP_EQUAL); 
       break;
     case TOKEN_GREATER:       emitByte(OP_GREATER); 
       break;
@@ -421,7 +421,7 @@ static void dot(bool canAssign) {
   consume(L_IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(&parser.previous);
 
-  if (canAssign && match(S_COLON)) {
+  if (canAssign && match(D_COLON_EQUAL)) {
     expression();
     emitBytes(OP_SET_PROPERTY, name);
 // Methods and Initializers parse-call
@@ -481,7 +481,7 @@ static void namedVariable(Token name, bool canAssign) {
     setOp = OP_SET_GLOBAL;
   }
 // named-variable-can-assign
-  if (canAssign && match(S_COLON)) {
+  if (canAssign && match(D_COLON_EQUAL)) {
     expression();
     emitBytes(setOp, (uint8_t)arg); // Local Variables emit-set
   } else {
@@ -577,8 +577,9 @@ ParseRule rules[] = {
   [TOKEN_BANG]          = {unary,    NULL,   PREC_NONE},
   [D_BANG_TILDE]    = {NULL,     binary, PREC_EQUALITY},
   [S_COLON]         = {NULL,     NULL,   PREC_NONE},
+  [D_COLON_EQUAL]   = {NULL,     NULL,   PREC_NONE},
 //> Types of Values table-comparisons
-  [TOKEN_EQUAL_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
+  [S_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
   [TOKEN_GREATER]       = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
@@ -594,16 +595,17 @@ ParseRule rules[] = {
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
   [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [K_FALSE]         = {literal,  NULL,   PREC_NONE},
-  [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
+//  [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE}, // omit from mu
   [K_DEFINE]        = {NULL,     NULL,   PREC_NONE},
   [K_IF]            = {NULL,     NULL,   PREC_NONE},
+  [K_IS]            = {NULL,     NULL,   PREC_NONE},
   [K_UNLESS]        = {NULL,     NULL,   PREC_NONE},
   [K_OR]            = {NULL,     or_,    PREC_OR},
   [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
-  [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
+  [K_SELF]          = {this_,    NULL,   PREC_NONE},
   [K_TRUE]          = {literal,  NULL,   PREC_NONE},
   [K_LET]           = {NULL,     NULL,   PREC_NONE},
   [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
@@ -631,7 +633,7 @@ static void parsePrecedence(Precedence precedence) {
     infixRule(canAssign);
   }
 //> Global Variables invalid-assign
-  if (canAssign && match(S_COLON)) {
+  if (canAssign && match(D_COLON_EQUAL)) {
     error("Invalid assignment target.");
   }
 }
@@ -786,12 +788,12 @@ static void funDeclaration() {
 static void varDeclaration() {
   uint8_t global = parseVariable("Expect variable name.");
 
-  if (match(S_COLON)) {
+  if (match(D_COLON_EQUAL)) {
     expression();
   } else {
     emitByte(OP_NIL);
   }
-  consume(S_SEMICOLON, "Expect ';' after variable declaration.");
+  consume(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
 
   defineVariable(global);
 }
@@ -799,7 +801,7 @@ static void varDeclaration() {
 //> Global Variables expression-statement
 static void expressionStatement() {
   expression();
-  consume(S_SEMICOLON, "Expect ';' after expression.");
+  consume(S_SEMICOLON, "Expect ';' after expression."); // TODO this error goes out for incorrect assignment operator, fix
     // for new lines would have to add... if (match(S_SEMICOLON)) { ... } else
   emitByte(OP_POP);
 }
@@ -860,6 +862,32 @@ static void forStatement() { // TODO remove or revise
 
 static void ifStatement() {
   expression();
+  consume(S_QUESTION, "Expect 'if' BOOLEAN '?' to test condition.");
+
+  int thenJump = emitJump(OP_JUMP_IF_FALSE);
+//> pop-then
+  emitByte(OP_POP);
+//< pop-then
+  // statement(); // TEST
+  beginScope();
+  blockConditional();
+  endScope();
+
+  int elseJump = emitJump(OP_JUMP); // jump-over-else
+
+  patchJump(thenJump);
+  emitByte(OP_POP); // pop-end
+
+  if (match(K_ELSE)) { // compile else
+    statement(); // TODO could enforce 'else' scope
+  } 
+  // patch-else
+  patchJump(elseJump);
+}
+
+static void whenStatement() { //TODO refactor to be conditional switch
+  // or switch expression
+  expression();
   consume(S_QUESTION, "Expect '?' after condition and before body.");
 
   int thenJump = emitJump(OP_JUMP_IF_FALSE);
@@ -882,9 +910,10 @@ static void ifStatement() {
   // patch-else
   patchJump(elseJump);
 }
+
 static void unlessStatement() {
   expression();
-  consume(S_QUESTION, "Expect '?' after condition and before body.");
+  consume(S_QUESTION, "Expect 'unless' BOOLEAN '?' to test condition.");
 
   int thenJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP); // pop-then
@@ -984,11 +1013,12 @@ static void synchronize() {
       case TOKEN_CLASS:
       case K_DEFINE:
       case K_LET:
-      case TOKEN_FOR:
+      // case TOKEN_FOR:
       case K_IF:
       case K_UNLESS:
       case K_UNTIL:
       case K_WHILE:
+      case K_WHEN:
       case TOKEN_PRINT:
       case K_RETURN:
         return;
@@ -1020,10 +1050,12 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
-  } else if (match(TOKEN_FOR)) {
+  } /* else if (match(TOKEN_FOR)) {
     forStatement();
-  } else if (match(K_IF)) {
+  }*/ else if (match(K_IF)) {
     ifStatement();
+  } else if (match(K_WHEN)) {
+    whenStatement();
   } else if (match(K_UNLESS)) {
     unlessStatement();
   } else if (match(K_RETURN)) {

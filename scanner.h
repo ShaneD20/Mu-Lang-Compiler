@@ -10,29 +10,31 @@ typedef enum { // TODO update to reflect mu
   S_LEFT_SQUARE, S_RIGHT_SQUARE, TOKEN_BANG, 
   S_EQUAL, TOKEN_GREATER, TOKEN_LESS,
   // two character tokens.
-  D_COMMA, D_BANG_TILDE,
+  D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,
   TOKEN_BANG_EQUAL, TOKEN_EQUAL_EQUAL,
   TOKEN_GREATER_EQUAL, TOKEN_LESS_EQUAL,
   // Literals.
   L_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER, 
   // L_MUTABLE, // todo add, would replace s_octo ?
   // Keywords.
+  // TOKEN_FOR, 
   TOKEN_CLASS, 
-  TOKEN_FOR, 
   TOKEN_NIL, 
   TOKEN_PRINT, 
-  TOKEN_SUPER, 
-  TOKEN_THIS,
+  TOKEN_SUPER, // could use 'bind' to bind a global to a closure
 
   K_AND, 
   K_DEFINE,
   K_ELSE,
   K_FALSE,
-  K_IF, 
+  // would 'go' work in place of 'end' ?
+  K_IF, K_IS,
   K_LET, // TODO remove 
   K_OR,
   K_RETURN, 
+  K_SELF,
   K_UNLESS, K_UNTIL,
+  K_WHEN,
   K_WHILE,
   K_TRUE, 
 
