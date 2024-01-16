@@ -98,56 +98,51 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
       memcmp(scanner.start + start, rest, length) == 0) {
     return type;
   }
-
   return L_IDENTIFIER; // TODO create constant, mutable path
 }
 
 static TokenType identifierType() { // tests for keywords
   switch (scanner.start[0]) {
     case 'a': return checkKeyword(1, 2, "nd", K_AND);
+    case 'b': return checkKeyword(1, 3, "ind", TOKEN_SUPER); // TODO change to bind
     case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
-    case 'e': return checkKeyword(1, 3, "lse", K_ELSE);
     case 'd': return checkKeyword(1, 5, "efine", K_DEFINE);
-//> keyword-f
-    case 'f':
+    case 'e': return checkKeyword(1, 3, "lse", K_ELSE);
+    case 'f': return checkKeyword(1, 4, "alse", K_FALSE);
+    case 'i': // branch out to 'if', 'is'
       if (scanner.current - scanner.start > 1) {
-        switch (scanner.start[1]) {
-          case 'a': return checkKeyword(2, 3, "lse", K_FALSE);
-          case 'o': return checkKeyword(2, 1, "r", TOKEN_FOR);
+        switch(scanner.start[1]) {
+          case 'f': return checkKeyword(2, 0, "", K_IF);
+          case 's': return checkKeyword(2, 0, "", K_IS);
         }
       }
       break;
-//^ keyword-f
-    case 'i': return checkKeyword(1, 1, "f", K_IF);
+      return checkKeyword(1, 1, "f", K_IF);
     case 'l': return checkKeyword(1, 2, "et", K_LET);
-    case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
+    case 'n': return checkKeyword(1, 3, "ull", TOKEN_NIL); // because JSON uses 'null'
     case 'o': return checkKeyword(1, 1, "r", K_OR);
-    case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
+    case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT); // TODO replace with native function
     case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
-    case 's': return checkKeyword(1, 4, "uper", TOKEN_SUPER);
-//> keyword-t
-    case 't':
-      if (scanner.current - scanner.start > 1) {
-        switch (scanner.start[1]) {
-          case 'h': return checkKeyword(2, 2, "is", TOKEN_THIS);
-          case 'r': return checkKeyword(2, 2, "ue", K_TRUE);
-        }
-      }
-      break;
-//^ keyword-t
-    case 'u': if (scanner.current - scanner.start > 1) {
-      if (scanner.start[1] == 'n') {
+    case 's': return checkKeyword(1, 3, "elf", K_SELF);
+    case 't': return checkKeyword(1, 3, "rue", K_TRUE);
+    case 'u': // if 'n' then branch out to 'unless', 'until'
+      if (scanner.current - scanner.start > 1 && scanner.start[1] == 'n') {
         switch (scanner.start[2]) {
           case 'l': return checkKeyword(3, 3, "ess", K_UNLESS);
           case 't': return checkKeyword(3, 2, "il", K_UNTIL);
         }
       }
-    }
-      // return checkKeyword(1, 4, "ntil", K_UNTIL);
-    case 'w': return checkKeyword(1, 4, "hile", K_WHILE);
+      break;
+    case 'w': // if 'h' then branch out to 'when', 'while'
+      if (scanner.current - scanner.start > 1 && scanner.start[1] == 'h') {
+        switch (scanner.start[2]) {
+          case 'e': return checkKeyword(3, 1, "n", K_WHEN);
+          case 'i': return checkKeyword(3, 2, "le", K_WHILE);
+        }
+      }
+      break;
   }
 
-//< keywords
   return L_IDENTIFIER; // TODO add mutable path
 }
 
@@ -186,11 +181,11 @@ Token scanToken() {
   scanner.start = scanner.current;
   if (isAtEnd()) return makeToken(TOKEN_EOF);
 
-  char c = advance();
-  if (isAlpha(c)) return identifier(); // check for identifier
-  if (isDigit(c)) return number(); // check for number
+  char rune = advance();
+  if (isAlpha(rune)) return identifier(); // check for identifier
+  if (isDigit(rune)) return number(); // check for number
 
-  switch (c) {
+  switch (rune) {
     // single character
     case '(': return makeToken(S_LEFT_PARENTHESES); // TODO would be new line aware
     case ')': return makeToken(S_RIGHT_PARENTHESES);
@@ -198,19 +193,19 @@ Token scanToken() {
     case '}': return makeToken(S_RIGHT_CURLY);
     case '?': return makeToken(S_QUESTION); // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON);
-    case ':': return makeToken(S_COLON); // TODO would be new line aware
     case '.': return makeToken(S_DOT);
     case '-': return makeToken(S_MINUS);
     case '+': return makeToken(S_PLUS);
     case '/': return makeToken(S_SLASH);
     case '*': return makeToken(S_STAR);
+    case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
     // two characters
     case ',': 
       return makeToken(match(',') ? D_COMMA : S_COMMA);
+    case ':': 
+      return makeToken(match('=') ? D_COLON_EQUAL: S_COLON); // TODO would be new line aware
     case '!':
       return makeToken(match('~') ? D_BANG_TILDE : TOKEN_BANG);
-    case '=':
-      return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : S_EQUAL);
     case '<':
       return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
     case '>':
