@@ -427,9 +427,9 @@ static void dot(bool canAssign) {
 // Global Variables
 static void literal(bool canAssign) {
   switch (parser.previous.type) {
-    case TOKEN_FALSE: emitByte(OP_FALSE); break;
+    case K_FALSE: emitByte(OP_FALSE); break;
     case TOKEN_NIL: emitByte(OP_NIL); break;
-    case TOKEN_TRUE: emitByte(OP_TRUE); break;
+    case K_TRUE: emitByte(OP_TRUE); break;
     default: return; // Unreachable.
   }
 }
@@ -590,22 +590,22 @@ ParseRule rules[] = {
 //< Strings table-string
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
 //  KEYWORDS
-  [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
+  [K_AND]           = {NULL,     and_,   PREC_AND},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
+  [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
+  [K_FALSE]         = {literal,  NULL,   PREC_NONE},
   [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
-  [K_DEFINE]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
+  [K_DEFINE]        = {NULL,     NULL,   PREC_NONE},
+  [K_IF]            = {NULL,     NULL,   PREC_NONE},
   [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-  [TOKEN_OR]            = {NULL,     or_,    PREC_OR},
+  [K_OR]            = {NULL,     or_,    PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
+  [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
   [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
-  [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
+  [K_TRUE]          = {literal,  NULL,   PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
+  [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };
@@ -652,12 +652,22 @@ static void block() {
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
-//> Test for While statement
-static void blockWhile() {
+//> Test for While statement, If statement,
+static void blockLoop() {
   while (!check(D_COMMA) && !check(TOKEN_EOF)) {
     declaration();
   }
   consume(D_COMMA, "Expect ,, to complete a conditional block");
+}
+static void blockConditional() {
+  while (!check(D_COMMA) && !check(K_ELSE) && !check(TOKEN_EOF)) {
+    declaration();
+  }
+  if (check(D_COMMA)) {
+    consume(D_COMMA, "Expect ,, to complete a conditional block, or 'else' to continue");
+  } else {
+    consume(K_ELSE, "Expect ,, to complete a conditional block, or 'else' to continue");
+  }
 }
 //^ Test for While statement
 
@@ -854,7 +864,10 @@ static void ifStatement() {
 //> pop-then
   emitByte(OP_POP);
 //< pop-then
-  statement();
+  // statement(); // TEST
+  beginScope();
+  blockConditional();
+  endScope();
 
   int elseJump = emitJump(OP_JUMP); // jump-over-else
 
@@ -862,7 +875,9 @@ static void ifStatement() {
   emitByte(OP_POP); // pop-end
 
   // compile-else
-  if (match(TOKEN_ELSE)) statement();
+  if (match(K_ELSE)) {
+    statement(); // TODO could enforce 'else' scope
+  } 
   // patch-else
   patchJump(elseJump);
 }
@@ -904,10 +919,9 @@ static void whileStatement() {
 
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
-  // statement();
-  // TODO TEST
+  // statement(); // TEST was successful TODO remove.
   beginScope();
-  blockWhile();
+  blockLoop();
   endScope();
 //> loop
   emitLoop(loopStart);
@@ -928,10 +942,10 @@ static void synchronize() {
       case K_DEFINE:
       case TOKEN_VAR:
       case TOKEN_FOR:
-      case TOKEN_IF:
-      case TOKEN_WHILE:
+      case K_IF:
+      case K_WHILE:
       case TOKEN_PRINT:
-      case TOKEN_RETURN:
+      case K_RETURN:
         return;
 
       default:
@@ -964,11 +978,11 @@ static void statement() {
     printStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
-  } else if (match(TOKEN_IF)) {
+  } else if (match(K_IF)) {
     ifStatement();
-  } else if (match(TOKEN_RETURN)) {
+  } else if (match(K_RETURN)) {
     returnStatement();
-  } else if (match(TOKEN_WHILE)) {
+  } else if (match(K_WHILE)) {
     whileStatement();
   } else if (match(TOKEN_LEFT_BRACE)) {
     beginScope(); // increment scope count;

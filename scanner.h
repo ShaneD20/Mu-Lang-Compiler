@@ -17,22 +17,23 @@ typedef enum { // TODO update to reflect mu
   // Literals.
   TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER,
   // Keywords.
-  TOKEN_AND, 
   TOKEN_CLASS, 
-  K_DEFINE, 
-  TOKEN_ELSE,
-  TOKEN_FALSE,
   TOKEN_FOR, 
-  TOKEN_IF, 
   TOKEN_NIL, 
-  TOKEN_OR,
   TOKEN_PRINT, 
-  TOKEN_RETURN, 
   TOKEN_SUPER, 
   TOKEN_THIS,
-  TOKEN_TRUE, 
   TOKEN_VAR, 
-  TOKEN_WHILE,
+
+  K_AND, 
+  K_DEFINE, 
+  K_ELSE,
+  K_FALSE,
+  K_IF, 
+  K_OR,
+  K_RETURN, 
+  K_WHILE,
+  K_TRUE, 
 
   TOKEN_ERROR, TOKEN_EOF
 } TokenType;
