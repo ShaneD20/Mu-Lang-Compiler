@@ -344,7 +344,7 @@ static void defineVariable(uint8_t global) {
 //> Calls and Functions argument-list
 static uint8_t argumentList() {
   uint8_t argCount = 0;
-  if (!check(TOKEN_RIGHT_PAREN)) {
+  if (!check(S_RIGHT_PARENTHESES)) {
     do {
       expression();
 //> arg-limit
@@ -355,7 +355,7 @@ static uint8_t argumentList() {
       argCount++;
     } while (match(TOKEN_COMMA));
   }
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+  consume(S_RIGHT_PARENTHESES, "Expect ')' after arguments.");
   return argCount;
 }
 //< Calls and Functions argument-list
@@ -414,7 +414,7 @@ static void dot(bool canAssign) {
     expression();
     emitBytes(OP_SET_PROPERTY, name);
 // Methods and Initializers parse-call
-  } else if (match(TOKEN_LEFT_PAREN)) {
+  } else if (match(S_LEFT_PARENTHESES)) {
     uint8_t argCount = argumentList();
     emitBytes(OP_INVOKE, name);
     emitByte(argCount);
@@ -427,9 +427,9 @@ static void dot(bool canAssign) {
 // Global Variables
 static void literal(bool canAssign) {
   switch (parser.previous.type) {
-    case TOKEN_FALSE: emitByte(OP_FALSE); break;
+    case K_FALSE: emitByte(OP_FALSE); break;
     case TOKEN_NIL: emitByte(OP_NIL); break;
-    case TOKEN_TRUE: emitByte(OP_TRUE); break;
+    case K_TRUE: emitByte(OP_TRUE); break;
     default: return; // Unreachable.
   }
 }
@@ -437,7 +437,7 @@ static void literal(bool canAssign) {
 // Global Variables
 static void grouping(bool canAssign) {
   expression();
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+  consume(S_RIGHT_PARENTHESES, "Expect ')' after expression.");
 }
 
 //> Global Variables
@@ -518,7 +518,7 @@ static void super_(bool canAssign) {
   
   namedVariable(syntheticToken("this"), false);
 
-  if (match(TOKEN_LEFT_PAREN)) {
+  if (match(S_LEFT_PARENTHESES)) {
     uint8_t argCount = argumentList();
     namedVariable(syntheticToken("super"), false);
     emitBytes(OP_SUPER_INVOKE, name);
@@ -557,13 +557,14 @@ static void unary(bool canAssign) {
 
 ParseRule rules[] = {
 //> Calls and Functions infix-left-paren
-  [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
+  [S_LEFT_PARENTHESES]    = {grouping, call,   PREC_CALL},
 //< Calls and Functions infix-left-paren
-  [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, // [big]
+  [S_RIGHT_PARENTHESES]   = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
   [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
-
+  [D_COMMA]             = {NULL,     NULL,   PREC_NONE},
+  [S_QUESTION]          = {NULL,     NULL,   PREC_NONE},
 //> Classes and Instances table-dot
   [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
 //< Classes and Instances table-dot
@@ -589,22 +590,22 @@ ParseRule rules[] = {
 //< Strings table-string
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
 //  KEYWORDS
-  [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
+  [K_AND]           = {NULL,     and_,   PREC_AND},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
+  [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
+  [K_FALSE]         = {literal,  NULL,   PREC_NONE},
   [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
-  [K_DEFINE]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
+  [K_DEFINE]        = {NULL,     NULL,   PREC_NONE},
+  [K_IF]            = {NULL,     NULL,   PREC_NONE},
   [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-  [TOKEN_OR]            = {NULL,     or_,    PREC_OR},
+  [K_OR]            = {NULL,     or_,    PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
+  [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
   [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
-  [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
+  [K_TRUE]          = {literal,  NULL,   PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
+  [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };
@@ -642,7 +643,7 @@ static void expression() {
 //^ expression-body
 }
 
-//> Local Variables block
+// Local Variables
 static void block() {
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
     declaration();
@@ -651,15 +652,35 @@ static void block() {
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
+//> Test for While statement, If statement,
+static void blockLoop() {
+  while (!check(D_COMMA) && !check(TOKEN_EOF)) {
+    declaration();
+  }
+  consume(D_COMMA, "Expect ,, to complete a conditional block");
+}
+static void blockConditional() {
+  while (!check(D_COMMA) && !check(K_ELSE) && !check(TOKEN_EOF)) {
+    declaration();
+  }
+  if (check(D_COMMA)) {
+    consume(D_COMMA, "Expect ,, to complete a conditional block, or 'else' to continue");
+  } else {
+    consume(K_ELSE, "Expect ,, to complete a conditional block, or 'else' to continue");
+  }
+}
+//^ Test for While statement
+
 //> Calls and Functions compile-function
 static void function(FunctionType type) {
+  // TODO update with -> remove need for ()
   Compiler compiler;
   initCompiler(&compiler, type);
   beginScope(); // [no-end-scope]
 
-  consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+  consume(S_LEFT_PARENTHESES, "Expect '(' after function name.");
 //> parameters
-  if (!check(TOKEN_RIGHT_PAREN)) {
+  if (!check(S_RIGHT_PARENTHESES)) {
     do {
       current->function->arity++;
       if (current->function->arity > 255) {
@@ -670,7 +691,7 @@ static void function(FunctionType type) {
     } while (match(TOKEN_COMMA));
   }
 //< parameters
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+  consume(S_RIGHT_PARENTHESES, "Expect ')' after parameters.");
   consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
   block();
 
@@ -781,10 +802,10 @@ static void expressionStatement() {
   emitByte(OP_POP);
 }
 
-//> Jumping Back and Forth for-statement
-static void forStatement() {
+// START FOR STATEMENT
+static void forStatement() { // TODO remove or revise
   beginScope();
-  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  consume(S_LEFT_PARENTHESES, "Expect '(' after 'for'.");
 
   // for-initializer
   if (match(TOKEN_SEMICOLON)) {
@@ -809,12 +830,12 @@ static void forStatement() {
   }
 
   // for-increment
-  if (!match(TOKEN_RIGHT_PAREN)) {
+  if (!match(S_RIGHT_PARENTHESES)) {
     int bodyJump = emitJump(OP_JUMP);
     int incrementStart = currentChunk()->count;
     expression();
     emitByte(OP_POP);
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+    consume(S_RIGHT_PARENTHESES, "Expect ')' after for clauses.");
 
     emitLoop(loopStart);
     loopStart = incrementStart;
@@ -833,19 +854,20 @@ static void forStatement() {
 
   endScope();
 }
+// END FOR STATEMENT
 
-//> Jumping Back and Forth if-statement
 static void ifStatement() {
-  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
   expression();
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition."); // [paren]
+  consume(S_QUESTION, "Expect '?' after condition and before body.");
 
   int thenJump = emitJump(OP_JUMP_IF_FALSE);
 //> pop-then
   emitByte(OP_POP);
 //< pop-then
-  statement();
-
+  // statement(); // TEST
+  beginScope();
+  blockConditional();
+  endScope();
 
   int elseJump = emitJump(OP_JUMP); // jump-over-else
 
@@ -853,7 +875,9 @@ static void ifStatement() {
   emitByte(OP_POP); // pop-end
 
   // compile-else
-  if (match(TOKEN_ELSE)) statement();
+  if (match(K_ELSE)) {
+    statement(); // TODO could enforce 'else' scope
+  } 
   // patch-else
   patchJump(elseJump);
 }
@@ -861,7 +885,7 @@ static void ifStatement() {
 // Global Variables print-statement
 static void printStatement() {
   expression();
-  consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+  consume(TOKEN_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
   emitByte(OP_PRINT);
 }
 
@@ -890,13 +914,15 @@ static void returnStatement() {
 // Jumping Back and Forth while-statement
 static void whileStatement() {
   int loopStart = currentChunk()->count; // loop-start
-  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+  consume(S_QUESTION, "Expect '?' after condition, to begin conditional while-loop.");
 
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
-  statement();
+  // statement(); // TEST was successful TODO remove.
+  beginScope();
+  blockLoop();
+  endScope();
 //> loop
   emitLoop(loopStart);
 //< loop
@@ -916,10 +942,10 @@ static void synchronize() {
       case K_DEFINE:
       case TOKEN_VAR:
       case TOKEN_FOR:
-      case TOKEN_IF:
-      case TOKEN_WHILE:
+      case K_IF:
+      case K_WHILE:
       case TOKEN_PRINT:
-      case TOKEN_RETURN:
+      case K_RETURN:
         return;
 
       default:
@@ -952,14 +978,14 @@ static void statement() {
     printStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
-  } else if (match(TOKEN_IF)) {
+  } else if (match(K_IF)) {
     ifStatement();
-  } else if (match(TOKEN_RETURN)) {
+  } else if (match(K_RETURN)) {
     returnStatement();
-  } else if (match(TOKEN_WHILE)) {
+  } else if (match(K_WHILE)) {
     whileStatement();
   } else if (match(TOKEN_LEFT_BRACE)) {
-    beginScope();
+    beginScope(); // increment scope count;
     block();
     endScope();
   } else {

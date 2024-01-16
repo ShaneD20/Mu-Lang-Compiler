@@ -104,38 +104,38 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
 
 static TokenType identifierType() { // tests for keywords
   switch (scanner.start[0]) {
-    case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
+    case 'a': return checkKeyword(1, 2, "nd", K_AND);
     case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
-    case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
+    case 'e': return checkKeyword(1, 3, "lse", K_ELSE);
     case 'd': return checkKeyword(1, 5, "efine", K_DEFINE);
 //> keyword-f
     case 'f':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
-          case 'a': return checkKeyword(2, 3, "lse", TOKEN_FALSE);
+          case 'a': return checkKeyword(2, 3, "lse", K_FALSE);
           case 'o': return checkKeyword(2, 1, "r", TOKEN_FOR);
         }
       }
       break;
 //< keyword-f
-    case 'i': return checkKeyword(1, 1, "f", TOKEN_IF);
+    case 'i': return checkKeyword(1, 1, "f", K_IF);
     case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
-    case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);
+    case 'o': return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
-    case 'r': return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
+    case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
     case 's': return checkKeyword(1, 4, "uper", TOKEN_SUPER);
 //> keyword-t
     case 't':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
           case 'h': return checkKeyword(2, 2, "is", TOKEN_THIS);
-          case 'r': return checkKeyword(2, 2, "ue", TOKEN_TRUE);
+          case 'r': return checkKeyword(2, 2, "ue", K_TRUE);
         }
       }
       break;
 //< keyword-t
     case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
-    case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
+    case 'w': return checkKeyword(1, 4, "hile", K_WHILE);
   }
 
 //< keywords
@@ -183,30 +183,29 @@ Token scanToken() {
 
   switch (c) {
     // single character
-    case '(': return makeToken(TOKEN_LEFT_PAREN);
-    case ')': return makeToken(TOKEN_RIGHT_PAREN);
+    case '(': return makeToken(S_LEFT_PARENTHESES);
+    case ')': return makeToken(S_RIGHT_PARENTHESES);
     case '{': return makeToken(TOKEN_LEFT_BRACE);
     case '}': return makeToken(TOKEN_RIGHT_BRACE);
+    case '?': return makeToken(S_QUESTION);
     case ';': return makeToken(TOKEN_SEMICOLON);
-    case ',': return makeToken(TOKEN_COMMA);
     case '.': return makeToken(TOKEN_DOT);
     case '-': return makeToken(TOKEN_MINUS);
     case '+': return makeToken(TOKEN_PLUS);
     case '/': return makeToken(TOKEN_SLASH);
     case '*': return makeToken(TOKEN_STAR);
     // two characters
+    case ',': 
+      return makeToken(match(',') ? D_COMMA : TOKEN_COMMA);
     case '!':
-      return makeToken(
-          match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
+      return makeToken(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
     case '=':
-      return makeToken(
-          match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+      return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
     case '<':
-      return makeToken(
-          match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+      return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
     case '>':
       return makeToken(
-          match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
+        match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
     // strings
     case '"': return string();
   }
