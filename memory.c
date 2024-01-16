@@ -108,7 +108,7 @@ static void blackenObject(Obj* object) {
     case OBJ_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       markObject((Obj*)function->name);
-      markArray(&function->chunk.constants);
+      markArray(&function->chunk.constantPool);
       break;
     }
     case OBJ_INSTANCE: {
@@ -247,13 +247,9 @@ void collectGarbage() {
 
   markRoots();
   traceReferences();
-//> sweep-strings
-  tableRemoveWhite(&vm.strings);
-//^ sweep-strings
+  tableRemoveWhite(&vm.strings); // sweep-strings
   sweep();
-//> update-next-gc
-  vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
-//^ update-next-gc
+  vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR; // update-next-gc
 
 // log-after-collect
 #ifdef DEBUG_LOG_GC

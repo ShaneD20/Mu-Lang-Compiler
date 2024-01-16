@@ -6,8 +6,8 @@ typedef enum { // TODO update to reflect mu
   S_QUESTION, S_PLUS, S_MINUS, S_SLASH, S_STAR,
   S_COMMA, S_DOT, S_SEMICOLON, S_COLON,   
   S_LEFT_PARENTHESES, S_RIGHT_PARENTHESES,
-  S_LEFT_CURLY, S_RIGHT_CURLY, // S_OCTO,
-  S_LEFT_SQUARE, S_RIGHT_SQUARE, TOKEN_BANG, 
+  S_LEFT_CURLY, S_RIGHT_CURLY, S_MODULO,
+  S_LEFT_SQUARE, S_RIGHT_SQUARE, S_BANG, 
   S_EQUAL, TOKEN_GREATER, TOKEN_LESS,
   // two character tokens.
   D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,
@@ -37,7 +37,7 @@ typedef enum { // TODO update to reflect mu
   K_WHEN,
   K_WHILE,
   K_TRUE, 
-
+  NEW_LINE, // TODO test
   TOKEN_ERROR, TOKEN_EOF
 } TokenType;
 

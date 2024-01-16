@@ -8,14 +8,14 @@ void initChunk(Chunk* chunk) {
   chunk->capacity = 0;
   chunk->code = NULL;
   chunk->lines = NULL;
-  initValueArray(&chunk->constants);
+  initValueArray(&chunk->constantPool);
 }
 
 void freeChunk(Chunk* chunk) {
 // chunkfree; code, lines, constantpool. chunk re-initialize
   FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
   FREE_ARRAY(int, chunk->lines, chunk->capacity);
-  freeValueArray(&chunk->constants);
+  freeValueArray(&chunk->constantPool);
   initChunk(chunk);
 }
 
@@ -34,7 +34,7 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
 
 int addConstant(Chunk* chunk, Value value) {
   push(value); // Garbage Collection add-constant-push
-  writeValueArray(&chunk->constants, value);
+  writeValueArray(&chunk->constantPool, value);
   pop(); // Garbage Collection add-constant-pop
-  return chunk->constants.count - 1;
+  return chunk->constantPool.count - 1;
 }

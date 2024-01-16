@@ -198,6 +198,7 @@ Token scanToken() {
     case '+': return makeToken(S_PLUS);
     case '/': return makeToken(S_SLASH);
     case '*': return makeToken(S_STAR);
+    case '%': return makeToken(S_MODULO);
     case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
     // two characters
     case ',': 
@@ -205,7 +206,7 @@ Token scanToken() {
     case ':': 
       return makeToken(match('=') ? D_COLON_EQUAL: S_COLON); // TODO would be new line aware
     case '!':
-      return makeToken(match('~') ? D_BANG_TILDE : TOKEN_BANG);
+      return makeToken(match('~') ? D_BANG_TILDE : S_BANG);
     case '<':
       return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
     case '>':

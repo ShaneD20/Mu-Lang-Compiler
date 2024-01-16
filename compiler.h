@@ -8,7 +8,7 @@
 typedef struct {
   Token current;
   Token previous;
-  bool hadError;
+  bool hasError;
   bool panicMode;
 } Parser;
 
@@ -46,10 +46,10 @@ typedef struct {
 } Upvalue; // for Closures
 
 typedef enum {
-  TYPE_FUNCTION,
-  TYPE_INITIALIZER, // for objects initializer-type-enum
-  TYPE_METHOD,      // for objects method-type-enum
-  TYPE_SCRIPT
+  FT_FUNCTION,
+  FT_INITIALIZER, // for objects initializer-type-enum
+  FT_METHOD,      // for objects method-type-enum
+  FT_SCRIPT
 } FunctionType;
 
 typedef struct Compiler {
