@@ -32,6 +32,17 @@ else if false ?
 else 
     print "three";
 
+print " --Unless Clause";
+unless x == 4 ? 
+    print "good"; 
+,,
+
+x : 5;
+unless x == 5 ? 
+    print "not five"; 
+else 
+    print "five";
+
 print " --String Concatenation";
 let name : "steve";
 let last : " poe";

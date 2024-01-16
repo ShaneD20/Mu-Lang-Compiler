@@ -386,7 +386,7 @@ static void binary(bool canAssign) {
   parsePrecedence((Precedence)(rule->precedence + 1));
 
   switch (operatorType) {
-    case TOKEN_BANG_EQUAL:    emitBytes(OP_EQUAL, OP_NOT); 
+    case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
       break;
     case TOKEN_EQUAL_EQUAL:   emitByte(OP_EQUAL); 
       break;
@@ -575,7 +575,7 @@ ParseRule rules[] = {
   [S_STAR]          = {NULL,     binary, PREC_FACTOR},
 //> Types of Values table-equality
   [TOKEN_BANG]          = {unary,    NULL,   PREC_NONE},
-  [TOKEN_BANG_EQUAL]    = {NULL,     binary, PREC_EQUALITY},
+  [D_BANG_TILDE]    = {NULL,     binary, PREC_EQUALITY},
   [S_COLON]         = {NULL,     NULL,   PREC_NONE},
 //> Types of Values table-comparisons
   [TOKEN_EQUAL_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
@@ -597,8 +597,9 @@ ParseRule rules[] = {
   [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
   [K_DEFINE]        = {NULL,     NULL,   PREC_NONE},
   [K_IF]            = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
+  [K_UNLESS]        = {NULL,     NULL,   PREC_NONE},
   [K_OR]            = {NULL,     or_,    PREC_OR},
+  [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
@@ -875,9 +876,30 @@ static void ifStatement() {
   patchJump(thenJump);
   emitByte(OP_POP); // pop-end
 
+  if (match(K_ELSE)) { // compile else
+    statement(); // TODO could enforce 'else' scope
+  } 
+  // patch-else
+  patchJump(elseJump);
+}
+static void unlessStatement() {
+  expression();
+  consume(S_QUESTION, "Expect '?' after condition and before body.");
+
+  int thenJump = emitJump(OP_JUMP_IF_TRUE);
+  emitByte(OP_POP); // pop-then
+  beginScope();
+  blockConditional();
+  endScope();
+
+  int elseJump = emitJump(OP_JUMP); // jump-over-else
+
+  patchJump(thenJump);
+  emitByte(OP_POP); // pop-end
+
   // compile-else
-  if (match(K_ELSE)) {
-    //statement(); // TODO could enforce 'else' scope
+  if (match(K_ELSE)) { // compile else
+    statement(); // TODO could enforce 'else' scope
   } 
   // patch-else
   patchJump(elseJump);
@@ -964,6 +986,7 @@ static void synchronize() {
       case K_LET:
       case TOKEN_FOR:
       case K_IF:
+      case K_UNLESS:
       case K_UNTIL:
       case K_WHILE:
       case TOKEN_PRINT:
@@ -1001,6 +1024,8 @@ static void statement() {
     forStatement();
   } else if (match(K_IF)) {
     ifStatement();
+  } else if (match(K_UNLESS)) {
+    unlessStatement();
   } else if (match(K_RETURN)) {
     returnStatement();
   } else if (match(K_UNTIL)) {

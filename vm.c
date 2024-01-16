@@ -565,8 +565,7 @@ static InterpretResult run() {
           return INTERPRET_RUNTIME_ERROR;
         }
         ObjClass* subclass = AS_CLASS(peek(0));
-        tableAddAll(&AS_CLASS(superclass)->methods,
-                    &subclass->methods);
+        tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
         pop(); // Subclass.
         break;
       }
