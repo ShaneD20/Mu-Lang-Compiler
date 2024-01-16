@@ -45,6 +45,7 @@ typedef enum {
 // Jumping Back and Forth operations
   OP_JUMP,
   OP_JUMP_IF_FALSE,
+  OP_JUMP_IF_TRUE,
   OP_LOOP,
 // Calls and Functions op-call
   OP_CALL,

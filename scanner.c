@@ -99,7 +99,7 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
     return type;
   }
 
-  return TOKEN_IDENTIFIER;
+  return L_IDENTIFIER; // TODO create constant, mutable path
 }
 
 static TokenType identifierType() { // tests for keywords
@@ -119,6 +119,7 @@ static TokenType identifierType() { // tests for keywords
       break;
 //< keyword-f
     case 'i': return checkKeyword(1, 1, "f", K_IF);
+    case 'l': return checkKeyword(1, 2, "et", K_LET);
     case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
     case 'o': return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
@@ -134,12 +135,12 @@ static TokenType identifierType() { // tests for keywords
       }
       break;
 //< keyword-t
-    case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
+    case 'u': return checkKeyword(1, 4, "ntil", K_UNTIL);
     case 'w': return checkKeyword(1, 4, "hile", K_WHILE);
   }
 
 //< keywords
-  return TOKEN_IDENTIFIER;
+  return L_IDENTIFIER; // TODO add mutable path
 }
 
 static Token identifier() {
@@ -185,22 +186,23 @@ Token scanToken() {
     // single character
     case '(': return makeToken(S_LEFT_PARENTHESES);
     case ')': return makeToken(S_RIGHT_PARENTHESES);
-    case '{': return makeToken(TOKEN_LEFT_BRACE);
-    case '}': return makeToken(TOKEN_RIGHT_BRACE);
+    case '{': return makeToken(S_LEFT_CURLY);
+    case '}': return makeToken(S_RIGHT_CURLY);
     case '?': return makeToken(S_QUESTION);
-    case ';': return makeToken(TOKEN_SEMICOLON);
-    case '.': return makeToken(TOKEN_DOT);
-    case '-': return makeToken(TOKEN_MINUS);
-    case '+': return makeToken(TOKEN_PLUS);
-    case '/': return makeToken(TOKEN_SLASH);
-    case '*': return makeToken(TOKEN_STAR);
+    case ';': return makeToken(S_SEMICOLON);
+    case ':': return makeToken(S_COLON);
+    case '.': return makeToken(S_DOT);
+    case '-': return makeToken(S_MINUS);
+    case '+': return makeToken(S_PLUS);
+    case '/': return makeToken(S_SLASH);
+    case '*': return makeToken(S_STAR);
     // two characters
     case ',': 
-      return makeToken(match(',') ? D_COMMA : TOKEN_COMMA);
+      return makeToken(match(',') ? D_COMMA : S_COMMA);
     case '!':
       return makeToken(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
     case '=':
-      return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+      return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : S_EQUAL);
     case '<':
       return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
     case '>':

@@ -314,7 +314,7 @@ static void declareVariable() {
 
 // Global Variables
 static uint8_t parseVariable(const char* errorMessage) {
-  consume(TOKEN_IDENTIFIER, errorMessage);
+  consume(L_IDENTIFIER, errorMessage);
   declareVariable();
   if (current->scopeDepth > 0) return 0; // Local Variables parse-local
   return identifierConstant(&parser.previous);
@@ -329,19 +329,18 @@ static void markInitialized() {
       current->scopeDepth;
 }
 
-//> Global Variables define-variable
+// Global
 static void defineVariable(uint8_t global) {
   if (current->scopeDepth > 0) {
     markInitialized();
-//^ define-local
+// define-local
     return;
   }
 
-//< Local Variables define-variable
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
-//< Global Variables define-variable
-//> Calls and Functions argument-list
+
+// Calls and Functions argument-list
 static uint8_t argumentList() {
   uint8_t argCount = 0;
   if (!check(S_RIGHT_PARENTHESES)) {
@@ -353,20 +352,32 @@ static uint8_t argumentList() {
       }
 //< arg-limit
       argCount++;
-    } while (match(TOKEN_COMMA));
+    } while (match(S_COMMA));
   }
   consume(S_RIGHT_PARENTHESES, "Expect ')' after arguments.");
   return argCount;
 }
-//< Calls and Functions argument-list
+
 //> Jumping Back and Forth and
 static void and_(bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
-
   emitByte(OP_POP);
   parsePrecedence(PREC_AND);
   patchJump(endJump);
 }
+
+//> Jumping Back and Forth or
+static void or_(bool canAssign) {
+  int elseJump = emitJump(OP_JUMP_IF_FALSE);
+  int endJump = emitJump(OP_JUMP); // testing
+
+  patchJump(elseJump);
+  // int endJump = emitJump(OP_JUMP_IF_TRUE);
+  emitByte(OP_POP);
+  parsePrecedence(PREC_OR);
+  patchJump(endJump);
+}
+
 
 //> Global Variables binary
 static void binary(bool canAssign) {
@@ -387,13 +398,13 @@ static void binary(bool canAssign) {
       break;
     case TOKEN_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT); 
       break;
-    case TOKEN_PLUS:          emitByte(OP_ADD); 
+    case S_PLUS:          emitByte(OP_ADD); 
       break;
-    case TOKEN_MINUS:         emitByte(OP_SUBTRACT); 
+    case S_MINUS:         emitByte(OP_SUBTRACT); 
       break;
-    case TOKEN_STAR:          emitByte(OP_MULTIPLY); 
+    case S_STAR:          emitByte(OP_MULTIPLY); 
       break;
-    case TOKEN_SLASH:         emitByte(OP_DIVIDE); 
+    case S_SLASH:         emitByte(OP_DIVIDE); 
       break;
     default: return; // Unreachable.
   }
@@ -407,10 +418,10 @@ static void call(bool canAssign) {
 
 //> Classes and Instances compile-dot
 static void dot(bool canAssign) {
-  consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+  consume(L_IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(&parser.previous);
 
-  if (canAssign && match(TOKEN_EQUAL)) {
+  if (canAssign && match(S_COLON)) {
     expression();
     emitBytes(OP_SET_PROPERTY, name);
 // Methods and Initializers parse-call
@@ -446,17 +457,6 @@ static void number(bool canAssign) {
   emitConstant(NUMBER_VAL(value));
 }
 
-//> Jumping Back and Forth or
-static void or_(bool canAssign) {
-  int elseJump = emitJump(OP_JUMP_IF_FALSE);
-  int endJump = emitJump(OP_JUMP);
-
-  patchJump(elseJump);
-  emitByte(OP_POP);
-  parsePrecedence(PREC_OR);
-  patchJump(endJump);
-}
-
 //> Global Variables string
 static void string(bool canAssign) {
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
@@ -481,7 +481,7 @@ static void namedVariable(Token name, bool canAssign) {
     setOp = OP_SET_GLOBAL;
   }
 // named-variable-can-assign
-  if (canAssign && match(TOKEN_EQUAL)) {
+  if (canAssign && match(S_COLON)) {
     expression();
     emitBytes(setOp, (uint8_t)arg); // Local Variables emit-set
   } else {
@@ -512,8 +512,8 @@ static void super_(bool canAssign) {
   }
 //^ super-errors
 
-  consume(TOKEN_DOT, "Expect '.' after 'super'.");
-  consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
+  consume(S_DOT, "Expect '.' after 'super'.");
+  consume(L_IDENTIFIER, "Expect superclass method name.");
   uint8_t name = identifierConstant(&parser.previous);
   
   namedVariable(syntheticToken("this"), false);
@@ -550,7 +550,7 @@ static void unary(bool canAssign) {
   // Emit the operator instruction.
   switch (operatorType) {
     case TOKEN_BANG: emitByte(OP_NOT); break;
-    case TOKEN_MINUS: emitByte(OP_NEGATE); break;
+    case S_MINUS: emitByte(OP_NEGATE); break;
     default: return; // Unreachable.
   }
 }
@@ -560,23 +560,23 @@ ParseRule rules[] = {
   [S_LEFT_PARENTHESES]    = {grouping, call,   PREC_CALL},
 //< Calls and Functions infix-left-paren
   [S_RIGHT_PARENTHESES]   = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
-  [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
-  [D_COMMA]             = {NULL,     NULL,   PREC_NONE},
-  [S_QUESTION]          = {NULL,     NULL,   PREC_NONE},
+  [S_LEFT_CURLY]    = {NULL,     NULL,   PREC_NONE}, 
+  [S_RIGHT_CURLY]   = {NULL,     NULL,   PREC_NONE},
+  [S_COMMA]         = {NULL,     NULL,   PREC_NONE},
+  [D_COMMA]         = {NULL,     NULL,   PREC_NONE},
+  [S_QUESTION]      = {NULL,     NULL,   PREC_NONE},
 //> Classes and Instances table-dot
-  [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
+  [S_DOT]           = {NULL,     dot,    PREC_CALL},
 //< Classes and Instances table-dot
-  [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
-  [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
-  [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
-  [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
+  [S_MINUS]         = {unary,    binary, PREC_TERM},
+  [S_PLUS]          = {NULL,     binary, PREC_TERM},
+  [S_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
+  [S_SLASH]         = {NULL,     binary, PREC_FACTOR},
+  [S_STAR]          = {NULL,     binary, PREC_FACTOR},
 //> Types of Values table-equality
   [TOKEN_BANG]          = {unary,    NULL,   PREC_NONE},
   [TOKEN_BANG_EQUAL]    = {NULL,     binary, PREC_EQUALITY},
-  [TOKEN_EQUAL]         = {NULL,     NULL,   PREC_NONE},
+  [S_COLON]         = {NULL,     NULL,   PREC_NONE},
 //> Types of Values table-comparisons
   [TOKEN_EQUAL_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
   [TOKEN_GREATER]       = {NULL,     binary, PREC_COMPARISON},
@@ -584,7 +584,7 @@ ParseRule rules[] = {
   [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
 //> Global Variables table-identifier
-  [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
+  [L_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
 //> Strings table-string
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
 //< Strings table-string
@@ -604,7 +604,8 @@ ParseRule rules[] = {
   [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
   [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
   [K_TRUE]          = {literal,  NULL,   PREC_NONE},
-  [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
+  [K_LET]           = {NULL,     NULL,   PREC_NONE},
+  [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
   [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
@@ -629,7 +630,7 @@ static void parsePrecedence(Precedence precedence) {
     infixRule(canAssign);
   }
 //> Global Variables invalid-assign
-  if (canAssign && match(TOKEN_EQUAL)) {
+  if (canAssign && match(S_COLON)) {
     error("Invalid assignment target.");
   }
 }
@@ -645,31 +646,31 @@ static void expression() {
 
 // Local Variables
 static void block() {
-  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+  while (!check(S_RIGHT_CURLY) && !check(TOKEN_EOF)) {
     declaration();
   }
 
-  consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+  consume(S_RIGHT_CURLY, "Expect '}' after block.");
 }
 
-//> Test for While statement, If statement,
-static void blockLoop() {
+// Block for Loops (until, while) and else. TODO figure out why it's failing for else
+static void blockBubble() {
   while (!check(D_COMMA) && !check(TOKEN_EOF)) {
     declaration();
   }
-  consume(D_COMMA, "Expect ,, to complete a conditional block");
+  consume(D_COMMA, "Expect ,, to complete a while/until/else block");
 }
+// Block for Conditionals : if, unless
 static void blockConditional() {
   while (!check(D_COMMA) && !check(K_ELSE) && !check(TOKEN_EOF)) {
     declaration();
   }
   if (check(D_COMMA)) {
-    consume(D_COMMA, "Expect ,, to complete a conditional block, or 'else' to continue");
+    consume(D_COMMA, "Expect ,, to complete an if/unless block, or 'else' to continue");
   } else {
-    consume(K_ELSE, "Expect ,, to complete a conditional block, or 'else' to continue");
+    consume(K_ELSE, "Expect ,, to complete an if/unless block, or 'else' to continue");
   }
 }
-//^ Test for While statement
 
 //> Calls and Functions compile-function
 static void function(FunctionType type) {
@@ -688,11 +689,11 @@ static void function(FunctionType type) {
       }
       uint8_t constant = parseVariable("Expect parameter name.");
       defineVariable(constant);
-    } while (match(TOKEN_COMMA));
+    } while (match(S_COMMA));
   }
 //< parameters
   consume(S_RIGHT_PARENTHESES, "Expect ')' after parameters.");
-  consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+  consume(S_LEFT_CURLY, "Expect '{' before function body.");
   block();
 
   ObjFunction* function = endCompiler();
@@ -706,7 +707,7 @@ static void function(FunctionType type) {
 
 //> Methods and Initializers method
 static void method() {
-  consume(TOKEN_IDENTIFIER, "Expect method name.");
+  consume(L_IDENTIFIER, "Expect method name.");
   uint8_t constant = identifierConstant(&parser.previous);
   FunctionType type = TYPE_METHOD;
 
@@ -720,7 +721,7 @@ static void method() {
 }
 
 static void classDeclaration() {
-  consume(TOKEN_IDENTIFIER, "Expect class name.");
+  consume(L_IDENTIFIER, "Expect class name.");
   Token className = parser.previous;
   uint8_t nameConstant = identifierConstant(&parser.previous);
   declareVariable();
@@ -736,7 +737,7 @@ static void classDeclaration() {
 
 //> Superclasses compile-superclass
   if (match(TOKEN_LESS)) {
-    consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+    consume(L_IDENTIFIER, "Expect superclass name.");
     variable(false);
 //> inherit-self
     if (identifiersEqual(&className, &parser.previous)) {
@@ -755,11 +756,11 @@ static void classDeclaration() {
 
   namedVariable(className, false); // Methods and Initializers load-class
   // Methods and Initializers class-body
-  consume(TOKEN_LEFT_BRACE, "Expect '{' before class body."); 
-  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+  consume(S_LEFT_CURLY, "Expect '{' before class body."); 
+  while (!check(S_RIGHT_CURLY) && !check(TOKEN_EOF)) {
     method();
   }
-  consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+  consume(S_RIGHT_CURLY, "Expect '}' after class body.");
 
   // Methods and Initializers pop-class
   emitByte(OP_POP);
@@ -784,13 +785,12 @@ static void funDeclaration() {
 static void varDeclaration() {
   uint8_t global = parseVariable("Expect variable name.");
 
-  if (match(TOKEN_EQUAL)) {
+  if (match(S_COLON)) {
     expression();
   } else {
     emitByte(OP_NIL);
   }
-  consume(TOKEN_SEMICOLON,
-          "Expect ';' after variable declaration.");
+  consume(S_SEMICOLON, "Expect ';' after variable declaration.");
 
   defineVariable(global);
 }
@@ -798,7 +798,7 @@ static void varDeclaration() {
 //> Global Variables expression-statement
 static void expressionStatement() {
   expression();
-  consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+  consume(S_SEMICOLON, "Expect ';' after expression.");
   emitByte(OP_POP);
 }
 
@@ -808,9 +808,9 @@ static void forStatement() { // TODO remove or revise
   consume(S_LEFT_PARENTHESES, "Expect '(' after 'for'.");
 
   // for-initializer
-  if (match(TOKEN_SEMICOLON)) {
+  if (match(S_SEMICOLON)) {
     // No initializer.
-  } else if (match(TOKEN_VAR)) {
+  } else if (match(K_LET)) {
     varDeclaration();
   } else {
     expressionStatement();
@@ -821,9 +821,9 @@ static void forStatement() { // TODO remove or revise
 
   // for-exit
   int exitJump = -1;
-  if (!match(TOKEN_SEMICOLON)) {
+  if (!match(S_SEMICOLON)) {
     expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+    consume(S_SEMICOLON, "Expect ';' after loop condition.");
 
     exitJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP); // Condition.
@@ -876,7 +876,7 @@ static void ifStatement() {
 
   // compile-else
   if (match(K_ELSE)) {
-    statement(); // TODO could enforce 'else' scope
+    //statement(); // TODO could enforce 'else' scope
   } 
   // patch-else
   patchJump(elseJump);
@@ -885,7 +885,7 @@ static void ifStatement() {
 // Global Variables print-statement
 static void printStatement() {
   expression();
-  consume(TOKEN_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+  consume(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
   emitByte(OP_PRINT);
 }
 
@@ -897,7 +897,7 @@ static void returnStatement() {
   }
 
 //< return-from-script
-  if (match(TOKEN_SEMICOLON)) {
+  if (match(S_SEMICOLON)) {
     emitReturn();
   } else {
 // Methods and Initializers return-from-init
@@ -906,9 +906,29 @@ static void returnStatement() {
     }
 //^ Methods and Initializers return-from-init
     expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    consume(S_SEMICOLON, "Expect ';' after return value.");
     emitByte(OP_RETURN);
   }
+}
+
+// Jumping Back and Forth until-statement
+static void untilStatement() {
+  int loopStart = currentChunk()->count; // loop-start
+  expression();
+  consume(S_QUESTION, "Expect '?' after condition, to begin conditional until-loop.");
+
+  int exitJump = emitJump(OP_JUMP_IF_TRUE);
+  emitByte(OP_POP);
+  // statement(); // TEST was successful TODO remove.
+  beginScope();
+  blockBubble();
+  endScope();
+//> loop
+  emitLoop(loopStart);
+//< loop
+
+  patchJump(exitJump);
+  emitByte(OP_POP);
 }
 
 // Jumping Back and Forth while-statement
@@ -921,7 +941,7 @@ static void whileStatement() {
   emitByte(OP_POP);
   // statement(); // TEST was successful TODO remove.
   beginScope();
-  blockLoop();
+  blockBubble();
   endScope();
 //> loop
   emitLoop(loopStart);
@@ -936,13 +956,14 @@ static void synchronize() {
   parser.panicMode = false;
 
   while (parser.current.type != TOKEN_EOF) {
-    if (parser.previous.type == TOKEN_SEMICOLON) return;
+    if (parser.previous.type == S_SEMICOLON) return;
     switch (parser.current.type) {
       case TOKEN_CLASS:
       case K_DEFINE:
-      case TOKEN_VAR:
+      case K_LET:
       case TOKEN_FOR:
       case K_IF:
+      case K_UNTIL:
       case K_WHILE:
       case TOKEN_PRINT:
       case K_RETURN:
@@ -961,7 +982,7 @@ static void declaration() {
     classDeclaration();
   } else if (match(K_DEFINE)) {
     funDeclaration();
-  } else if (match(TOKEN_VAR)) {
+  } else if (match(K_LET)) {
     varDeclaration();
   } else {
     statement();
@@ -969,7 +990,6 @@ static void declaration() {
 
 //> call-synchronize
   if (parser.panicMode) synchronize();
-//< call-synchronize
 }
 
 // Global Variables
@@ -982,9 +1002,11 @@ static void statement() {
     ifStatement();
   } else if (match(K_RETURN)) {
     returnStatement();
+  } else if (match(K_UNTIL)) {
+    untilStatement();
   } else if (match(K_WHILE)) {
     whileStatement();
-  } else if (match(TOKEN_LEFT_BRACE)) {
+  } else if (match(S_LEFT_CURLY)) {
     beginScope(); // increment scope count;
     block();
     endScope();
