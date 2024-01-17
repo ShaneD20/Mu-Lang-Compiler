@@ -198,13 +198,14 @@ Token scanToken() {
     case '?': return makeToken(S_QUESTION); // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON);
     case '.': return makeToken(S_DOT);
-    case '-': return makeToken(S_MINUS);
-    case '+': return makeToken(S_PLUS);
-    case '/': return makeToken(S_SLASH);
-    case '*': return makeToken(S_STAR);
     case '%': return makeToken(S_MODULO);
     case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
     // two characters
+    case '-': return makeToken(S_MINUS);
+    case '+': 
+      return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS);
+    case '/': return makeToken(S_SLASH);
+    case '*': return makeToken(S_STAR);
     case ',': 
       return makeToken(match(',') ? D_COMMA : S_COMMA);
     case ':': 
@@ -212,11 +213,9 @@ Token scanToken() {
     case '!':
       return makeToken(match('~') ? D_BANG_TILDE : S_BANG);
     case '<':
-      return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+      return makeToken(match('=') ? D_LESS_EQUAL : S_LESS);
     case '>':
-      return makeToken(
-        match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
-    // strings
+      return makeToken(match('=') ? D_GREATER_EQUAL : S_GREATER);
     case '"': return string();
   }
   return errorToken("Unexpected character.");

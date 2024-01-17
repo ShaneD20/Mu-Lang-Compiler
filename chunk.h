@@ -6,49 +6,40 @@
 #include "value.h"
 
 typedef enum {
-  OP_CONSTANT,
-// Types of Values literal-ops
-  OP_NIL,
-  OP_TRUE,
-  OP_FALSE,
+  OP_CONSTANT, OP_NIL, OP_TRUE, OP_FALSE,
 // Global Variables pop-op
   OP_POP,
 // Local Variable operations
-  OP_GET_LOCAL,
-  OP_SET_LOCAL,
+  OP_GET_LOCAL, OP_SET_LOCAL,
 // Global Variables get-global-op
-  OP_GET_GLOBAL,
   OP_DEFINE_GLOBAL,
-  OP_SET_GLOBAL,
+  OP_GET_GLOBAL, OP_SET_GLOBAL,
 // Closures operations
-  OP_GET_UPVALUE,
-  OP_SET_UPVALUE,
+  OP_GET_UPVALUE, OP_SET_UPVALUE,
 // Classes and Instances property-ops
-  OP_GET_PROPERTY,
-  OP_SET_PROPERTY,
-// Superclasses get-super-op
+  OP_GET_PROPERTY, OP_SET_PROPERTY,
+// Superclasses
   OP_GET_SUPER,
-// Types of Values comparison-ops
-  OP_EQUAL,
-  OP_GREATER,
-  OP_LESS,
-// START A Virtual Machine binary-ops
-  OP_ADD,
-  OP_SUBTRACT,
-  OP_MULTIPLY,
-  OP_DIVIDE,
-  OP_MODULO,
+// Comparison
+  OP_EQUAL, OP_GREATER, OP_LESS,
+//binary-ops
+  OP_PLUS, OP_SUBTRACT,
+  OP_MULTIPLY, OP_DIVIDE,
+  OP_MODULO, 
   OP_CONCATENATE, // TODO implement
-// Types of Values unary-ops
-  OP_NOT,
-  OP_NEGATE,
+// mutation binary-ops
+  OP_SUM_MUTATE,        // +=
+  OP_DIFFERENCE_MUTATE, // -=
+  OP_PRODUCT_MUTATE,    // *=
+  OP_QUOTIENT_MUTATE,   // /=
+// Unary-ops
+  OP_NOT, OP_NEGATE,
 // Global Variables op-print
   OP_PRINT,
-// Jumping Back and Forth operations
-  OP_JUMP,
+// Jumping operations
+  OP_JUMP, OP_LOOP,
   OP_JUMP_IF_FALSE,
   OP_JUMP_IF_TRUE,
-  OP_LOOP,
 // Calls and Functions op-call
   OP_CALL,
   OP_INVOKE,

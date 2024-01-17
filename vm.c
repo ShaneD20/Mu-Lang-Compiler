@@ -447,9 +447,9 @@ static InterpretResult run() {
       case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
       case OP_LESS:     BINARY_OP(BOOL_VAL, <); break;
 
-      case OP_ADD: {
+      case OP_PLUS: {     // TODO move concatenate to be unique, implement +=
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
-          concatenate();  // TODO update to be like mu spec
+          concatenate(); 
         } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
           double b = AS_NUMBER(pop());
           double a = AS_NUMBER(pop());
@@ -462,6 +462,7 @@ static InterpretResult run() {
         break;
       }
       case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); 
+        //printf("op-subtract, \n");
         break;
       case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); 
         break;

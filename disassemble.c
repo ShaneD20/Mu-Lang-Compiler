@@ -69,7 +69,7 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return simpleInstruction("OP_TRUE", offset);
     case OP_FALSE:
       return simpleInstruction("OP_FALSE", offset);
-    case OP_POP:
+    case OP_POP: 
       return simpleInstruction("OP_POP", offset);
     case OP_GET_LOCAL:
       return byteInstruction("OP_GET_LOCAL", chunk, offset);
@@ -97,8 +97,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return simpleInstruction("OP_GREATER", offset);
     case OP_LESS:
       return simpleInstruction("OP_LESS", offset);
-    case OP_ADD:
-      return simpleInstruction("OP_ADD", offset);
+    case OP_PLUS: 
+      return simpleInstruction("OP_PLUS", offset);
     case OP_SUBTRACT:
       return simpleInstruction("OP_SUBTRACT", offset);
     case OP_MULTIPLY:

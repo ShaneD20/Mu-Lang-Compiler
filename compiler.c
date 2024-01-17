@@ -195,8 +195,7 @@ static void endScope() {
   current->scopeDepth--;
 
   while (current->localCount > 0 &&
-         current->locals[current->localCount - 1].depth >
-            current->scopeDepth) {
+         current->locals[current->localCount - 1].depth > current->scopeDepth) {
 //> Closures end-scope
     if (current->locals[current->localCount - 1].isCaptured) {
       emitByte(OP_CLOSE_UPVALUE);
@@ -205,7 +204,7 @@ static void endScope() {
       emitByte(OP_POP);
      printf("OP_pop, "); // REMOVE
     }
-//< Closures end-scope
+//^ Closures end-scope
     current->localCount--;
   }
 }
@@ -285,7 +284,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
 
 // Local Variables
 static void addLocal(Token name) {
-//> too many...
+// if too many...
   if (current->localCount == UINT8_COUNT) {
     error("Too many local variables in function.");
     return;
@@ -296,13 +295,13 @@ static void addLocal(Token name) {
   local->depth = -1;
   local->isCaptured = false;
 }
-//< Local Variables add-local
-//> Local Variables declare-variable
+
+// Local 
 static void declareVariable() {
   if (current->scopeDepth == 0) return;
 
   Token* name = &parser.previous; // PIVOT
-// existing-in-scope
+//> existing-in-scope
   for (int i = current->localCount - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
     if (local->depth != -1 && local->depth < current->scopeDepth) {
@@ -331,9 +330,8 @@ static uint8_t parseVariable(const char* errorMessage) { // PIVOT
 
 //> Local Variables mark-initialized
 static void markInitialized() {
-//> Calls and Functions check-depth
+// Calls and Functions check-depth
   if (current->scopeDepth == 0) return;
-//< Calls and Functions check-depth
   current->locals[current->localCount - 1].depth =
       current->scopeDepth;
 }
@@ -341,8 +339,7 @@ static void markInitialized() {
 // Global
 static void defineVariable(uint8_t global) { // TODO mimic for constants
   if (current->scopeDepth > 0) {
-    markInitialized();
-// define-local
+    markInitialized(); // define-local
     return;
   }
   emitBytes(OP_DEFINE_GLOBAL, global);
@@ -355,11 +352,9 @@ static uint8_t argumentList() {
   if (!check(S_RIGHT_PARENTHESES)) {
     do {
       expression();
-//> arg-limit
-      if (argCount == 255) {
+      if (argCount == 255) { // arg-limit
         error("Can't have more than 255 arguments.");
       }
-//< arg-limit
       argCount++;
     } while (matchAdvance(S_COMMA));
   }
@@ -367,7 +362,6 @@ static uint8_t argumentList() {
   return argCount;
 }
 
-//> Jumping Back and Forth and
 static void and_(bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
@@ -375,13 +369,7 @@ static void and_(bool canAssign) {
   parsePrecedence(PREC_AND);
   patchJump(endJump);
 }
-
-//> Jumping Back and Forth or
 static void or_(bool canAssign) {
-  // int elseJump = emitJump(OP_JUMP_IF_FALSE);
-  // int endJump = emitJump(OP_JUMP); // JUMP_IF_TRUE seems to be working TODO remove
-  //patchJump(elseJump);
-
   int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
   printf("OP_pop,(or) "); // REMOVE
@@ -389,27 +377,52 @@ static void or_(bool canAssign) {
   patchJump(endJump);
 }
 
+static OpCode getSetScope(Token name, bool canAssign) {
+  uint8_t setOp;
+
+  int arg = resolveLocal(current, &name);
+  if (arg != -1) {
+    setOp = OP_SET_LOCAL;
+    printf("local:"); // REMOVE
+  // Local Variables
+  } else if ((arg = resolveUpvalue(current, &name)) != -1) {
+    setOp = OP_SET_UPVALUE;
+    printf("upvalue:");
+  // Closures
+  } else {
+    arg = identifierConstant(&name);
+    setOp = OP_SET_GLOBAL;
+    printf("global:");
+  // global-variable-can-assign
+  }
+  return setOp;
+}
 
 //> Global Variables binary
 static void binary(bool canAssign) {
-  TokenType operatorType = parser.previous.type;
-  ParseRule* rule = getRule(operatorType);
+  TokenType operator = parser.previous.type;
+  ParseRule* rule = getRule(operator);
+  uint8_t opSet = getSetScope(parser.previous, true); // for += , *= etc.
   parsePrecedence((Precedence)(rule->precedence + 1));
-  printf("OP_binary"); // REMOVE
-  switch (operatorType) {
-    case D_BANG_TILDE:        emitBytes(OP_EQUAL, OP_NOT); 
+
+  switch (operator) {
+    case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
       break;
-    case S_EQUAL:             emitByte(OP_EQUAL); 
+    case S_EQUAL:         emitByte(OP_EQUAL); 
       break;
-    case TOKEN_GREATER:       emitByte(OP_GREATER); 
+    case S_GREATER:       emitByte(OP_GREATER); 
       break;
-    case TOKEN_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); 
+    case D_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); 
       break;
-    case TOKEN_LESS:          emitByte(OP_LESS); 
+    case S_LESS:          emitByte(OP_LESS); 
       break;
-    case TOKEN_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
+    case D_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
       break;
-    case S_PLUS:          emitByte(OP_ADD); 
+    case S_PLUS:          emitByte(OP_PLUS); 
+      break;
+    case D_PLUS_EQUAL: 
+      // emitBytes plus (pop value), set
+      emitBytes(OP_PLUS, opSet);  // OP_SUM_MUTATE
       break;
     case S_MINUS:         emitByte(OP_SUBTRACT); 
       break;
@@ -421,6 +434,7 @@ static void binary(bool canAssign) {
       break;
     default: return; // Unreachable.
   }
+  printf("OP_binary, "); // REMOVE
 }
 
 // Calls and Functions compile-call
@@ -488,7 +502,7 @@ static void string(bool canAssign) {
 //> Global Variables named-variable-signature
 static void namedVariable(Token name, bool canAssign) { // TODO mimic for constants
   uint8_t getOp, setOp;
-  printf("\nlooking for named variable\n"); // TODO REMOVE
+
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
@@ -510,10 +524,10 @@ static void namedVariable(Token name, bool canAssign) { // TODO mimic for consta
   if (canAssign && matchAdvance(D_COLON_EQUAL)) {
     expression();
     emitBytes(setOp, (uint8_t)arg); // Local Variables emit-set
-    printf("OP_setOp, "); // REMOVE
+    printf("OP_SET, "); // REMOVE
   } else {
     emitBytes(getOp, (uint8_t)arg); // Local Variables emit-get
-    printf("OP_getOp, "); // REMOVE
+    printf("OP_GET, "); // REMOVE
   }
 }
 
@@ -612,15 +626,17 @@ ParseRule rules[] = {
   [S_SLASH]       = {NULL,     binary, PREC_FACTOR},
   [S_MODULO]      = {NULL,     binary, PREC_FACTOR},
   [S_STAR]        = {NULL,     binary, PREC_FACTOR},
+// Mutation Operators
+  [D_PLUS_EQUAL]  = {NULL,     binary, PREC_NONE},
 // Equality
   [S_BANG]        = {unary,    NULL,   PREC_NONE},
   [D_BANG_TILDE]  = {NULL,     binary, PREC_EQUALITY},
   [S_EQUAL]       = {NULL,     binary, PREC_EQUALITY},
 // Comparisons
-  [TOKEN_GREATER]       = {NULL,     binary, PREC_COMPARISON},
-  [TOKEN_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
-  [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
-  [TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
+  [S_GREATER]       = {NULL,     binary, PREC_COMPARISON},
+  [D_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
+  [S_LESS]          = {NULL,     binary, PREC_COMPARISON},
+  [D_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
 //> Global Variables
   [L_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [L_VARIABLE]      = {variable, NULL,   PREC_NONE},
@@ -654,6 +670,30 @@ ParseRule rules[] = {
 static void parsePrecedence(Precedence precedence) {
   advance();
   ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+  if (prefixRule == NULL) {
+    error("Expect expression.");
+    return;
+  }
+//> Global Variables prefix-rule
+  bool canAssign = precedence <= PREC_ASSIGNMENT;
+  prefixRule(canAssign);
+
+//> infix
+  while (precedence <= getRule(parser.current.type)->precedence) {
+    advance();
+    ParseFn infixRule = getRule(parser.previous.type)->infix;
+//> Global Variables infix-rule
+    infixRule(canAssign);
+  }
+//> Global Variables invalid-assign
+  if (canAssign && matchAdvance(D_COLON_EQUAL)) {
+    error("Invalid assignment target.");
+  }
+}
+
+static void mutationPrecedence(Precedence precedence) {
+  advance();
+  ParseFn prefixRule = getRule(parser.current.type)->prefix;
   if (prefixRule == NULL) {
     error("Expect expression.");
     return;
@@ -779,7 +819,7 @@ static void classDeclaration() {
   currentClass = &classCompiler;
 
 //> Superclasses compile-superclass
-  if (matchAdvance(TOKEN_LESS)) {
+  if (matchAdvance(S_LESS)) {
     consume(L_IDENTIFIER, "Expect superclass name.");
     variable(false);
 //> inherit-self
@@ -856,13 +896,10 @@ static void constDeclaration() { // TODO get constants to be immutable;
 
 //> Global Variables expression-statement
 static void expressionStatement() {
-  // if (check(D_COMMA)) {
-  //   consume(D_COMMA, "Expect ,, to complete an expression statement.");
-  // }
   expression();
   consume(S_SEMICOLON, "Expect ';' after expression."); 
   emitByte(OP_POP);
-  printf("OP_pop,(expStmnt) "); // REMOVE
+  printf("(expStmntPop) "); // REMOVE
 }
 
 // START FOR STATEMENT
@@ -1118,7 +1155,9 @@ static void statement() {
     beginScope(); // increment scope count;
     block();
     endScope();
-  } else {
+  } else if (matchAdvance(L_VARIABLE)) { //sanity check
+    variable(false);
+  } else {    // ADD A BRANCH
     expressionStatement();
   }
 }
