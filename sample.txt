@@ -1,6 +1,8 @@
 print "===Mu sample start===";
 
 print " --Not Operator";
+print 1 or 2;
+print 1 and 2;
 print 2 = 1;
 print !(2 < 5);
 print !(3 = 2 + 1);
@@ -53,6 +55,18 @@ unless x = 5 ?
 else
     print "it is five";
 ,,
+
+print " --When Clause";
+let value : 1;
+
+when value:
+    is = 0 ? print "it's zero";
+    ,,
+    is = 1 ? print "it's one";
+    ,, 
+    is >= 1 ? print "it's greater than or equal to one.";
+    ,,
+//,,
 
 print " --String Concatenation";
 let name: "steve";

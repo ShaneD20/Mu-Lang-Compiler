@@ -7,7 +7,9 @@
 #include "disassemble.h"
 #include "vm.h"
 
-// Scanning on Demand
+/*
+  for tracking new lines, the scanner would tokenize them, while the compiler would choose to keep or toss (or replace with semicolon)
+*/
 static void repl() {
   char line[1024];
   for (;;) {
