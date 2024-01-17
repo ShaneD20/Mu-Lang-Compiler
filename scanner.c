@@ -142,11 +142,13 @@ static TokenType identifierType() { // tests for keywords
       }
       break;
   }
-
-  return L_IDENTIFIER; // TODO add mutable path
+  return scanner.start[0] == '#' ? L_VARIABLE : L_IDENTIFIER;
 }
 
 static Token identifier() {
+  if (peek() == '#') {
+    advance();
+  }
   while (isAlpha(peek()) || isDigit(peek())) advance();
   return makeToken(identifierType());
 }
@@ -181,12 +183,14 @@ Token scanToken() {
   scanner.start = scanner.current;
   if (isAtEnd()) return makeToken(TOKEN_EOF);
 
+  // check for constants
   char rune = advance();
-  if (isAlpha(rune)) return identifier(); // check for identifier
-  if (isDigit(rune)) return number(); // check for number
+  if (isAlpha(rune)) return identifier(); 
+  if (isDigit(rune)) return number(); 
 
   switch (rune) {
     // single character
+    case '#': return identifier();
     case '(': return makeToken(S_LEFT_PARENTHESES); // TODO would be new line aware
     case ')': return makeToken(S_RIGHT_PARENTHESES);
     case '{': return makeToken(S_LEFT_CURLY); // TODO would be new line aware

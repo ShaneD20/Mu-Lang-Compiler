@@ -8,19 +8,19 @@ print !(3 > 3 * 2);
 print !(2 = 1);
 
 print " --While Loop";
-let x := 1;
+let #count := 1;
 
-while x < 100 ? 
-    print x; 
-    x := x * 2; 
+while #count < 100 ? 
+    print #count; 
+    #count := #count * 2; // not getting from globals
 ,,
 
 print " --Until Loop";
-x := 1;
+#count := 1;
 
-until x > 100 ?
-    print x;
-    x := x * 3;
+until #count > 100 ?
+    print #count;
+    #count := #count * 3;
 ,,
 
 print " --If Clause";
@@ -43,7 +43,7 @@ else
 // ,,
 
 print " --Unless Clause";
-x := 5;
+let x : 5;
 unless x = 4 ? 
     print "good"; 
 ,,
@@ -53,9 +53,9 @@ unless x = 5 ?
 else print "five"; // todo always prints...
 
 print " --String Concatenation";
-let name := "steve";
-let last := " poe";
-let full_name := name + last;
+let name : "steve";
+let last : " poe";
+let full_name : name + last;
 print full_name;
 
 print " --functions";

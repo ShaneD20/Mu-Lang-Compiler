@@ -68,14 +68,13 @@ static bool check(TokenType type) {
   return parser.current.type == type;
 }
 
-static bool match(TokenType type) {
+static bool matchAdvance(TokenType type) {
   if (!check(type)) return false;
   advance();
   return true;
 }
 
-// emit functions
-
+// EMIT functions
 static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
@@ -302,7 +301,7 @@ static void addLocal(Token name) {
 static void declareVariable() {
   if (current->scopeDepth == 0) return;
 
-  Token* name = &parser.previous;
+  Token* name = &parser.previous; // PIVOT
 // existing-in-scope
   for (int i = current->localCount - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
@@ -319,8 +318,12 @@ static void declareVariable() {
 }
 
 // Global Variables
-static uint8_t parseVariable(const char* errorMessage) {
-  consume(L_IDENTIFIER, errorMessage);
+static uint8_t parseVariable(const char* errorMessage) { // PIVOT
+  if (check(L_VARIABLE)) {
+    consume(L_VARIABLE, errorMessage);
+  } else {
+    consume(L_IDENTIFIER, errorMessage);
+  }
   declareVariable();
   if (current->scopeDepth > 0) return 0; // Local Variables parse-local
   return identifierConstant(&parser.previous);
@@ -358,7 +361,7 @@ static uint8_t argumentList() {
       }
 //< arg-limit
       argCount++;
-    } while (match(S_COMMA));
+    } while (matchAdvance(S_COMMA));
   }
   consume(S_RIGHT_PARENTHESES, "Expect ')' after arguments.");
   return argCount;
@@ -392,40 +395,30 @@ static void binary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
   ParseRule* rule = getRule(operatorType);
   parsePrecedence((Precedence)(rule->precedence + 1));
-
+  printf("OP_binary"); // REMOVE
   switch (operatorType) {
     case D_BANG_TILDE:        emitBytes(OP_EQUAL, OP_NOT); 
-      printf("OP_equal|OP_not, "); // REMOVE
       break;
     case S_EQUAL:             emitByte(OP_EQUAL); 
-      printf("OP_equal, "); // REMOVE
       break;
     case TOKEN_GREATER:       emitByte(OP_GREATER); 
-      printf("OP_greater, "); // REMOVE
       break;
     case TOKEN_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); 
-      printf("OP_less|OP_not, "); // REMOVE
       break;
     case TOKEN_LESS:          emitByte(OP_LESS); 
-      printf("OP_less, "); // REMOVE
       break;
     case TOKEN_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
-      printf("OP_greater|OP_not, "); // REMOVE 
       break;
     case S_PLUS:          emitByte(OP_ADD); 
-      printf("OP_add, "); // REMOVE
       break;
     case S_MINUS:         emitByte(OP_SUBTRACT); 
-      printf("OP_subtract, "); // REMOVE
       break;
     case S_STAR:          emitByte(OP_MULTIPLY); 
-     printf("OP_multiply, "); // REMOVE
       break;
     case S_SLASH:         emitByte(OP_DIVIDE); 
-      printf("OP_divide, "); // REMOVE
       break;
     case S_MODULO:        emitByte(OP_MODULO);
-      printf("OP_modulo, "); // REMOVE
+      break;
     default: return; // Unreachable.
   }
 }
@@ -439,15 +432,15 @@ static void call(bool canAssign) {
 
 //> Classes and Instances compile-dot
 static void dot(bool canAssign) {
-  consume(L_IDENTIFIER, "Expect property name after '.'.");
+  consume(L_IDENTIFIER, "Expect property name after '.'."); // TODO mutable/immutable
   uint8_t name = identifierConstant(&parser.previous);
 
-  if (canAssign && match(D_COLON_EQUAL)) {
+  if (canAssign && matchAdvance(D_COLON_EQUAL)) {
     expression();
     emitBytes(OP_SET_PROPERTY, name);
     printf("OP_set_property, "); // REMOVE
 // Methods and Initializers parse-call
-  } else if (match(S_LEFT_PARENTHESES)) {
+  } else if (matchAdvance(S_LEFT_PARENTHESES)) {
     uint8_t argCount = argumentList();
     emitBytes(OP_INVOKE, name);
     printf("OP_invoke, "); // REMOVE
@@ -495,6 +488,7 @@ static void string(bool canAssign) {
 //> Global Variables named-variable-signature
 static void namedVariable(Token name, bool canAssign) { // TODO mimic for constants
   uint8_t getOp, setOp;
+  printf("\nlooking for named variable\n"); // TODO REMOVE
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
@@ -513,7 +507,7 @@ static void namedVariable(Token name, bool canAssign) { // TODO mimic for consta
     printf("global:");
   // global-variable-can-assign
   }
-  if (canAssign && match(D_COLON_EQUAL)) {
+  if (canAssign && matchAdvance(D_COLON_EQUAL)) {
     expression();
     emitBytes(setOp, (uint8_t)arg); // Local Variables emit-set
     printf("OP_setOp, "); // REMOVE
@@ -552,7 +546,7 @@ static void super_(bool canAssign) {
   
   namedVariable(syntheticToken("this"), false);
 
-  if (match(S_LEFT_PARENTHESES)) {
+  if (matchAdvance(S_LEFT_PARENTHESES)) {
     uint8_t argCount = argumentList();
     namedVariable(syntheticToken("super"), false);
     emitBytes(OP_SUPER_INVOKE, name);
@@ -618,21 +612,20 @@ ParseRule rules[] = {
   [S_SLASH]       = {NULL,     binary, PREC_FACTOR},
   [S_MODULO]      = {NULL,     binary, PREC_FACTOR},
   [S_STAR]        = {NULL,     binary, PREC_FACTOR},
-// Types of Values table-equality
+// Equality
   [S_BANG]        = {unary,    NULL,   PREC_NONE},
   [D_BANG_TILDE]  = {NULL,     binary, PREC_EQUALITY},
   [S_EQUAL]       = {NULL,     binary, PREC_EQUALITY},
-// Types of Values table-comparisons
+// Comparisons
   [TOKEN_GREATER]       = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
-//> Global Variables table-identifier
+//> Global Variables
   [L_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [L_VARIABLE]      = {variable, NULL,   PREC_NONE},
-//> Strings table-string
+// String literal, Number (double) literal
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
-//< Strings table-string
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
 //  KEYWORDS
   [K_AND]           = {NULL,     and_,   PREC_AND},
@@ -677,7 +670,7 @@ static void parsePrecedence(Precedence precedence) {
     infixRule(canAssign);
   }
 //> Global Variables invalid-assign
-  if (canAssign && match(D_COLON_EQUAL)) {
+  if (canAssign && matchAdvance(D_COLON_EQUAL)) {
     error("Invalid assignment target.");
   }
 }
@@ -737,7 +730,7 @@ static void function(FunctionType type) {
       }
       uint8_t constant = parseVariable("Expect parameter name.");
       defineVariable(constant);
-    } while (match(S_COMMA));
+    } while (matchAdvance(S_COMMA));
   }
 //< parameters
   consume(S_RIGHT_PARENTHESES, "Expect ')' after parameters.");
@@ -788,7 +781,7 @@ static void classDeclaration() {
   currentClass = &classCompiler;
 
 //> Superclasses compile-superclass
-  if (match(TOKEN_LESS)) {
+  if (matchAdvance(TOKEN_LESS)) {
     consume(L_IDENTIFIER, "Expect superclass name.");
     variable(false);
 //> inherit-self
@@ -834,11 +827,25 @@ static void funDeclaration() {
   defineVariable(global);
 }
 
-//> Global Variables var-declaration
+//> Global Variable declaration
 static void varDeclaration() {
+  uint8_t global = parseVariable("Expect variable name."); // PIVOT
+
+  if (matchAdvance(D_COLON_EQUAL)) {
+    expression();
+  } else {
+    emitByte(OP_NIL);
+    printf("OP_null, "); // REMOVE
+  }
+  consume(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
+
+  defineVariable(global);
+}
+//> Global Constant declaration
+static void constDeclaration() { // TODO get constants to be immutable;
   uint8_t global = parseVariable("Expect variable name.");
 
-  if (match(D_COLON_EQUAL)) {
+  if (matchAdvance(S_COLON)) {
     expression();
   } else {
     emitByte(OP_NIL);
@@ -855,8 +862,7 @@ static void expressionStatement() {
   //   consume(D_COMMA, "Expect ,, to complete an expression statement.");
   // }
   expression();
-  consume(S_SEMICOLON, "Expect ';' after expression."); // TODO this error goes out for incorrect assignment operator, fix
-    // for new lines would have to add... if (match(S_SEMICOLON)) { ... } else
+  consume(S_SEMICOLON, "Expect ';' after expression."); 
   emitByte(OP_POP);
   printf("OP_pop,(expStmnt) "); // REMOVE
 }
@@ -865,22 +871,22 @@ static void expressionStatement() {
 static void forStatement() { // TODO remove or revise
   beginScope();
   consume(S_LEFT_PARENTHESES, "Expect '(' after 'for'.");
-
+/*
   // for-initializer
-  if (match(S_SEMICOLON)) {
+  if (matchAdvance(S_SEMICOLON)) {
     // No initializer.
-  } else if (match(K_LET)) {
-    varDeclaration();
+  } else if (check(L_)) { 
+    varDeclaration(); // If I keep for loops, may need a different function
   } else {
     expressionStatement();
   }
   //^ for-initializer
-
+*/
   int loopStart = currentChunk()->count;
 
   // for-exit
   int exitJump = -1;
-  if (!match(S_SEMICOLON)) {
+  if (!matchAdvance(S_SEMICOLON)) {
     expression();
     consume(S_SEMICOLON, "Expect ';' after loop condition.");
 
@@ -890,7 +896,7 @@ static void forStatement() { // TODO remove or revise
   }
 
   // for-increment
-  if (!match(S_RIGHT_PARENTHESES)) {
+  if (!matchAdvance(S_RIGHT_PARENTHESES)) {
     int bodyJump = emitJump(OP_JUMP);
     int incrementStart = currentChunk()->count;
     expression();
@@ -935,7 +941,7 @@ static void ifStatement() {
   patchJump(thenJump);
   emitByte(OP_POP); // pop-end
   printf("OP_pop(else), "); // REMOVE
-  if (match(K_ELSE)) { // compile else
+  if (matchAdvance(K_ELSE)) { // TODO advancing if 'else' is probably the bug
      statement(); // TODO why does ',,' fail?
   } 
   // patch-else
@@ -963,7 +969,7 @@ static void unlessStatement() {
   emitByte(OP_POP); // pop-end
   printf("OP_pop(else), "); // REMOVE
   // compile-else
-  if (match(K_ELSE)) { // compile else
+  if (matchAdvance(K_ELSE)) { // bug from 'matching and advancing'
     statement(); // TODO could enforce 'else' scope
   } 
   // patch-else
@@ -974,8 +980,8 @@ static void unlessStatement() {
 static void printStatement() {
   expression();
   consume(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
-  if (match(NEW_LINE)) {
-    consume(NEW_LINE, "new line to close statement"); // TODO test
+  if (matchAdvance(NEW_LINE)) { 
+    // TODO test with no args
   }
   emitByte(OP_PRINT);
   printf("OP_print, "); // REMOVE
@@ -989,7 +995,7 @@ static void returnStatement() {
   }
 
 //< return-from-script
-  if (match(S_SEMICOLON)) {
+  if (matchAdvance(S_SEMICOLON)) {
     emitReturn();
   } else {
 // Methods and Initializers return-from-init
@@ -1074,13 +1080,17 @@ static void synchronize() {
 }
 
 // Global Variables declaration
-static void declaration() {
-  if (match(TOKEN_CLASS)) {
+static void declaration() { // TODO hub for assigment
+  if (matchAdvance(TOKEN_CLASS)) {
     classDeclaration();
-  } else if (match(K_DEFINE)) {
+  } else if (matchAdvance(K_DEFINE)) {
     funDeclaration();
-  } else if (match(K_LET)) {
-    varDeclaration();
+  } else if (matchAdvance(K_LET)) { // TODO currently needs 'let' to assign to global
+    if (check(L_VARIABLE)) {
+      varDeclaration();
+    } else {
+      constDeclaration();
+    }
   } else {
     statement();
   }
@@ -1091,30 +1101,27 @@ static void declaration() {
 
 // Global Variables
 static void statement() {
-  if (match(TOKEN_PRINT)) {
+  if (matchAdvance(TOKEN_PRINT)) {
     printStatement();
-  } /* else if (match(TOKEN_FOR)) {
+  } /* else if (matchAdvance(TOKEN_FOR)) {
     forStatement();
-  }*/ else if (match(K_IF)) {
+  }*/ else if (matchAdvance(K_IF)) {
     ifStatement();
-  } else if (match(K_WHEN)) {
+  } else if (matchAdvance(K_WHEN)) {
     whenStatement();
-  } else if (match(K_UNLESS)) {
+  } else if (matchAdvance(K_UNLESS)) {
     unlessStatement();
-  } else if (match(K_RETURN)) {
+  } else if (matchAdvance(K_RETURN)) {
     returnStatement();
-  } else if (match(K_UNTIL)) {
+  } else if (matchAdvance(K_UNTIL)) {
     untilStatement();
-  } else if (match(K_WHILE)) {
+  } else if (matchAdvance(K_WHILE)) {
     whileStatement();
-  } else if (match(S_LEFT_CURLY)) {
+  } else if (matchAdvance(S_LEFT_CURLY)) {
     beginScope(); // increment scope count;
     block();
     endScope();
-  } else if (match(D_COMMA)) {
-    consume(D_COMMA, "hanging terminator, shouldn't be an issue. bugfix");
-    // advance(); 
-  }  else {
+  } else {
     expressionStatement();
   }
 }
@@ -1131,7 +1138,7 @@ ObjFunction* compile(const char* source) {
 
   advance();
   // Global Variables compile
-  while (!match(TOKEN_EOF)) {
+  while (!matchAdvance(TOKEN_EOF)) {
     declaration();
   }
 
