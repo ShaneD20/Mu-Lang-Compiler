@@ -699,17 +699,15 @@ static void blockBubble() {
   while (!check(D_COMMA) && !check(TOKEN_EOF)) {
     declaration();
   }
-  consume(D_COMMA, "Expect ,, to complete a while/until/else block");
+  consume(D_COMMA, "Expect ,, to complete a else/while/until/unless block");
 }
 // Block for Conditionals : if, unless
 static void blockConditional() {
   while (!check(D_COMMA) && !check(K_ELSE) && !check(TOKEN_EOF)) {
     declaration();
   }
-  if (check(D_COMMA)) {
-    consume(D_COMMA, "Expect ,, to complete an if/unless block, or 'else' to continue");
-  } else {
-    consume(K_ELSE, "Expect ,, to complete an if/unless block, or 'else' to continue");
+  if (!check(K_ELSE)) {
+    consume(D_COMMA, "Expect ,, to complete an if block, or 'else' to continue");
   }
 }
 
@@ -941,8 +939,10 @@ static void ifStatement() {
   patchJump(thenJump);
   emitByte(OP_POP); // pop-end
   printf("OP_pop(else), "); // REMOVE
-  if (matchAdvance(K_ELSE)) { // TODO advancing if 'else' is probably the bug
-     statement(); // TODO why does ',,' fail?
+  if (matchAdvance(K_ELSE)) { 
+    beginScope();
+    blockBubble();
+    endScope();
   } 
   // patch-else
   patchJump(elseJump);
@@ -960,20 +960,17 @@ static void unlessStatement() {
   emitByte(OP_POP); // pop-then
   printf("OP_pop(then), "); // REMOVE
   beginScope();
-  blockConditional();
+  blockBubble();
   endScope();
 
-  int elseJump = emitJump(OP_JUMP); // jump-over-else
-
+  //int elseJump = emitJump(OP_JUMP); // jump-over-else
+  // TODO FIX unless-else
   patchJump(thenJump);
   emitByte(OP_POP); // pop-end
   printf("OP_pop(else), "); // REMOVE
-  // compile-else
-  if (matchAdvance(K_ELSE)) { // bug from 'matching and advancing'
-    statement(); // TODO could enforce 'else' scope
-  } 
-  // patch-else
-  patchJump(elseJump);
+  // compile-else doesn't work.
+  //if (matchAdvance(K_ELSE)) {} 
+  //patchJump(elseJump);
 }
 
 // Global Variables print-statement
