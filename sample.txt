@@ -66,7 +66,7 @@ when value:
     ,, 
     is >= 1 ? print "it's greater than or equal to one.";
     ,,
-//,,
+,,
 
 print " --String Concatenation";
 let name: "steve";

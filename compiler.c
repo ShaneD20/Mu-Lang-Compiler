@@ -951,6 +951,8 @@ static void whenStatement() { // currently has fallthrough, TODO want standard b
 
     patchJump(thenJump);
   }
+
+  consume(D_COMMA, "Expect ,, to complete a when block.");
 }
 
 // Global Variables print-statement
