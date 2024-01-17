@@ -378,10 +378,6 @@ static void and_(bool canAssign) {
 
 //> Jumping Back and Forth or
 static void or_(bool canAssign) {
-  // int elseJump = emitJump(OP_JUMP_IF_FALSE);
-  // int endJump = emitJump(OP_JUMP); // JUMP_IF_TRUE seems to be working TODO remove
-  //patchJump(elseJump);
-
   int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
   printf("OP_pop,(or) "); // REMOVE
@@ -925,18 +921,17 @@ static void ifStatement() {
   consume(S_QUESTION, "Expect 'if' BOOLEAN '?' to test condition.");
 
   int thenJump = emitJump(OP_JUMP_IF_FALSE);
-//> pop-then
-  emitByte(OP_POP);
+  // pop-then
   printf("OP_pop(then), "); // REMOVE
-//< pop-then
+  emitByte(OP_POP); 
   // statement(); // TEST
   beginScope();
   blockConditional();
   endScope();
-
-  int elseJump = emitJump(OP_JUMP); // jump-over-else
-
+//> two paths to jump
+  int elseJump = emitJump(OP_JUMP); 
   patchJump(thenJump);
+//^
   emitByte(OP_POP); // pop-end
   printf("OP_pop(else), "); // REMOVE
   if (matchAdvance(K_ELSE)) { 
@@ -944,8 +939,7 @@ static void ifStatement() {
     blockBubble();
     endScope();
   } 
-  // patch-else
-  patchJump(elseJump);
+  patchJump(elseJump); // set else jump at end
 }
 
 static void whenStatement() { //TODO refactor to be conditional switch
@@ -955,22 +949,26 @@ static void whenStatement() { //TODO refactor to be conditional switch
 static void unlessStatement() {
   expression();
   consume(S_QUESTION, "Expect 'unless' BOOLEAN '?' to test condition.");
-
   int thenJump = emitJump(OP_JUMP_IF_TRUE);
+  // pop-then  
   emitByte(OP_POP); // pop-then
   printf("OP_pop(then), "); // REMOVE
+
   beginScope();
-  blockBubble();
+  blockConditional();
   endScope();
 
-  //int elseJump = emitJump(OP_JUMP); // jump-over-else
-  // TODO FIX unless-else
+  int elseJump = emitJump(OP_JUMP); // jump-over-else
   patchJump(thenJump);
+  // TODO FIX unless-else
   emitByte(OP_POP); // pop-end
   printf("OP_pop(else), "); // REMOVE
-  // compile-else doesn't work.
-  //if (matchAdvance(K_ELSE)) {} 
-  //patchJump(elseJump);
+  if (matchAdvance(K_ELSE)) { 
+    beginScope();
+    blockBubble();
+    endScope();
+  } 
+  patchJump(elseJump);
 }
 
 // Global Variables print-statement
@@ -1120,6 +1118,7 @@ static void statement() {
     endScope();
   } else {
     expressionStatement();
+    // TODO #id += 3; should work, but missining some operation
   }
 }
 
