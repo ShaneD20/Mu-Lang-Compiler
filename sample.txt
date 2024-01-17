@@ -44,10 +44,14 @@ print " --Unless Clause";
 let x: 5;
 unless x = 4 ?
     print "good"; 
+else    
+    print "not good";
 ,,
 
 unless x = 5 ?
-    print "not five"; 
+    print "it's not five"; 
+else
+    print "it is five";
 ,,
 
 print " --String Concatenation";
