@@ -2,17 +2,17 @@ print "===Mu sample start===";
 
 print " --Not Operator";
 print 2 = 1;
-print!(2 < 5);
-print!(3 = 2 + 1);
-print!(3 > 3 * 2);
-print!(2 = 1);
+print !(2 < 5);
+print !(3 = 2 + 1);
+print !(3 > 3 * 2);
+print !(2 = 1);
 
 print " --While Loop";
 let #count := 1;
 
 while #count < 100 ?
     print #count;
-#count := #count * 2; 
+    #count := #count * 2; 
 ,,
 
 print " --Until Loop";
@@ -20,7 +20,7 @@ print " --Until Loop";
 
 until #count > 100 ?
     print #count;
-#count := #count * 3;
+    #count := #count * 3;
 ,,
 
 print " --If Clause";
@@ -32,15 +32,13 @@ if 0 > 10 ?
     print "yes zero is greater than ten";
 else 
     print "no, zero is not greater than ten";
-// ,,
+,,
 
 if false ?
     print "one";
-else if false ?
+else
     print "two";
-else 
-    print "three";
-// ,,
+,,
 
 print " --Unless Clause";
 let x: 5;
@@ -50,7 +48,7 @@ unless x = 4 ?
 
 unless x = 5 ?
     print "not five"; 
-else print "five"; // todo always prints...
+,,
 
 print " --String Concatenation";
 let name: "steve";
