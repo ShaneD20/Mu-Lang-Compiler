@@ -15,8 +15,10 @@ VM vm; // [one]
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
-static void showText(const char array[]) {
-  printf("%s\n", array);
+static void showText(int argCount, Value* args) {
+  printf("show: ");
+  // printValue(args);
+  printf("\n");
 }
 //^ Native Functions
 
@@ -63,10 +65,9 @@ static void defineNative(const char* name, NativeFn function) {
 void initVM() {
   resetStack();
   vm.objects = NULL;
-//> Garbage Collection init-gc-fields
+// Garbage Collection init-gc-fields
   vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
-//^ Garbage Collection init-gc-fields
 //> Garbage Collection init-gray-stack
   vm.grayCount = 0;
   vm.grayCapacity = 0;
@@ -79,8 +80,8 @@ void initVM() {
   vm.initString = NULL;
   vm.initString = copyString("init", 4);
 
-  defineNative("clock", clockNative); // TODO add print native function
-  // defineNative("show", showText); // TODO segfault ...
+  defineNative("clock", clockNative); 
+  //defineNative("show", showText); // TODO doesn't work ...
 }
 
 //> VM Helpers
@@ -141,13 +142,11 @@ static bool callValue(Value callee, int argCount) {
         vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
         // Methods and Initializers call-init
         Value initializer;
-        if (tableGet(&klass->methods, vm.initString,
-                     &initializer)) {
+        if (tableGet(&klass->methods, vm.initString, &initializer)) {
           return call(AS_CLOSURE(initializer), argCount);
         //> no-init-arity-error
         } else if (argCount != 0) {
-          runtimeError("Expected 0 arguments but got %d.",
-                       argCount);
+          runtimeError("Expected 0 arguments but got %d.", argCount);
           return false;
         //^ no-init-arity-error
         }
@@ -239,8 +238,7 @@ static ObjUpvalue* captureUpvalue(Value* local) {
 }
 
 static void closeUpvalues(Value* last) {
-  while (vm.openUpvalues != NULL &&
-         vm.openUpvalues->location >= last) {
+  while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
     ObjUpvalue* upvalue = vm.openUpvalues;
     upvalue->closed = *upvalue->location;
     upvalue->location = &upvalue->closed;
@@ -617,6 +615,6 @@ InterpretResult interpret(const char* source) {
   pop();
   push(OBJ_VAL(closure));
   call(closure, 0);
-
+  printf("\n");
   return run();
 }

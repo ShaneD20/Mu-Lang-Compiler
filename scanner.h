@@ -14,7 +14,7 @@ typedef enum { // TODO update to reflect mu
   TOKEN_BANG_EQUAL, TOKEN_EQUAL_EQUAL,
   TOKEN_GREATER_EQUAL, TOKEN_LESS_EQUAL,
   // Literals.
-  L_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER, 
+  L_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER, L_VARIABLE,
   // L_MUTABLE, // todo add, would replace s_octo ?
   // Keywords.
   // TOKEN_FOR, 

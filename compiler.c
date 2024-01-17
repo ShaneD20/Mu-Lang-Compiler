@@ -87,6 +87,7 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
 
 static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
+  printf("OP_LOOP, "); // REMOVE
 
   int offset = currentChunk()->count - loopStart + 2;
   if (offset > UINT16_MAX) error("Loop body too large.");
@@ -96,6 +97,7 @@ static void emitLoop(int loopStart) {
 }
 
 static int emitJump(uint8_t instruction) {
+  printf("OP_jump, ");
   emitByte(instruction);
   emitByte(0xff);
   emitByte(0xff);
@@ -109,6 +111,7 @@ static void emitReturn() {
     emitByte(OP_NIL);
   }
   emitByte(OP_RETURN);
+  printf("OP_return, "); // REMOVE
 }
 
 static uint8_t makeConstant(Value value) {
@@ -122,6 +125,7 @@ static uint8_t makeConstant(Value value) {
 
 static void emitConstant(Value value) {
   emitBytes(OP_CONSTANT, makeConstant(value));
+  printf("OP_constant, "); // REMOVE
 }
 
 static void patchJump(int offset) {
@@ -197,8 +201,10 @@ static void endScope() {
 //> Closures end-scope
     if (current->locals[current->localCount - 1].isCaptured) {
       emitByte(OP_CLOSE_UPVALUE);
+     printf("OP_close_upvale, "); // REMOVE
     } else {
       emitByte(OP_POP);
+     printf("OP_pop, "); // REMOVE
     }
 //< Closures end-scope
     current->localCount--;
@@ -330,14 +336,14 @@ static void markInitialized() {
 }
 
 // Global
-static void defineVariable(uint8_t global) {
+static void defineVariable(uint8_t global) { // TODO mimic for constants
   if (current->scopeDepth > 0) {
     markInitialized();
 // define-local
     return;
   }
-
   emitBytes(OP_DEFINE_GLOBAL, global);
+  printf("OP_define_gobal, "); // REMOVE
 }
 
 // Calls and Functions argument-list
@@ -362,6 +368,7 @@ static uint8_t argumentList() {
 static void and_(bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
+  printf("OP_pop(and), "); // REMOVE
   parsePrecedence(PREC_AND);
   patchJump(endJump);
 }
@@ -374,6 +381,7 @@ static void or_(bool canAssign) {
 
   int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
+  printf("OP_pop,(or) "); // REMOVE
   parsePrecedence(PREC_OR);
   patchJump(endJump);
 }
@@ -387,26 +395,37 @@ static void binary(bool canAssign) {
 
   switch (operatorType) {
     case D_BANG_TILDE:        emitBytes(OP_EQUAL, OP_NOT); 
+      printf("OP_equal|OP_not, "); // REMOVE
       break;
     case S_EQUAL:             emitByte(OP_EQUAL); 
+      printf("OP_equal, "); // REMOVE
       break;
     case TOKEN_GREATER:       emitByte(OP_GREATER); 
+      printf("OP_greater, "); // REMOVE
       break;
     case TOKEN_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); 
+      printf("OP_less|OP_not, "); // REMOVE
       break;
     case TOKEN_LESS:          emitByte(OP_LESS); 
+      printf("OP_less, "); // REMOVE
       break;
-    case TOKEN_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT); 
+    case TOKEN_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
+      printf("OP_greater|OP_not, "); // REMOVE 
       break;
     case S_PLUS:          emitByte(OP_ADD); 
+      printf("OP_add, "); // REMOVE
       break;
     case S_MINUS:         emitByte(OP_SUBTRACT); 
+      printf("OP_subtract, "); // REMOVE
       break;
     case S_STAR:          emitByte(OP_MULTIPLY); 
+     printf("OP_multiply, "); // REMOVE
       break;
     case S_SLASH:         emitByte(OP_DIVIDE); 
+      printf("OP_divide, "); // REMOVE
       break;
     case S_MODULO:        emitByte(OP_MODULO);
+      printf("OP_modulo, "); // REMOVE
     default: return; // Unreachable.
   }
 }
@@ -415,6 +434,7 @@ static void binary(bool canAssign) {
 static void call(bool canAssign) {
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
+  printf("OP_call, "); // REMOVE
 }
 
 //> Classes and Instances compile-dot
@@ -425,23 +445,32 @@ static void dot(bool canAssign) {
   if (canAssign && match(D_COLON_EQUAL)) {
     expression();
     emitBytes(OP_SET_PROPERTY, name);
+    printf("OP_set_property, "); // REMOVE
 // Methods and Initializers parse-call
   } else if (match(S_LEFT_PARENTHESES)) {
     uint8_t argCount = argumentList();
     emitBytes(OP_INVOKE, name);
+    printf("OP_invoke, "); // REMOVE
     emitByte(argCount);
 //^ Methods and Initializers parse-call
   } else {
     emitBytes(OP_GET_PROPERTY, name);
+    printf("OP_get_property, "); // REMOVE
   }
 }
 
 // Global Variables
 static void literal(bool canAssign) {
   switch (parser.previous.type) {
-    case K_FALSE: emitByte(OP_FALSE); break;
-    case TOKEN_NIL: emitByte(OP_NIL); break;
-    case K_TRUE: emitByte(OP_TRUE); break;
+    case K_FALSE: emitByte(OP_FALSE); 
+      printf("OP_false, "); // REMOVE
+      break;
+    case TOKEN_NIL: emitByte(OP_NIL); 
+      printf("OP_null, "); // REMOVE
+      break;
+    case K_TRUE: emitByte(OP_TRUE); 
+      printf("OP_true, "); // REMOVE
+      break;
     default: return; // Unreachable.
   }
 }
@@ -455,44 +484,48 @@ static void grouping(bool canAssign) {
 //> Global Variables
 static void number(bool canAssign) {
   double value = strtod(parser.previous.start, NULL);
-  emitConstant(NUMBER_VAL(value));
+  emitConstant(NUMBER_VAL(value)); // already prints
 }
 
 //> Global Variables string
 static void string(bool canAssign) {
-  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
+  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2))); // already prints
 }
 
 //> Global Variables named-variable-signature
-static void namedVariable(Token name, bool canAssign) {
-//> Local Variables named-local
+static void namedVariable(Token name, bool canAssign) { // TODO mimic for constants
   uint8_t getOp, setOp;
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
-// Closures named-variable-upvalue
+    printf("local:"); // REMOVE
+  // Local Variables
   } else if ((arg = resolveUpvalue(current, &name)) != -1) {
     getOp = OP_GET_UPVALUE;
     setOp = OP_SET_UPVALUE;
-//^ Closures named-variable-upvalue
+    printf("upvalue:");
+  // Closures
   } else {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
+    printf("global:");
+  // global-variable-can-assign
   }
-// named-variable-can-assign
   if (canAssign && match(D_COLON_EQUAL)) {
     expression();
     emitBytes(setOp, (uint8_t)arg); // Local Variables emit-set
+    printf("OP_setOp, "); // REMOVE
   } else {
     emitBytes(getOp, (uint8_t)arg); // Local Variables emit-get
+    printf("OP_getOp, "); // REMOVE
   }
 }
 
 //> Global Variables variable
 static void variable(bool canAssign) {
-  namedVariable(parser.previous, canAssign);
+  namedVariable(parser.previous, canAssign); // TODO mimic for constants
 }
 
 //> Superclasses synthetic-token
@@ -524,9 +557,11 @@ static void super_(bool canAssign) {
     namedVariable(syntheticToken("super"), false);
     emitBytes(OP_SUPER_INVOKE, name);
     emitByte(argCount);
+    printf("OP_super_invoke|arguments, "); // REMOVE
   } else {
     namedVariable(syntheticToken("super"), false);
     emitBytes(OP_GET_SUPER, name);
+    printf("OP_get_super|name, "); // REMOVE
   }
 }
 
@@ -550,8 +585,12 @@ static void unary(bool canAssign) {
 
   // Emit the operator instruction.
   switch (operatorType) {
-    case S_BANG: emitByte(OP_NOT); break;
-    case S_MINUS: emitByte(OP_NEGATE); break;
+    case S_BANG: emitByte(OP_NOT); 
+      printf("OP_not, "); // REMOVE
+      break;
+    case S_MINUS: emitByte(OP_NEGATE); 
+      printf("OP_negate, "); // REMOVE
+      break;
     default: return; // Unreachable.
   }
 }
@@ -590,6 +629,7 @@ ParseRule rules[] = {
   [TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
 //> Global Variables table-identifier
   [L_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
+  [L_VARIABLE]      = {variable, NULL,   PREC_NONE},
 //> Strings table-string
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
 //< Strings table-string
@@ -706,10 +746,12 @@ static void function(FunctionType type) {
 
   ObjFunction* function = endCompiler();
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // Closures emit-closure
+  printf("OP_closure, "); // REMOVE
   // Closures capture-upvalues
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
     emitByte(compiler.upvalues[i].index);
+    printf("OP_captured_upvales, "); // REMOVE
   }
 }
 
@@ -726,6 +768,7 @@ static void method() {
   }
   function(type); // method-body
   emitBytes(OP_METHOD, constant);
+  printf("OP_method, "); // REMOVE
 }
 
 static void classDeclaration() {
@@ -735,6 +778,7 @@ static void classDeclaration() {
   declareVariable();
 
   emitBytes(OP_CLASS, nameConstant);
+  printf("OP_class, "); // REMOVE
   defineVariable(nameConstant);
 
 //> Methods and Initializers create-class-compiler
@@ -758,6 +802,7 @@ static void classDeclaration() {
 //^ superclass-variable
     namedVariable(className, false);
     emitByte(OP_INHERIT);
+    printf("OP_inherit, "); // REMOVE
 //  set-has-superclass
     classCompiler.hasSuperclass = true;
   }
@@ -772,7 +817,7 @@ static void classDeclaration() {
 
   // Methods and Initializers pop-class
   emitByte(OP_POP);
-  
+  printf("OP_pop,(class) "); // REMOVE
   // Superclasses end-superclass-scope
   if (classCompiler.hasSuperclass) {
     endScope();
@@ -797,6 +842,7 @@ static void varDeclaration() {
     expression();
   } else {
     emitByte(OP_NIL);
+    printf("OP_null, "); // REMOVE
   }
   consume(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
 
@@ -812,6 +858,7 @@ static void expressionStatement() {
   consume(S_SEMICOLON, "Expect ';' after expression."); // TODO this error goes out for incorrect assignment operator, fix
     // for new lines would have to add... if (match(S_SEMICOLON)) { ... } else
   emitByte(OP_POP);
+  printf("OP_pop,(expStmnt) "); // REMOVE
 }
 
 // START FOR STATEMENT
@@ -839,6 +886,7 @@ static void forStatement() { // TODO remove or revise
 
     exitJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP); // Condition.
+    printf("OP_pop(for), "); // REMOVE
   }
 
   // for-increment
@@ -848,7 +896,7 @@ static void forStatement() { // TODO remove or revise
     expression();
     emitByte(OP_POP);
     consume(S_RIGHT_PARENTHESES, "Expect ')' after for clauses.");
-
+    printf("OP_pop(for), "); // REMOVE
     emitLoop(loopStart);
     loopStart = incrementStart;
     patchJump(bodyJump);
@@ -857,11 +905,11 @@ static void forStatement() { // TODO remove or revise
 
   statement();
   emitLoop(loopStart);
-
   // exit-jump
   if (exitJump != -1) {
     patchJump(exitJump);
     emitByte(OP_POP); // Condition.
+    printf("OP_pop(for), "); // REMOVE
   }
 
   endScope();
@@ -875,6 +923,7 @@ static void ifStatement() {
   int thenJump = emitJump(OP_JUMP_IF_FALSE);
 //> pop-then
   emitByte(OP_POP);
+  printf("OP_pop(then), "); // REMOVE
 //< pop-then
   // statement(); // TEST
   beginScope();
@@ -885,42 +934,16 @@ static void ifStatement() {
 
   patchJump(thenJump);
   emitByte(OP_POP); // pop-end
-
+  printf("OP_pop(else), "); // REMOVE
   if (match(K_ELSE)) { // compile else
-    // statement(); // TODO could enforce 'else' scope
-    consume(K_ELSE, "need else to branch further.");
-    beginScope();
-    blockBubble();
-    endScope();
+     statement(); // TODO why does ',,' fail?
   } 
   // patch-else
   patchJump(elseJump);
 }
 
 static void whenStatement() { //TODO refactor to be conditional switch
-  // or switch expression
-  expression();
-  consume(S_QUESTION, "Expect '?' after condition and before body.");
-
-  int thenJump = emitJump(OP_JUMP_IF_FALSE);
-//> pop-then
-  emitByte(OP_POP);
-//< pop-then
-  // statement(); // TEST
-  beginScope();
-  blockConditional();
-  endScope();
-
-  int elseJump = emitJump(OP_JUMP); // jump-over-else
-
-  patchJump(thenJump);
-  emitByte(OP_POP); // pop-end
-
-  if (match(K_ELSE)) { // compile else
-    statement(); // TODO could enforce 'else' scope
-  } 
-  // patch-else
-  patchJump(elseJump);
+  // TODO implement when
 }
 
 static void unlessStatement() {
@@ -929,6 +952,7 @@ static void unlessStatement() {
 
   int thenJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP); // pop-then
+  printf("OP_pop(then), "); // REMOVE
   beginScope();
   blockConditional();
   endScope();
@@ -937,7 +961,7 @@ static void unlessStatement() {
 
   patchJump(thenJump);
   emitByte(OP_POP); // pop-end
-
+  printf("OP_pop(else), "); // REMOVE
   // compile-else
   if (match(K_ELSE)) { // compile else
     statement(); // TODO could enforce 'else' scope
@@ -954,6 +978,7 @@ static void printStatement() {
     consume(NEW_LINE, "new line to close statement"); // TODO test
   }
   emitByte(OP_PRINT);
+  printf("OP_print, "); // REMOVE
 }
 
 // Calls and Functions return-statement
@@ -986,6 +1011,7 @@ static void untilStatement() {
 
   int exitJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
+  printf("OP_pop(until_start), "); // REMOVE
   beginScope();
   blockBubble();
   endScope();
@@ -995,6 +1021,7 @@ static void untilStatement() {
 
   patchJump(exitJump);
   emitByte(OP_POP);
+  printf("OP_pop(until_end), "); // REMOVE
 }
 
 // Jumping Back and Forth while-statement
@@ -1005,6 +1032,7 @@ static void whileStatement() {
 
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
+  printf("OP_pop(while_start), "); // REMOVE
   // statement(); // TEST was successful TODO remove.
   beginScope();
   blockBubble();
@@ -1015,6 +1043,7 @@ static void whileStatement() {
 
   patchJump(exitJump);
   emitByte(OP_POP);
+  printf("OP_pop(while_end), "); // REMOVE
 }
 
 // Global Variables synchronize
@@ -1082,7 +1111,10 @@ static void statement() {
     beginScope(); // increment scope count;
     block();
     endScope();
-  } else {
+  } else if (match(D_COMMA)) {
+    consume(D_COMMA, "hanging terminator, shouldn't be an issue. bugfix");
+    // advance(); 
+  }  else {
     expressionStatement();
   }
 }
