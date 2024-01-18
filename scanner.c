@@ -103,10 +103,24 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
 
 static TokenType identifierType() { // tests for keywords
   switch (scanner.start[0]) {
-    case 'a': return checkKeyword(1, 2, "nd", K_AND);
+    case 'a': //return checkKeyword(1, 2, "nd", K_AND);
+      if (scanner.current - scanner.start > 1) {
+        switch(scanner.start[1]) {
+          case 'n' : return checkKeyword(2, 1, "d", K_AND); 
+          case 's' : return checkKeyword(2, 0, "", K_AS);
+        }
+      }
+      break;
     case 'b': return checkKeyword(1, 3, "ind", TOKEN_SUPER); // TODO change to bind
     case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
-    case 'd': return checkKeyword(1, 5, "efine", K_DEFINE);
+    case 'd': 
+      if (scanner.current - scanner.start > 1) {
+        switch(scanner.start[1]) {
+          case 'e' : return checkKeyword(2, 4, "fine", K_DEFINE);
+          case 'n' : return checkKeyword(2, 1, "d", K_END);
+        }
+      }
+      break;
     case 'e': return checkKeyword(1, 3, "lse", K_ELSE);
     case 'f': return checkKeyword(1, 4, "alse", K_FALSE);
     case 'i': // branch out to 'if', 'is'
@@ -117,7 +131,6 @@ static TokenType identifierType() { // tests for keywords
         }
       }
       break;
-      return checkKeyword(1, 1, "f", K_IF);
     case 'l': return checkKeyword(1, 2, "et", K_LET);
     case 'n': return checkKeyword(1, 3, "ull", TOKEN_NIL); // because JSON uses 'null'
     case 'o': return checkKeyword(1, 1, "r", K_OR);
@@ -198,13 +211,14 @@ Token scanToken() {
     case '?': return makeToken(S_QUESTION); // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON);
     case '.': return makeToken(S_DOT);
+    case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
+    // two characters
     case '-': return makeToken(S_MINUS);
-    case '+': return makeToken(S_PLUS);
+    case '+': 
+      return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS);
     case '/': return makeToken(S_SLASH);
     case '*': return makeToken(S_STAR);
     case '%': return makeToken(S_MODULO);
-    case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
-    // two characters
     case ',': 
       return makeToken(match(',') ? D_COMMA : S_COMMA);
     case ':': 

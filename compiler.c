@@ -376,14 +376,13 @@ static void or_(bool canAssign) {
   patchJump(endJump);
 }
 
-
 //> Global Variables binary
 static void binary(bool canAssign) {
-  TokenType operatorType = parser.previous.type;
-  ParseRule* rule = getRule(operatorType);
+  TokenType operator = parser.previous.type;
+  ParseRule* rule = getRule(operator);
   parsePrecedence((Precedence)(rule->precedence + 1));
   //printf("OP_binary, "); // REMOVE
-  switch (operatorType) {
+  switch (operator) {
     case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
       break;
     case S_EQUAL:         emitByte(OP_EQUAL); 
@@ -397,6 +396,8 @@ static void binary(bool canAssign) {
     case D_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
       break;
     case S_PLUS:          emitByte(OP_ADD); 
+      break;
+    case D_PLUS_EQUAL:    emitByte(OP_ADD); // TODO get this to work
       break;
     case S_MINUS:         emitByte(OP_SUBTRACT); 
       break;
@@ -489,9 +490,15 @@ static void namedVariable(Token name, bool canAssign) { // TODO mimic for consta
   }
   if (canAssign && matchAdvance(D_COLON_EQUAL)) {
     expression();
-    emitBytes(setOp, (uint8_t)arg); // Local Variables emit-set
+    emitBytes(setOp, (uint8_t)arg);
+  } else if (canAssign && check(D_PLUS_EQUAL)) {
+    // Token identifier = parser.previous;
+    emitBytes(getOp, (uint8_t)arg); 
+    advance();
+    expression();  // TODO work on to finish += : "Operands must be numbers" or segfault
+    emitBytes(setOp, (uint8_t)arg); 
   } else {
-    emitBytes(getOp, (uint8_t)arg); // Local Variables emit-get
+    emitBytes(getOp, (uint8_t)arg);
   }
 }
 
@@ -575,6 +582,7 @@ ParseRule rules[] = {
   [S_COMMA]         = {NULL,     NULL,   PREC_NONE},
   [D_COMMA]         = {NULL,     NULL,   PREC_NONE},
   [S_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
+  [K_END]           = {NULL,     NULL,   PREC_NONE},
   //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
   [S_QUESTION]      = {NULL,     NULL,   PREC_NONE},
 // Assignment Operators
@@ -586,6 +594,8 @@ ParseRule rules[] = {
   [S_SLASH]       = {NULL,     binary, PREC_FACTOR},
   [S_MODULO]      = {NULL,     binary, PREC_FACTOR},
   [S_STAR]        = {NULL,     binary, PREC_FACTOR},
+// Mutation Operators
+  [D_PLUS_EQUAL]  = {NULL, binary, PREC_NONE},
 // Equality
   [S_BANG]        = {unary,    NULL,   PREC_NONE},
   [D_BANG_TILDE]  = {NULL,     binary, PREC_EQUALITY},
@@ -613,8 +623,8 @@ ParseRule rules[] = {
   [K_UNLESS]        = {NULL,     NULL,   PREC_NONE},
   [K_OR]            = {NULL,     or_,    PREC_OR},
   [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-  [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
   [K_SELF]          = {this_,    NULL,   PREC_NONE},
   [K_TRUE]          = {literal,  NULL,   PREC_NONE},
@@ -661,11 +671,11 @@ static void expression() {
 
 // Local Variables
 static void block() {
-  while (!check(S_RIGHT_CURLY) && !check(TOKEN_EOF)) {
+  while (!check(D_COMMA) && !check(TOKEN_EOF)) {
     declaration();
   }
-
-  consume(S_RIGHT_CURLY, "Expect '}' after block.");
+  // TODO find out why K_END was erroring
+  consume(D_COMMA, "Expect ',,' after block.");
 }
 
 // Block for Loops (until, while) and else.
@@ -720,7 +730,7 @@ static void function(FunctionType type) {
   }
 //< parameters
   consume(S_RIGHT_PARENTHESES, "Expect ')' after parameters.");
-  consume(S_LEFT_CURLY, "Expect '{' before function body.");
+  consume(K_AS, "Expect 'as' before function body.");
   block();
 
   ObjFunction* function = endCompiler();
@@ -835,9 +845,6 @@ static void constDeclaration() { // TODO get constants to be immutable;
 
 //> Global Variables expression-statement
 static void expressionStatement() {
-  // if (check(D_COMMA)) {
-  //   consume(D_COMMA, "Expect ,, to complete an expression statement.");
-  // }
   expression();
   consume(S_SEMICOLON, "Expect ';' after expression."); 
   emitByte(OP_POP);
@@ -1079,7 +1086,7 @@ static void statement() {
   } else if (matchAdvance(K_WHILE)) {
     whileStatement();
   } else if (matchAdvance(S_LEFT_CURLY)) {
-    beginScope(); // increment scope count;
+    beginScope();
     block();
     endScope();
   } else {
