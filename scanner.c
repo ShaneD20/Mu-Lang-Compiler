@@ -162,7 +162,7 @@ static Token number() {
 
     while (isDigit(peek())) advance();
   }
-  return makeToken(TOKEN_NUMBER);
+  return makeToken(L_NUMBER);
 }
 
 static Token string() {
@@ -174,7 +174,7 @@ static Token string() {
 
   // The closing quote.
   advance();
-  return makeToken(TOKEN_STRING);
+  return makeToken(L_STRING);
 }
 //^ Token Helpers
 
@@ -212,10 +212,10 @@ Token scanToken() {
     case '!':
       return makeToken(match('~') ? D_BANG_TILDE : S_BANG);
     case '<':
-      return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+      return makeToken(match('=') ? D_LESS_EQUAL : S_LESS);
     case '>':
       return makeToken(
-        match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
+        match('=') ? D_GREATER_EQUAL : S_GREATER);
     // strings
     case '"': return string();
   }

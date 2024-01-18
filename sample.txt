@@ -26,6 +26,7 @@ until #count > 100 ?
 ,,
 
 print " --If Clause";
+
 if 0 > -5 ?
     print "yes, zero is greater than negative five"; 
 ,,
@@ -43,6 +44,7 @@ else
 ,,
 
 print " --Unless Clause";
+
 let x: 5;
 unless x = 4 ?
     print "good"; 
@@ -66,15 +68,17 @@ when value:
     ,, 
     is >= 1 ? print "it's greater than or equal to one.";
     ,,
-//,,
+,,
 
 print " --String Concatenation";
+
 let name: "steve";
 let last: " poe";
 let full_name: name + last;
 print full_name;
 
 print " --functions";
+
 define addTogether(x, y) {
     return x + y;
 }

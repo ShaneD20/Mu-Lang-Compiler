@@ -384,17 +384,17 @@ static void binary(bool canAssign) {
   parsePrecedence((Precedence)(rule->precedence + 1));
   //printf("OP_binary, "); // REMOVE
   switch (operatorType) {
-    case D_BANG_TILDE:        emitBytes(OP_EQUAL, OP_NOT); 
+    case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
       break;
-    case S_EQUAL:             emitByte(OP_EQUAL); 
+    case S_EQUAL:         emitByte(OP_EQUAL); 
       break;
-    case TOKEN_GREATER:       emitByte(OP_GREATER); 
+    case S_GREATER:       emitByte(OP_GREATER); 
       break;
-    case TOKEN_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); 
+    case D_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); 
       break;
-    case TOKEN_LESS:          emitByte(OP_LESS); 
+    case S_LESS:          emitByte(OP_LESS); 
       break;
-    case TOKEN_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
+    case D_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
       break;
     case S_PLUS:          emitByte(OP_ADD); 
       break;
@@ -575,7 +575,7 @@ ParseRule rules[] = {
   [S_COMMA]         = {NULL,     NULL,   PREC_NONE},
   [D_COMMA]         = {NULL,     NULL,   PREC_NONE},
   [S_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
-  [NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
+  //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
   [S_QUESTION]      = {NULL,     NULL,   PREC_NONE},
 // Assignment Operators
   [S_COLON]       = {NULL,     NULL,   PREC_NONE},
@@ -591,16 +591,16 @@ ParseRule rules[] = {
   [D_BANG_TILDE]  = {NULL,     binary, PREC_EQUALITY},
   [S_EQUAL]       = {NULL,     binary, PREC_EQUALITY},
 // Comparisons
-  [TOKEN_GREATER]       = {NULL,     binary, PREC_COMPARISON},
-  [TOKEN_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
-  [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
-  [TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
-//> Global Variables
+  [S_GREATER]       = {NULL,     binary, PREC_COMPARISON},
+  [D_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
+  [S_LESS]          = {NULL,     binary, PREC_COMPARISON},
+  [D_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
+// Variables
   [L_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [L_VARIABLE]      = {variable, NULL,   PREC_NONE},
-// String literal, Number (double) literal
-  [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
-  [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
+// Literals String, Number (double)
+  [L_STRING]        = {string,   NULL,   PREC_NONE},
+  [L_NUMBER]        = {number,   NULL,   PREC_NONE},
 //  KEYWORDS
   [K_AND]           = {NULL,     and_,   PREC_AND},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
@@ -636,14 +636,14 @@ static void parsePrecedence(Precedence precedence) {
   bool canAssign = precedence <= PREC_ASSIGNMENT;
   prefixRule(canAssign);
 
-//> infix
+// infix
   while (precedence <= getRule(parser.current.type)->precedence) {
     advance();
     ParseFn infixRule = getRule(parser.previous.type)->infix;
-//> Global Variables infix-rule
+// Global Variables infix-rule
     infixRule(canAssign);
   }
-//> Global Variables invalid-assign
+
   if (canAssign && matchAdvance(D_COLON_EQUAL)) {
     error("Invalid assignment target.");
   }
@@ -763,7 +763,7 @@ static void classDeclaration() {
   currentClass = &classCompiler;
 
 //> Superclasses compile-superclass
-  if (matchAdvance(TOKEN_LESS)) {
+  if (matchAdvance(S_LESS)) {
     consume(L_IDENTIFIER, "Expect superclass name.");
     variable(false);
 //> inherit-self
@@ -951,15 +951,15 @@ static void whenStatement() { // currently has fallthrough, TODO want standard b
 
     patchJump(thenJump);
   }
+
+  consume(D_COMMA, "Expect ,, to complete a when block.");
 }
 
 // Global Variables print-statement
 static void printStatement() {
   expression();
   consume(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
-  if (matchAdvance(NEW_LINE)) { 
-    // TODO test with no args
-  }
+
   emitByte(OP_PRINT);
 }
 
