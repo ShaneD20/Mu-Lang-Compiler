@@ -27,7 +27,7 @@ typedef enum {
   OP_GET_PROPERTY,
   OP_SET_PROPERTY,
 // Superclasses get-super-op
-  OP_GET_SUPER,
+  OP_GET_SUPER, // maybe re use for something else
 // Types of Values comparison-ops
   OP_EQUAL,
   OP_GREATER,
@@ -52,13 +52,11 @@ typedef enum {
 // Calls and Functions op-call
   OP_CALL,
   OP_INVOKE,
-  OP_SUPER_INVOKE,
   OP_CLOSURE,
   OP_CLOSE_UPVALUE,
   OP_RETURN,
 // Classes and Instances class-op
   OP_CLASS,
-  OP_INHERIT,
   OP_METHOD
 } OpCode;
 
