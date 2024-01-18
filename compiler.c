@@ -27,7 +27,7 @@ static void errorAt(Token* token, const char* message) {
   parser.panicMode = true;
   fprintf(stderr, "\n[line %d] Error\n", token->line);
 
-  if (token->type == TOKEN_EOF) {
+  if (token->type == END_OF_FILE) {
     fprintf(stderr, " at end");
   } else if (token->type == TOKEN_ERROR) { // Nothing.
   } else {
@@ -395,6 +395,8 @@ static void binary(bool canAssign) {
       break;
     case D_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
       break;
+    case K_TO:            emitByte(OP_CONCATENATE);
+      break;
     case S_PLUS:          emitByte(OP_ADD); 
       break;
     case D_PLUS_EQUAL:    emitByte(OP_ADD); // TODO get this to work
@@ -441,9 +443,9 @@ static void literal(bool canAssign) {
   switch (parser.previous.type) {
     case K_FALSE: emitByte(OP_FALSE); 
       break;
-    case TOKEN_NIL: emitByte(OP_NIL); 
+    case K_NULL:  emitByte(OP_NIL); 
       break;
-    case K_TRUE: emitByte(OP_TRUE); 
+    case K_TRUE:  emitByte(OP_TRUE); 
       break;
     default: return; // Unreachable.
   }
@@ -492,11 +494,18 @@ static void namedVariable(Token name, bool canAssign) { // TODO mimic for consta
     expression();
     emitBytes(setOp, (uint8_t)arg);
   } else if (canAssign && check(D_PLUS_EQUAL)) {
-    // Token identifier = parser.previous;
-    emitBytes(getOp, (uint8_t)arg); 
-    advance();
+    int hop = currentChunk()->count;
     expression();  // TODO work on to finish += : "Operands must be numbers" or segfault
+    // (1) emit assign
     emitBytes(setOp, (uint8_t)arg); 
+    // (2) jump back to operator
+    emitLoop(hop);
+    // (3) swap operator before calling expression
+    parser.current.type = S_PLUS;
+    // emitByte(OP_POP); // unsure if needed.
+    // (4) check expression
+    expression();  
+
   } else {
     emitBytes(getOp, (uint8_t)arg);
   }
@@ -576,63 +585,64 @@ ParseRule rules[] = {
   [S_RIGHT_PARENTHESES] = {NULL,     NULL,   PREC_NONE},
   [S_DOT]               = {NULL,     dot,    PREC_CALL},
 // Sructures
-  [S_LEFT_CURLY]    = {NULL,     NULL,   PREC_NONE}, 
-  [S_RIGHT_CURLY]   = {NULL,     NULL,   PREC_NONE},
+  [S_LEFT_CURLY]   = {NULL, NULL, PREC_NONE}, 
+  [S_RIGHT_CURLY]  = {NULL, NULL, PREC_NONE},
+  [S_LEFT_SQUARE]  = {NULL, NULL, PREC_NONE},
+  [S_RIGHT_SQUARE] = {NULL, NULL, PREC_NONE},
 // Delimiters, Guards, and Terminators
-  [S_COMMA]         = {NULL,     NULL,   PREC_NONE},
-  [D_COMMA]         = {NULL,     NULL,   PREC_NONE},
-  [S_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
-  [K_END]           = {NULL,     NULL,   PREC_NONE},
+  [S_COMMA]        = {NULL, NULL, PREC_NONE},
+  [D_COMMA]        = {NULL, NULL, PREC_NONE},
+  [S_SEMICOLON]    = {NULL, NULL, PREC_NONE},
+  [K_END]          = {NULL, NULL, PREC_NONE},
+  [S_QUESTION]     = {NULL, NULL, PREC_NONE},
   //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
-  [S_QUESTION]      = {NULL,     NULL,   PREC_NONE},
 // Assignment Operators
-  [S_COLON]       = {NULL,     NULL,   PREC_NONE},
-  [D_COLON_EQUAL] = {NULL,     NULL,   PREC_NONE},
+  [S_COLON]       = {NULL, NULL, PREC_NONE},
+  [D_COLON_EQUAL] = {NULL, NULL, PREC_NONE},
+  [D_PLUS_EQUAL]  = {NULL, NULL, PREC_NONE},
+// Concatenation Operator
+  [K_TO]          = {NULL,     binary, PREC_TERM},
 // Arithmetic Operators
   [S_MINUS]       = {unary,    binary, PREC_TERM},
   [S_PLUS]        = {NULL,     binary, PREC_TERM},
   [S_SLASH]       = {NULL,     binary, PREC_FACTOR},
   [S_MODULO]      = {NULL,     binary, PREC_FACTOR},
   [S_STAR]        = {NULL,     binary, PREC_FACTOR},
-// Mutation Operators
-  [D_PLUS_EQUAL]  = {NULL, binary, PREC_NONE},
 // Equality
-  [S_BANG]        = {unary,    NULL,   PREC_NONE},
-  [D_BANG_TILDE]  = {NULL,     binary, PREC_EQUALITY},
-  [S_EQUAL]       = {NULL,     binary, PREC_EQUALITY},
+  [S_BANG]          = {unary,    NULL,   PREC_NONE},
+  [D_BANG_TILDE]    = {NULL,     binary, PREC_EQUALITY},
+  [S_EQUAL]         = {NULL,     binary, PREC_EQUALITY},
 // Comparisons
   [S_GREATER]       = {NULL,     binary, PREC_COMPARISON},
   [D_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
   [S_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [D_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
-// Variables
+// Literals: Constants, Variables, Strings, Numbers (doubles)
   [L_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [L_VARIABLE]      = {variable, NULL,   PREC_NONE},
-// Literals String, Number (double)
   [L_STRING]        = {string,   NULL,   PREC_NONE},
   [L_NUMBER]        = {number,   NULL,   PREC_NONE},
 //  KEYWORDS
-  [K_AND]           = {NULL,     and_,   PREC_AND},
+  [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
-  [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
+  [K_NULL]          = {literal,  NULL,   PREC_NONE},
+  [K_TRUE]          = {literal,  NULL,   PREC_NONE},
   [K_FALSE]         = {literal,  NULL,   PREC_NONE},
-//  [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE}, // omit from mu
+  [K_SELF]          = {this_,    NULL,   PREC_NONE},
+  [K_OR]            = {NULL,     or_,    PREC_OR},
+  [K_AND]           = {NULL,     and_,   PREC_AND},
+  [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [K_DEFINE]        = {NULL,     NULL,   PREC_NONE},
   [K_IF]            = {NULL,     NULL,   PREC_NONE},
   [K_IS]            = {NULL,     NULL,   PREC_NONE},
   [K_UNLESS]        = {NULL,     NULL,   PREC_NONE},
-  [K_OR]            = {NULL,     or_,    PREC_OR},
-  [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
   [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
-  [K_SELF]          = {this_,    NULL,   PREC_NONE},
-  [K_TRUE]          = {literal,  NULL,   PREC_NONE},
   [K_LET]           = {NULL,     NULL,   PREC_NONE},
   [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
   [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]     = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_EOF]       = {NULL,     NULL,   PREC_NONE},
+  [END_OF_FILE]     = {NULL,     NULL,   PREC_NONE},
 };
 
 static void parsePrecedence(Precedence precedence) {
@@ -671,7 +681,7 @@ static void expression() {
 
 // Local Variables
 static void block() {
-  while (!check(D_COMMA) && !check(TOKEN_EOF)) {
+  while (!check(D_COMMA) && !check(END_OF_FILE)) {
     declaration();
   }
   // TODO find out why K_END was erroring
@@ -681,7 +691,7 @@ static void block() {
 // Block for Loops (until, while) and else.
 static void blockStatement() {
   beginScope();
-  while (!check(D_COMMA) && !check(TOKEN_EOF)) {
+  while (!check(D_COMMA) && !check(END_OF_FILE)) {
     declaration();
   }
   endScope();
@@ -690,7 +700,7 @@ static void blockStatement() {
 // Block for Conditionals : if, unless
 static void blockTernary() {
   beginScope();
-  while (!check(D_COMMA) && !check(K_ELSE) && !check(TOKEN_EOF)) {
+  while (!check(D_COMMA) && !check(K_ELSE) && !check(END_OF_FILE)) {
     declaration();
   }
   endScope();
@@ -700,7 +710,7 @@ static void blockTernary() {
 }
 static void blockWhen() {
   beginScope();
-  while (!check(D_COMMA) && !check(K_IS) && !check(TOKEN_EOF)) {
+  while (!check(D_COMMA) && !check(K_IS) && !check(END_OF_FILE)) {
     declaration();
   }
   endScope();
@@ -794,7 +804,7 @@ static void classDeclaration() {
   namedVariable(className, false); // Methods and Initializers load-class
   // Methods and Initializers class-body
   consume(S_LEFT_CURLY, "Expect '{' before class body."); 
-  while (!check(S_RIGHT_CURLY) && !check(TOKEN_EOF)) {
+  while (!check(S_RIGHT_CURLY) && !check(END_OF_FILE)) {
     method();
   }
   consume(S_RIGHT_CURLY, "Expect '}' after class body.");
@@ -850,58 +860,6 @@ static void expressionStatement() {
   emitByte(OP_POP);
   // printf("(expression-statement) "); // REMOVE
 }
-
-// START FOR STATEMENT
-static void forStatement() { // TODO remove or revise
-  beginScope();
-  consume(S_LEFT_PARENTHESES, "Expect '(' after 'for'.");
-/*
-  // for-initializer
-  if (matchAdvance(S_SEMICOLON)) {
-    // No initializer.
-  } else if (check(L_)) { 
-    varDeclaration(); // If I keep for loops, may need a different function
-  } else {
-    expressionStatement();
-  }
-  //^ for-initializer
-*/
-  int loopStart = currentChunk()->count;
-
-  // for-exit
-  int exitJump = -1;
-  if (!matchAdvance(S_SEMICOLON)) {
-    expression();
-    consume(S_SEMICOLON, "Expect ';' after loop condition.");
-
-    exitJump = emitJump(OP_JUMP_IF_FALSE);
-    emitByte(OP_POP); // Condition.
-  }
-
-  // for-increment
-  if (!matchAdvance(S_RIGHT_PARENTHESES)) {
-    int bodyJump = emitJump(OP_JUMP);
-    int incrementStart = currentChunk()->count;
-    expression();
-    emitByte(OP_POP);
-    consume(S_RIGHT_PARENTHESES, "Expect ')' after for clauses.");
-    emitLoop(loopStart);
-    loopStart = incrementStart;
-    patchJump(bodyJump);
-  }
-  //^ for-increment
-
-  statement();
-  emitLoop(loopStart);
-  // exit-jump
-  if (exitJump != -1) {
-    patchJump(exitJump);
-    emitByte(OP_POP); // Condition.
-  }
-
-  endScope();
-}
-// END FOR STATEMENT
 
 static void ifStatement() {
   expression();
@@ -1024,7 +982,7 @@ static void whileStatement() {
 static void synchronize() {
   parser.panicMode = false;
 
-  while (parser.current.type != TOKEN_EOF) {
+  while (parser.current.type != END_OF_FILE) {
     if (parser.previous.type == S_SEMICOLON) return;
     switch (parser.current.type) {
       case TOKEN_CLASS:
@@ -1071,9 +1029,7 @@ static void declaration() { // TODO hub for assigment
 static void statement() {
   if (matchAdvance(TOKEN_PRINT)) {
     printStatement();
-  } /* else if (matchAdvance(TOKEN_FOR)) {
-    forStatement();
-  }*/ else if (matchAdvance(K_IF)) {
+  } else if (matchAdvance(K_IF)) {
     ifStatement();
   } else if (matchAdvance(K_WHEN)) {
     whenStatement();
@@ -1107,7 +1063,7 @@ ObjFunction* compile(const char* source) {
 
   advance();
   // Global Variables compile
-  while (!matchAdvance(TOKEN_EOF)) {
+  while (!matchAdvance(END_OF_FILE)) {
     declaration();
   }
 

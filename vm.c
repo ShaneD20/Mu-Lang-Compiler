@@ -79,7 +79,7 @@ void initVM() {
   vm.initString = copyString("init", 4);
 
   defineNative("clock", clockNative); 
-  defineNative("show", showText); // TODO doesn't work ...
+  // defineNative("show", showText); // TODO doesn't work ...
 }
 
 //> VM Helpers
@@ -288,7 +288,7 @@ static InterpretResult run() {
     (frame->closure->function->chunk.constantPool.values[READ_BYTE()])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
-// TESTING TODO trying to get integer operations to start
+// TODO replace with actual integer type, actual real type
 #define BINARY_INT_OP(valueType, op) \
     do { \
       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -442,23 +442,21 @@ static InterpretResult run() {
         push(BOOL_VAL(valuesEqual(a, b)));
         break;
       }
-      case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
-      case OP_LESS:     BINARY_OP(BOOL_VAL, <); break;
-
-      case OP_ADD: {
+      case OP_GREATER:  BINARY_OP(BOOL_VAL, >); 
+        break;
+      case OP_LESS:     BINARY_OP(BOOL_VAL, <); 
+        break;
+      case OP_CONCATENATE :
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
           concatenate();  // TODO update to be like mu spec
-        } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-          double b = AS_NUMBER(pop());
-          double a = AS_NUMBER(pop());
-          push(NUMBER_VAL(a + b));
         } else {
           runtimeError(
-              "Operands must be two numbers or two strings.");
+              "Operands must be two strings."); // todo test for integers
           return INTERPRET_RUNTIME_ERROR;
         }
         break;
-      }
+      case OP_ADD: BINARY_OP(NUMBER_VAL, +);
+        break;
       case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); 
         break;
       case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); 
@@ -466,7 +464,7 @@ static InterpretResult run() {
       case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); 
         break;
       case OP_MODULO:   BINARY_INT_OP(NUMBER_VAL, %); 
-        break; // cannot have until ints
+        break;
       case OP_NOT:
         push(BOOL_VAL(isFalsey(pop())));
         break;

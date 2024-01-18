@@ -103,9 +103,9 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
 
 static TokenType identifierType() { // tests for keywords
   switch (scanner.start[0]) {
-    case 'a': //return checkKeyword(1, 2, "nd", K_AND);
+    case 'a': //branch our to "and", "as"
       if (scanner.current - scanner.start > 1) {
-        switch(scanner.start[1]) {
+        switch (scanner.start[1]) {
           case 'n' : return checkKeyword(2, 1, "d", K_AND); 
           case 's' : return checkKeyword(2, 0, "", K_AS);
         }
@@ -113,31 +113,38 @@ static TokenType identifierType() { // tests for keywords
       break;
     case 'b': return checkKeyword(1, 3, "ind", TOKEN_SUPER); // TODO change to bind
     case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
-    case 'd': 
+    case 'd': return checkKeyword(1, 5, "efine", K_DEFINE);
+    case 'e': // branch out to "else", "end"
       if (scanner.current - scanner.start > 1) {
-        switch(scanner.start[1]) {
-          case 'e' : return checkKeyword(2, 4, "fine", K_DEFINE);
+        switch (scanner.start[1]) {
+          case 'l' : return checkKeyword(2, 2, "se", K_ELSE);
           case 'n' : return checkKeyword(2, 1, "d", K_END);
         }
       }
       break;
-    case 'e': return checkKeyword(1, 3, "lse", K_ELSE);
     case 'f': return checkKeyword(1, 4, "alse", K_FALSE);
     case 'i': // branch out to 'if', 'is'
       if (scanner.current - scanner.start > 1) {
-        switch(scanner.start[1]) {
+        switch (scanner.start[1]) {
           case 'f': return checkKeyword(2, 0, "", K_IF);
           case 's': return checkKeyword(2, 0, "", K_IS);
         }
       }
       break;
     case 'l': return checkKeyword(1, 2, "et", K_LET);
-    case 'n': return checkKeyword(1, 3, "ull", TOKEN_NIL); // because JSON uses 'null'
+    case 'n': return checkKeyword(1, 3, "ull", K_NULL); // because JSON uses 'null'
     case 'o': return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT); // TODO replace with native function
     case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
     case 's': return checkKeyword(1, 3, "elf", K_SELF);
-    case 't': return checkKeyword(1, 3, "rue", K_TRUE);
+    case 't': // branch out to "to", "true"
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 'o': return checkKeyword(2, 0, "", K_TO);
+          case 'r': return checkKeyword(2, 2, "ue", K_TRUE);
+        }
+      }
+      break;
     case 'u': // if 'n' then branch out to 'unless', 'until'
       if (scanner.current - scanner.start > 1 && scanner.start[1] == 'n') {
         switch (scanner.start[2]) {
@@ -194,7 +201,7 @@ static Token string() {
 Token scanToken() {
   skipWhitespace();
   scanner.start = scanner.current;
-  if (isAtEnd()) return makeToken(TOKEN_EOF);
+  if (isAtEnd()) return makeToken(END_OF_FILE);
 
   // check for constants
   char rune = advance();
@@ -228,9 +235,7 @@ Token scanToken() {
     case '<':
       return makeToken(match('=') ? D_LESS_EQUAL : S_LESS);
     case '>':
-      return makeToken(
-        match('=') ? D_GREATER_EQUAL : S_GREATER);
-    // strings
+      return makeToken(match('=') ? D_GREATER_EQUAL : S_GREATER);
     case '"': return string();
   }
   return errorToken("Unexpected character.");
