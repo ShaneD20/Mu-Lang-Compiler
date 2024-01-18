@@ -111,8 +111,6 @@ static TokenType identifierType() { // tests for keywords
         }
       }
       break;
-    case 'b': return checkKeyword(1, 3, "ind", TOKEN_SUPER); // TODO change to bind
-    case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
     case 'd': return checkKeyword(1, 5, "efine", K_DEFINE);
     case 'e': // branch out to "else", "end"
       if (scanner.current - scanner.start > 1) {

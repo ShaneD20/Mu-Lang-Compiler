@@ -421,10 +421,10 @@ static void call(bool canAssign) {
 
 //> Classes and Instances compile-dot
 static void dot(bool canAssign) {
-  consume(L_IDENTIFIER, "Expect property name after '.'."); // TODO mutable/immutable
+  consume(L_IDENTIFIER, "Expect property name after '.' .");
   uint8_t name = identifierConstant(&parser.previous);
 
-  if (canAssign && matchAdvance(D_COLON_EQUAL)) {
+  if (canAssign && matchAdvance(D_COLON_EQUAL)) { // TODO where we could add immutability
     expression();
     emitBytes(OP_SET_PROPERTY, name);
 // Methods and Initializers parse-call
@@ -524,33 +524,6 @@ static Token syntheticToken(const char* text) {
   return token;
 }
 
-//> Superclasses super
-static void super_(bool canAssign) {
-// super-errors
-  if (currentClass == NULL) {
-    error("Can't use 'super' outside of a class.");
-  } else if (!currentClass->hasSuperclass) {
-    error("Can't use 'super' in a class with no superclass.");
-  }
-//^ super-errors
-
-  consume(S_DOT, "Expect '.' after 'super'.");
-  consume(L_IDENTIFIER, "Expect superclass method name.");
-  uint8_t name = identifierConstant(&parser.previous);
-  
-  namedVariable(syntheticToken("this"), false);
-
-  if (matchAdvance(S_LEFT_PARENTHESES)) {
-    uint8_t argCount = argumentList();
-    namedVariable(syntheticToken("super"), false);
-    emitBytes(OP_SUPER_INVOKE, name);
-    emitByte(argCount);
-  } else {
-    namedVariable(syntheticToken("super"), false);
-    emitBytes(OP_GET_SUPER, name);
-  }
-}
-
 //> Methods and Initializers this
 static void this_(bool canAssign) {
 // this-outside-class
@@ -623,22 +596,21 @@ ParseRule rules[] = {
   [L_STRING]        = {string,   NULL,   PREC_NONE},
   [L_NUMBER]        = {number,   NULL,   PREC_NONE},
 //  KEYWORDS
-  [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
-  [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_PRINT]        = {NULL,     NULL,   PREC_NONE},
+  [K_FALSE]         = {literal,  NULL,   PREC_NONE},
   [K_NULL]          = {literal,  NULL,   PREC_NONE},
   [K_TRUE]          = {literal,  NULL,   PREC_NONE},
-  [K_FALSE]         = {literal,  NULL,   PREC_NONE},
   [K_SELF]          = {this_,    NULL,   PREC_NONE},
   [K_OR]            = {NULL,     or_,    PREC_OR},
   [K_AND]           = {NULL,     and_,   PREC_AND},
-  [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
+  [K_LET]           = {NULL,     NULL,   PREC_NONE},
   [K_DEFINE]        = {NULL,     NULL,   PREC_NONE},
-  [K_IF]            = {NULL,     NULL,   PREC_NONE},
+  [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [K_IS]            = {NULL,     NULL,   PREC_NONE},
+  [K_AS]            = {NULL,     NULL,   PREC_NONE},
+  [K_IF]            = {NULL,     NULL,   PREC_NONE},
   [K_UNLESS]        = {NULL,     NULL,   PREC_NONE},
   [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
-  [K_LET]           = {NULL,     NULL,   PREC_NONE},
   [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
   [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]     = {NULL,     NULL,   PREC_NONE},
@@ -782,32 +754,15 @@ static void classDeclaration() {
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
 
-//> Superclasses compile-superclass
-  if (matchAdvance(S_LESS)) {
-    consume(L_IDENTIFIER, "Expect superclass name.");
-    variable(false);
-//> inherit-self
-    if (identifiersEqual(&className, &parser.previous)) {
-      error("A class can't inherit from itself.");
-    }
-//  superclass-variable
-    beginScope();
-    addLocal(syntheticToken("super"));
-    defineVariable(0);
-//^ superclass-variable
-    namedVariable(className, false);
-    emitByte(OP_INHERIT);
-//  set-has-superclass
-    classCompiler.hasSuperclass = true;
-  }
+// removed logic for superclass
 
   namedVariable(className, false); // Methods and Initializers load-class
   // Methods and Initializers class-body
-  consume(S_LEFT_CURLY, "Expect '{' before class body."); 
-  while (!check(S_RIGHT_CURLY) && !check(END_OF_FILE)) {
+  consume(K_AS, "Expect 'as' before class body."); 
+  while (!check(D_COMMA) && !check(END_OF_FILE)) {
     method();
   }
-  consume(S_RIGHT_CURLY, "Expect '}' after class body.");
+  consume(D_COMMA, "Expect ',,' after class body.");
 
   emitByte(OP_POP); // class
   // Superclasses end-superclass-scope
@@ -985,7 +940,6 @@ static void synchronize() {
   while (parser.current.type != END_OF_FILE) {
     if (parser.previous.type == S_SEMICOLON) return;
     switch (parser.current.type) {
-      case TOKEN_CLASS:
       case K_DEFINE:
       case K_LET:
       // case TOKEN_FOR:
@@ -1007,10 +961,12 @@ static void synchronize() {
 
 // Global Variables declaration
 static void declaration() { // TODO hub for assigment
-  if (matchAdvance(TOKEN_CLASS)) {
-    classDeclaration();
-  } else if (matchAdvance(K_DEFINE)) {
-    funDeclaration();
+  if (matchAdvance(K_DEFINE)) {
+    if (matchAdvance(K_SELF)) {
+      classDeclaration();
+    } else {
+      funDeclaration();
+    }
   } else if (matchAdvance(K_LET)) { // TODO currently needs 'let' to assign to global
     if (check(L_VARIABLE)) {
       varDeclaration();

@@ -96,7 +96,7 @@ typedef struct {
 
 typedef struct {
   Obj obj;
-  ObjClass* klass;
+  ObjClass* model;
   Table fields; // [fields]
 } ObjInstance;
 
@@ -112,7 +112,7 @@ ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
 ObjClass* newClass(ObjString* name);
 ObjClosure* newClosure(ObjFunction* function);
 ObjFunction* newFunction();
-ObjInstance* newInstance(ObjClass* klass);
+ObjInstance* newInstance(ObjClass* model);
 ObjNative* newNative(NativeFn function);
 ObjString* takeString(char* chars, int length);
 ObjString* copyString(const char* chars, int length);

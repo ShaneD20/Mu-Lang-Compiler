@@ -34,10 +34,10 @@ ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
 }
 
 ObjClass* newClass(ObjString* name) {
-  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
-  klass->name = name; // [klass]
-  initTable(&klass->methods); // init-methods
-  return klass;
+  ObjClass* model = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  model->name = name;
+  initTable(&model->methods); // init-methods
+  return model;
 }
 
 ObjClosure* newClosure(ObjFunction* function) {
@@ -63,9 +63,9 @@ ObjFunction* newFunction() {
   return function;
 }
 
-ObjInstance* newInstance(ObjClass* klass) {
+ObjInstance* newInstance(ObjClass* model) {
   ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
-  instance->klass = klass;
+  instance->model = model;
   initTable(&instance->fields);
   return instance;
 }
@@ -155,7 +155,7 @@ void printObject(Value value) {
       break;
     case OBJ_INSTANCE:
       printf("%s instance",
-             AS_INSTANCE(value)->klass->name->chars);
+             AS_INSTANCE(value)->model->name->chars);
       break;
     case OBJ_NATIVE:
       printf("<native fn>");

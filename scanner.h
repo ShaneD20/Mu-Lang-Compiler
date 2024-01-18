@@ -16,16 +16,15 @@ typedef enum { // TODO keep updating to match mu
   // Literals.
   L_IDENTIFIER, L_STRING, L_NUMBER, L_VARIABLE, 
   // Keywords.
-  TOKEN_CLASS, TOKEN_SUPER, // could use 'bind' to bind a closure
+  // could use 'bind' to bind a closure 
   TOKEN_PRINT, 
 
   K_AND, K_AS,
   K_DEFINE,
   K_ELSE, K_END,
   K_FALSE,
-  // would 'go' work in place of 'end' ?
   K_IF, K_IS,
-  K_LET, // TODO remove 
+  K_LET, // TODO consider removing
   K_NULL,
   K_OR,
   K_RETURN,
