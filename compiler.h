@@ -56,9 +56,9 @@ typedef struct Compiler {
   struct Compiler* enclosing; 
   ObjFunction* function;
   FunctionType type;
-  Local locals[UINT8_COUNT];
+  Local locals[UINT8_COUNT]; // Scoped values array
   int localCount;
-  Upvalue upvalues[UINT8_COUNT]; // Closures upvalues-array
+  Upvalue upvalues[UINT8_COUNT]; // Closures upvalues array
   int scopeDepth;
 } Compiler;
 

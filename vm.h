@@ -16,31 +16,28 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
-// Calls and Functions frame-array
+// Array Calls and Functions
   CallFrame frames[FRAMES_MAX];
   int frameCount; 
-// vm-stack
+// VM Stack
   Value stack[STACK_MAX];
   Value* stackTop;
-// Global Variables vm-globals
-  Table globals;
-// Hash Tables vm-strings
-  Table strings;
-// Methods and Initializers vm-init-string
-  ObjString* initString;
-// Closures open-upvalues-field
-  ObjUpvalue* openUpvalues;
+// VM Tables
+  Table globals; // Constants
+  Table strings; // Strings
+  ObjString* initString; // Methods and Initializers
+  ObjUpvalue* openUpvalues; // Closures 
 
-// Garbage Collection vm-fields
+//> Garbage Collection fields
   size_t bytesAllocated;
   size_t nextGC;
-
-// Strings objects-root
+// Strings Objects Root
   Obj* objects;
-// Garbage Collection vm-gray-stack
+// Gray Stack
   int grayCount;
   int grayCapacity;
   Obj** grayStack;
+//^ Garbage Collection Fields
 } VM;
 
 typedef enum {

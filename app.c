@@ -8,7 +8,9 @@
 #include "vm.h"
 
 /*
-  for tracking new lines, the scanner would tokenize them, while the compiler would choose to keep or toss (or replace with semicolon)
+  For tracking new lines, the scanner would tokenize them, while the compiler would choose to keep or toss (or replace with semicolon)
+
+  Testing stack allocation for mutables, global allocation for constants
 */
 static void repl() {
   char line[1024];
