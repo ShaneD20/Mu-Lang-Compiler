@@ -292,8 +292,8 @@ static void addLocal(Token name) {
 }
 //< Local Variables add-local
 //> Local Variables declare-variable
-static void declareVariable() {
-  if (current->scopeDepth == 0) return;
+static void declareVariable(bool immutable) {
+  if (immutable && current->scopeDepth == 0) return; // if change to check for constant and scopeDepth 0
 
   Token* name = &parser.previous; // PIVOT
 // existing-in-scope
@@ -315,24 +315,33 @@ static void declareVariable() {
 static uint8_t parseVariable(const char* errorMessage) { // PIVOT
   if (check(L_VARIABLE)) {
     consume(L_VARIABLE, errorMessage);
+    declareVariable(false);
   } else {
     consume(L_IDENTIFIER, errorMessage);
+    declareVariable(true);
   }
-  declareVariable();
-  if (current->scopeDepth > 0) return 0; // Local Variables parse-local
+  if (current->scopeDepth > 0) {
+    return 0; // Local Variables parse-local
+  }
   return identifierConstant(&parser.previous);
 }
 
 //> Local Variables mark-initialized
 static void markInitialized() {
-//> Calls and Functions check-depth
-  if (current->scopeDepth == 0) return;
-//< Calls and Functions check-depth
-  current->locals[current->localCount - 1].depth =
-      current->scopeDepth;
+  if (current->scopeDepth == 0) {
+    return; // Calls and Functions check-depth
+  }
+  current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
 // Global
+/*
+  Testing assigning mutables locally (stack-allocation)
+*/
+static void defineMutable(uint8_t mutable) {
+  current->locals[current->localCount - 1].depth = current->scopeDepth;
+  emitBytes(OP_SET_LOCAL, mutable);
+}
 static void defineVariable(uint8_t global) { // TODO mimic for constants
   if (current->scopeDepth > 0) {
     markInitialized();
@@ -469,14 +478,18 @@ static void string(bool canAssign) {
 }
 
 //> Global Variables named-variable-signature
-static void namedVariable(Token name, bool canAssign) { // TODO mimic for constants
+static void namedVariable(Token name, bool canAssign) { 
   uint8_t getOp, setOp;
+
+  /*
+    if mutables are stored on the stack, how can I get resolveLocal to return 0 ?
+  */
 
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
-    // printf("local:"); // REMOVE
+    printf("local:\n"); // REMOVE
   // Local Variables
   } else if ((arg = resolveUpvalue(current, &name)) != -1) {
     getOp = OP_GET_UPVALUE;
@@ -487,7 +500,7 @@ static void namedVariable(Token name, bool canAssign) { // TODO mimic for consta
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
-    // printf("global:"); // REMOVE
+    printf("global:\n"); // REMOVE
   // global-variable-can-assign
   }
   if (canAssign && matchAdvance(D_COLON_EQUAL)) {
@@ -743,7 +756,7 @@ static void classDeclaration() {
   consume(L_IDENTIFIER, "Expect class name.");
   Token className = parser.previous;
   uint8_t nameConstant = identifierConstant(&parser.previous);
-  declareVariable();
+  declareVariable(true);
 
   emitBytes(OP_CLASS, nameConstant);
   defineVariable(nameConstant);
@@ -781,9 +794,9 @@ static void funDeclaration() {
   defineVariable(global);
 }
 
-//> Global Variable declaration
+//> Global Variable declaration (testing stack allocation)
 static void varDeclaration() {
-  uint8_t global = parseVariable("Expect variable name."); // PIVOT
+  uint8_t local = parseVariable("Expect variable name."); // TESTING stack allocation for mutables
 
   if (matchAdvance(D_COLON_EQUAL)) {
     expression();
@@ -792,7 +805,7 @@ static void varDeclaration() {
   }
   consume(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
 
-  defineVariable(global);
+  defineMutable(local); // TODO should be local
 }
 //> Global Constant declaration
 static void constDeclaration() { // TODO get constants to be immutable;
@@ -942,12 +955,11 @@ static void synchronize() {
     switch (parser.current.type) {
       case K_DEFINE:
       case K_LET:
-      // case TOKEN_FOR:
       case K_IF:
       case K_UNLESS:
+      case K_WHEN:
       case K_UNTIL:
       case K_WHILE:
-      case K_WHEN:
       case TOKEN_PRINT:
       case K_RETURN:
         return;
