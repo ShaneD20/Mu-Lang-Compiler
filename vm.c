@@ -15,10 +15,8 @@ VM vm; // [one]
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
-static void showText(int argCount, Value* args) {
-  printf("show: ");
-  // printValue(args);
-  printf("\n");
+static void showText(int argCount, char *args) {
+  printf("show: %s\n", args); // TODO get to work, doesn't segfault, doesn't show expected.
 }
 //^ Native Functions
 
@@ -81,7 +79,7 @@ void initVM() {
   vm.initString = copyString("init", 4);
 
   defineNative("clock", clockNative); 
-  //defineNative("show", showText); // TODO doesn't work ...
+  defineNative("show", showText); // TODO doesn't work ...
 }
 
 //> VM Helpers

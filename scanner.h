@@ -12,6 +12,7 @@ typedef enum { // TODO update to reflect mu
   // two character tokens.
   D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,
   D_BANG_EQUAL, D_GREATER_EQUAL, D_LESS_EQUAL,
+  D_PLUS_EQUAL,
   // Literals.
   L_IDENTIFIER, L_STRING, L_NUMBER, L_VARIABLE, // L_MUTABLE, 
   // Keywords.
@@ -21,9 +22,9 @@ typedef enum { // TODO update to reflect mu
   TOKEN_PRINT, 
   TOKEN_SUPER, // could use 'bind' to bind a global to a closure
 
-  K_AND, 
+  K_AND, K_AS,
   K_DEFINE,
-  K_ELSE,
+  K_ELSE, K_END,
   K_FALSE,
   // would 'go' work in place of 'end' ?
   K_IF, K_IS,

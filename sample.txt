@@ -23,6 +23,7 @@ print " --Until Loop";
 until #count > 100 ?
     print #count;
     #count := #count * 3;
+ //   #count += - 1;      //var set var plus const
 ,,
 
 print " --If Clause";
@@ -79,25 +80,33 @@ print full_name;
 
 print " --functions";
 
-define addTogether(x, y) {
+define addTogether(x, y) as
     return x + y;
-}
+,,
 print addTogether(22, 55);
 
-define multiplyBoth(x, y) {
+define multiplyBoth(x, y) as
     return x * y;
-}
+,,
 print multiplyBoth(10, 99);
 
-define divideByTen(x) {
+define divideByTen(x) as
     return x / 10;
-}
+,,
 print divideByTen(39);
 
-define isEven(x) {
+define isEven(x) as
     return 0 = x % 2;
-}
+,,
+
 print isEven(3);
 print isEven(58);
+
+define fibonacci(n) as
+    if n < 2 ? return n;
+    ,,
+    return fibonacci(n - 2) + fibonacci(n - 1);
+,,
+print fibonacci(6);
 
 print "===Mu sample end ===";
