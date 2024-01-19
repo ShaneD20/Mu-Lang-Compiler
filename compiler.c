@@ -86,6 +86,12 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte2);
 }
 
+static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
+  emitByte(operation);
+  emitBytes(byte1, target);
+  emitBytes(byte2, target);
+}
+
 static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
 
@@ -134,6 +140,25 @@ static uint8_t makeConstant(Value value) {
 
 static void emitConstant(Value value) {
   emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+static void beginScope() {
+  current->scopeDepth++;
+}
+
+static void endScope() {
+  current->scopeDepth--;
+
+  while (current->localCount > 0 &&
+         current->locals[current->localCount - 1].depth >
+            current->scopeDepth) {
+    if (current->locals[current->localCount - 1].isCaptured) { 
+      emitByte(OP_CLOSE_UPVALUE); // Closures end-scope
+    } else {
+      emitByte(OP_POP);
+    }
+    current->localCount--;
+  }
 }
 
 // Calls and Functions 
@@ -185,33 +210,10 @@ static ObjFunction* endCompiler() {
   return function;
 }
 
-static void beginScope() {
-  current->scopeDepth++;
-}
-
-static void endScope() {
-  current->scopeDepth--;
-
-  while (current->localCount > 0 &&
-         current->locals[current->localCount - 1].depth >
-            current->scopeDepth) {
-//> Closures end-scope
-    if (current->locals[current->localCount - 1].isCaptured) {
-      emitByte(OP_CLOSE_UPVALUE);
-    } else {
-      emitByte(OP_POP);
-    }
-//< Closures end-scope
-    current->localCount--;
-  }
-}
-
 // Oddities
-static void expression();
-static void statement();
 static void declaration();
+static void expression(Precedence precedence);
 static ParseRule* getRule(TokenType type);
-static void parsePrecedence(Precedence precedence);
 
 // Global Variables 
 static uint8_t identifierConstant(Token* name) {
@@ -295,14 +297,18 @@ static void addLocal(Token name) {
 //< Local Variables add-local
 //> Local Variables declare-variable
 static void declareVariable(bool immutable) {
-  if (immutable && current->scopeDepth == 0) return; // if change to check for constant and scopeDepth 0
+  if (immutable && current->scopeDepth == 0) return; 
+  /* 
+    bool immutable forces mutables to be stack allocated
+    obtains desired behavior but may not be long term solution
+  */
 
-  Token* name = &parser.previous; // PIVOT
-// existing-in-scope
+  Token* name = &parser.previous;
+
   for (int i = current->localCount - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
-    if (local->depth != -1 && local->depth < current->scopeDepth) {
-      break; // [negative]
+    if (local->depth != -1 && local->depth < current->scopeDepth) { // does it exist in scope?
+      break;
     }
     
     if (identifiersEqual(name, &local->name)) {
@@ -314,7 +320,7 @@ static void declareVariable(bool immutable) {
 }
 
 // Global Variables
-static uint8_t parseVariable(const char* errorMessage) { // PIVOT
+static uint8_t parseVariable(const char* errorMessage) {
   if (check(L_VARIABLE)) {
     consume(L_VARIABLE, errorMessage);
     declareVariable(false);
@@ -336,22 +342,16 @@ static void markInitialized() {
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-// Global
-/*
-  Testing assigning mutables locally (stack-allocation)
-*/
-static void defineMutable(uint8_t mutable) {
+// Local
+static void defineMutable(uint8_t mutable) { // Testing having mutables be stack allocated
   current->locals[current->localCount - 1].depth = current->scopeDepth;
   emitBytes(OP_SET_LOCAL, mutable);
 }
-static void defineVariable(uint8_t global) { // TODO mimic for constants
-  /*
-    check globals if variable exists, if it does then error.
-    in vm?
-  */
+// Global
+static void defineVariable(uint8_t global) { // Currently assigns constants
   if (current->scopeDepth > 0) {
     markInitialized();
-// define-local
+// define local
     return;
   } 
   emitBytes(OP_DEFINE_GLOBAL, global);
@@ -362,8 +362,8 @@ static uint8_t argumentList() {
   uint8_t argCount = 0;
   if (!check(S_RIGHT_PARENTHESES)) {
     do {
-      expression();
-// arg-limit
+      expression(PREC_ASSIGNMENT);
+
       if (argCount >= argLimit) {
         error("Can't have more than 255 arguments.");
       }
@@ -378,7 +378,7 @@ static uint8_t argumentList() {
 static void and_(bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
-  parsePrecedence(PREC_AND);
+  expression(PREC_AND);
   patchJump(endJump);
 }
 
@@ -386,7 +386,7 @@ static void and_(bool canAssign) {
 static void or_(bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
-  parsePrecedence(PREC_OR);
+  expression(PREC_OR);
   patchJump(endJump);
 }
 
@@ -394,7 +394,7 @@ static void or_(bool canAssign) {
 static void binary(bool canAssign) {
   TokenType operator = parser.previous.type;
   ParseRule* rule = getRule(operator);
-  parsePrecedence((Precedence)(rule->precedence + 1));
+  expression((Precedence)(rule->precedence + 1));
   //printf("OP_binary, "); // REMOVE
   switch (operator) {
     case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
@@ -412,12 +412,11 @@ static void binary(bool canAssign) {
     case K_TO:            emitByte(OP_CONCATENATE);
       break;
     case S_PLUS:          emitByte(OP_ADD); 
-      break;
-    case D_PLUS_EQUAL:    emitByte(OP_ADD); // TODO get this to work
+      printf("adding, ");
       break;
     case S_MINUS:         emitByte(OP_SUBTRACT); 
       break;
-    case S_STAR:          emitByte(OP_MULTIPLY); 
+    case S_STAR:          emitByte(OP_MULTIPLY);
       break;
     case S_SLASH:         emitByte(OP_DIVIDE); 
       break;
@@ -439,7 +438,7 @@ static void dot(bool canAssign) {
   uint8_t name = identifierConstant(&parser.previous);
 
   if (canAssign && matchAdvance(D_COLON_EQUAL)) { // TODO where we could add immutability
-    expression();
+    expression(PREC_ASSIGNMENT);
     emitBytes(OP_SET_PROPERTY, name);
 // Methods and Initializers parse-call
   } else if (matchAdvance(S_LEFT_PARENTHESES)) {
@@ -467,7 +466,7 @@ static void literal(bool canAssign) {
 
 // Global Variables
 static void grouping(bool canAssign) {
-  expression();
+  expression(PREC_ASSIGNMENT);
   consume(S_RIGHT_PARENTHESES, "Expect ')' after expression.");
 }
 
@@ -508,21 +507,34 @@ static void namedVariable(Token name, bool canAssign) {
   // global
   }
   if (canAssign && matchAdvance(D_COLON_EQUAL)) {
-    expression();
+    expression(PREC_ASSIGNMENT);
     emitBytes(setOp, (uint8_t)arg);
-  } else if (canAssign && check(D_PLUS_EQUAL)) {
-    int hop = currentChunk()->count;
-    expression();  // TODO work on to finish += : "Operands must be numbers" or segfault
-    // (1) emit assign
-    emitBytes(setOp, (uint8_t)arg); 
-    // (2) jump back to operator
-    emitLoop(hop);
-    // (3) swap operator before calling expression
-    parser.current.type = S_PLUS;
-    // emitByte(OP_POP); // unsure if needed.
-    // (4) check expression
-    expression();  
-
+  } else if (canAssign && matchAdvance(D_PLUS_EQUAL)) {  // - * / % .
+    expression(PREC_ASSIGNMENT);
+    /*
+      this was a real headscratcher on how to properly implement
+      in a single pass compiler, I'm very proud of this solution.
+    */
+    // emitByte(OP_ADD);
+    // emitBytes(getOp, (uint8_t)arg);
+    // emitBytes(setOp, (uint8_t)arg);
+    emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && matchAdvance(D_MINUS_EQUAL)) {
+    expression(PREC_ASSIGNMENT);
+    emitCompound(OP_SUBTRACT, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && matchAdvance(D_STAR_EQUAL)) {
+    expression(PREC_ASSIGNMENT);
+    emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && matchAdvance(D_SLASH_EQUAL)) {
+    expression(PREC_ASSIGNMENT);
+    emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && matchAdvance(D_MODULO_EQUAL)) {
+    expression(PREC_ASSIGNMENT);
+    emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && matchAdvance(D_DOT_EQUAL)) {
+    expression(PREC_ASSIGNMENT);
+    emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
+    // integer concatenation ?
   } else {
     emitBytes(getOp, (uint8_t)arg);
   }
@@ -557,7 +569,7 @@ static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
   // Compile the operand.
 
-  parsePrecedence(PREC_UNARY); // unary-operand
+  expression(PREC_UNARY); // unary-operand
 
   // Emit the operator instruction.
   switch (operatorType) {
@@ -587,9 +599,14 @@ ParseRule rules[] = {
   [S_QUESTION]     = {NULL, NULL, PREC_NONE},
   //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
 // Assignment Operators
-  [S_COLON]       = {NULL, NULL, PREC_NONE},
-  [D_COLON_EQUAL] = {NULL, NULL, PREC_NONE},
-  [D_PLUS_EQUAL]  = {NULL, NULL, PREC_NONE},
+  [S_COLON]        = {NULL, NULL, PREC_NONE},
+  [D_COLON_EQUAL]  = {NULL, NULL, PREC_NONE},
+  [D_PLUS_EQUAL]   = {NULL, NULL, PREC_NONE},
+  [D_MINUS_EQUAL]  = {NULL, NULL, PREC_NONE},
+  [D_MODULO_EQUAL] = {NULL, NULL, PREC_NONE},
+  [D_STAR_EQUAL]   = {NULL, NULL, PREC_NONE},
+  [D_SLASH_EQUAL]  = {NULL, NULL, PREC_NONE},
+  [D_DOT_EQUAL]    = {NULL, NULL, PREC_NONE},
 // Concatenation Operator
   [K_TO]          = {NULL,     binary, PREC_TERM},
 // Arithmetic Operators
@@ -634,7 +651,7 @@ ParseRule rules[] = {
   [END_OF_FILE]     = {NULL,     NULL,   PREC_NONE},
 };
 
-static void parsePrecedence(Precedence precedence) {
+static void expression(Precedence precedence) {
   advance();
   ParseFn prefixRule = getRule(parser.previous.type)->prefix;
   if (prefixRule == NULL) {
@@ -660,12 +677,6 @@ static void parsePrecedence(Precedence precedence) {
 
 static ParseRule* getRule(TokenType type) {
   return &rules[type];
-}
-
-static void expression() {
-  // TODO why does this error for else ?
-  parsePrecedence(PREC_ASSIGNMENT);
-//^ expression-body
 }
 
 // Local Variables
@@ -803,7 +814,7 @@ static void varDeclaration() {
   uint8_t local = parseVariable("Expect variable name."); // TESTING stack allocation for mutables
 
   if (matchAdvance(D_COLON_EQUAL)) {
-    expression();
+    expression(PREC_ASSIGNMENT);
   } else {
     emitByte(OP_NIL);
   }
@@ -816,7 +827,7 @@ static void constDeclaration() { // TODO get constants to be immutable;
   uint8_t global = parseVariable("Expect variable name.");
 
   if (matchAdvance(S_COLON)) {
-    expression();
+    expression(PREC_ASSIGNMENT);
   } else {
     emitByte(OP_NIL);
   }
@@ -827,14 +838,14 @@ static void constDeclaration() { // TODO get constants to be immutable;
 
 //> Global Variables expression-statement
 static void expressionStatement() {
-  expression();
+  expression(PREC_ASSIGNMENT);
   consume(S_SEMICOLON, "Expect ';' after expression."); 
   emitByte(OP_POP);
   // printf("(expression-statement) "); // REMOVE
 }
 
 static void ifStatement() {
-  expression();
+  expression(PREC_ASSIGNMENT);
   consume(S_QUESTION, "Expect 'if' BOOLEAN '?' to test condition.");
 
   int thenJump = emitJump(OP_JUMP_IF_FALSE);
@@ -854,7 +865,7 @@ static void ifStatement() {
 }
 
 static void unlessStatement() {
-  expression();
+  expression(PREC_ASSIGNMENT);
   consume(S_QUESTION, "Expect 'unless' BOOLEAN '?' to test condition.");
   int thenJump = emitJump(OP_JUMP_IF_TRUE);
 
@@ -879,7 +890,7 @@ static void whenStatement() { // currently has fallthrough, TODO want standard b
 
   while (check(K_IS)) {
     parser.current = token;
-    expression();
+    expression(PREC_ASSIGNMENT);
     consume(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
     int thenJump = emitJump(OP_JUMP_IF_FALSE);
     
@@ -894,7 +905,7 @@ static void whenStatement() { // currently has fallthrough, TODO want standard b
 
 // Global Variables print-statement
 static void printStatement() {
-  expression();
+  expression(PREC_ASSIGNMENT);
   consume(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
 
   emitByte(OP_PRINT);
@@ -914,7 +925,7 @@ static void returnStatement() {
     if (current->type == FT_INITIALIZER) {
       error("Can't return a value from an initializer.");
     }
-    expression();
+    expression(PREC_ASSIGNMENT);
     consume(S_SEMICOLON, "Expect ';' after return value.");
     emitByte(OP_RETURN);
   }
@@ -922,7 +933,7 @@ static void returnStatement() {
 
 static void untilStatement() {
   int loopStart = currentChunk()->count; // loop-start
-  expression();
+  expression(PREC_ASSIGNMENT);
   consume(S_QUESTION, "Expect '?' after condition, to begin conditional until-loop.");
 
   int exitJump = emitJump(OP_JUMP_IF_TRUE);
@@ -937,7 +948,7 @@ static void untilStatement() {
 
 static void whileStatement() {
   int loopStart = currentChunk()->count; // loop-start
-  expression();
+  expression(PREC_ASSIGNMENT);
   consume(S_QUESTION, "Expect '?' after condition, to begin conditional while-loop.");
 
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
@@ -975,29 +986,6 @@ static void synchronize() {
   }
 }
 
-// Global Variables declaration
-static void declaration() { // TODO hub for assigment
-  if (matchAdvance(K_DEFINE)) {
-    if (matchAdvance(K_SELF)) {
-      classDeclaration();
-    } else {
-      funDeclaration();
-    }
-  } else if (matchAdvance(K_LET)) { // TODO currently needs 'let' to assign to global
-    if (check(L_VARIABLE)) {
-      varDeclaration();
-    } else {
-      constDeclaration();
-    }
-  } else {
-    statement();
-  }
-
-//> call-synchronize
-  if (parser.panicMode) synchronize();
-}
-
-// Global Variables
 static void statement() {
   if (matchAdvance(TOKEN_PRINT)) {
     printStatement();
@@ -1022,6 +1010,31 @@ static void statement() {
     // TODO #id += 3; should work, but missining some operation
   }
 }
+
+// Global Variables declaration
+static void declaration() { // TODO hub for assigment
+  if (matchAdvance(K_DEFINE)) {
+    if (matchAdvance(K_SELF)) {
+      classDeclaration();
+    } else {
+      funDeclaration();
+    }
+  } else if (matchAdvance(K_LET)) { // TODO currently needs 'let' to assign to global
+    if (check(L_VARIABLE)) {
+      varDeclaration();
+    } else {
+      constDeclaration();
+    }
+  } else {
+    statement();
+  }
+
+//> call-synchronize
+  if (parser.panicMode) synchronize();
+}
+
+// Global Variables
+
 
 ObjFunction* compile(const char* source) {
   initScanner(source);
