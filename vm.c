@@ -136,11 +136,11 @@ static bool callValue(Value callee, int argCount) {
         return call(bound->method, argCount);
       }
       case OBJ_CLASS: {
-        ObjClass* klass = AS_CLASS(callee);
-        vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+        ObjClass* model = AS_CLASS(callee);
+        vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(model));
         // Methods and Initializers call-init
         Value initializer;
-        if (tableGet(&klass->methods, vm.initString, &initializer)) {
+        if (tableGet(&model->methods, vm.initString, &initializer)) {
           return call(AS_CLOSURE(initializer), argCount);
         //> no-init-arity-error
         } else if (argCount != 0) {
@@ -167,9 +167,9 @@ static bool callValue(Value callee, int argCount) {
   return false;
 }
 
-static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+static bool invokeFromClass(ObjClass* model, ObjString* name, int argCount) {
   Value method;
-  if (!tableGet(&klass->methods, name, &method)) {
+  if (!tableGet(&model->methods, name, &method)) {
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
   }
@@ -186,20 +186,18 @@ static bool invoke(ObjString* name, int argCount) {
 
   ObjInstance* instance = AS_INSTANCE(receiver);
 
-//> invoke-field
-  Value value;
+  Value value;    // invoke-field
   if (tableGet(&instance->fields, name, &value)) {
     vm.stackTop[-argCount - 1] = value;
     return callValue(value, argCount);
   }
-//^ invoke-field
 
   return invokeFromClass(instance->model, name, argCount);
 }
 
-static bool bindMethod(ObjClass* klass, ObjString* name) {
+static bool bindMethod(ObjClass* model, ObjString* name) {
   Value method;
-  if (!tableGet(&klass->methods, name, &method)) {
+  if (!tableGet(&model->methods, name, &method)) {
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
   }
@@ -246,8 +244,8 @@ static void closeUpvalues(Value* last) {
 
 static void defineMethod(ObjString* name) {
   Value method = peek(0);
-  ObjClass* klass = AS_CLASS(peek(1));
-  tableSet(&klass->methods, name, method);
+  ObjClass* model = AS_CLASS(peek(1));
+  tableSet(&model->methods, name, method);
   pop();
 }
 
@@ -256,10 +254,8 @@ static bool isFalsey(Value value) {
 }
 
 static void concatenate() {
-//> Garbage Collection concatenate-peek
-  ObjString* b = AS_STRING(peek(0));
-  ObjString* a = AS_STRING(peek(1));
-//^ Garbage Collection concatenate-peek
+  ObjString* b = AS_STRING(peek(0)); // Garbage Collection concatenate-peek
+  ObjString* a = AS_STRING(peek(1)); // Garbage Collection concatenate-peek
 
   int length = a->length + b->length;
   char* chars = ALLOCATE(char, length + 1);
@@ -268,10 +264,9 @@ static void concatenate() {
   chars[length] = '\0';
 
   ObjString* result = takeString(chars, length);
-//> Garbage Collection concatenate-pop
-  pop();
-  pop();
-//^ Garbage Collection concatenate-pop
+
+  pop(); // Garbage Collection concatenate-pop
+  pop(); // Garbage Collection concatenate-pop
   push(OBJ_VAL(result));
 }
 
@@ -288,7 +283,9 @@ static InterpretResult run() {
     (frame->closure->function->chunk.constantPool.values[READ_BYTE()])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
-// TODO replace with actual integer type, actual real type
+/*
+  TODO replace BINARY_OP with actual integer type, actual real type
+*/ 
 #define BINARY_INT_OP(valueType, op) \
     do { \
       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -312,7 +309,7 @@ static InterpretResult run() {
     } while (false)
 
   for (;;) {
-  // trace-execution
+
 #ifdef DEBUG_TRACE_EXECUTION
 //> trace-stack
     printf("          ");
@@ -322,19 +319,12 @@ static InterpretResult run() {
       printf(" ]");
     }
     printf("\n");
-//< trace-stack
-/* A Virtual Machine trace-execution < Calls and Functions trace-execution
-    disassembleInstruction(vm.chunk,
-                           (int)(vm.ip - vm.chunk->code));
-*/
-/* Calls and Functions trace-execution < Closures disassemble-instruction
-    disassembleInstruction(&frame->function->chunk,
-        (int)(frame->ip - frame->function->chunk.code));
-*/
+//^ trace-stack
+
 //> Closures disassemble-instruction
     disassembleInstruction(&frame->closure->function->chunk,
         (int)(frame->ip - frame->closure->function->chunk.code));
-//< Closures disassemble-instruction
+//^ Closures disassemble-instruction
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
@@ -343,16 +333,16 @@ static InterpretResult run() {
         push(constant);
         break;
       }
-// Types of Values interpret-literals
-      case OP_NIL: push(NIL_VAL); break;
-      case OP_TRUE: push(BOOL_VAL(true)); break;
-      case OP_FALSE: push(BOOL_VAL(false)); break;
-// Global Variables interpret-pop
-      case OP_POP: pop(); break;
-// Local Variables interpret-get-local
+      case OP_NIL: push(NIL_VAL); 
+        break;
+      case OP_TRUE: push(BOOL_VAL(true)); 
+        break;
+      case OP_FALSE: push(BOOL_VAL(false)); 
+        break;
+      case OP_POP: pop(); 
+        break;
       case OP_GET_LOCAL: {
         uint8_t slot = READ_BYTE();
-      // Calls and Functions push-local
         push(frame->slots[slot]);
         break;
       }
@@ -373,7 +363,7 @@ static InterpretResult run() {
       }
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
-        if (peekTable(&vm.globals, name)) { // createFunction to peek if exists
+        if (peekTable(&vm.globals, name)) { // allows for immutability
           runtimeError("Cannot reassign constant '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -384,7 +374,7 @@ static InterpretResult run() {
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
         if (tableSet(&vm.globals, name, peek(0))) {
-          tableDelete(&vm.globals, name); // [delete]
+          tableDelete(&vm.globals, name);
           runtimeError("Undefined variable '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -443,7 +433,7 @@ static InterpretResult run() {
         break;
       case OP_CONCATENATE :
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
-          concatenate();  // TODO update to be like mu spec
+          concatenate(); 
         } else {
           runtimeError(
               "Operands must be two strings."); // todo test for integers
@@ -477,22 +467,19 @@ static InterpretResult run() {
       }
       case OP_JUMP: {
         uint16_t offset = READ_SHORT();
-        // Calls and Functions jump
         frame->ip += offset;
         break;
       }
       case OP_JUMP_IF_FALSE: {
         uint16_t offset = READ_SHORT();
-        // Calls and Functions jump-if-false
         if (isFalsey(peek(0))) frame->ip += offset;
         break;
       }
       case OP_JUMP_IF_TRUE: {
-        uint16_t offset = READ_SHORT(); // TODO why does this segfault ?
+        uint16_t offset = READ_SHORT();
         if (!isFalsey(peek(0))) frame->ip += offset;
         break;
       }
-// Jumping Back and Forth op-loop
       case OP_LOOP: {
         uint16_t offset = READ_SHORT();
       // Calls and Functions loop
@@ -504,7 +491,7 @@ static InterpretResult run() {
         if (!callValue(peek(argCount), argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
-        // update-frame-after-call
+        // after call, update the frame
         frame = &vm.frames[vm.frameCount - 1];
         break;
       }
@@ -567,12 +554,6 @@ static InterpretResult run() {
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef BINARY_OP
-}
-
-void hack(bool b) {
-  // Hack to avoid unused function error. run() is not used in the scanning chapter.
-  run();
-  if (b) hack(false);
 }
 
 InterpretResult interpret(const char* source) {

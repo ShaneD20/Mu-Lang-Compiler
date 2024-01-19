@@ -1,0 +1,97 @@
+Grammar Mu;
+
+* Lexical rules *
+ALPHA      	→ "a" ... "z" | "A" ... "Z" | "_"
+            ;
+DIGIT      	→ "0" ... "9"
+            ;
+NUMBER     	→ DIGIT+ ( "." DIGIT+ )?
+            ;
+STRING     	→ "\"" <any char except "\"">* "\""
+            ;
+IDENTIFIER 	→ ALPHA ( ALPHA | DIGIT )*
+            ;
+#IDENTIFIER → '#' ALPHA ( ALPHA | DIGIT )*
+            ;
+
+* Utility rules *
+arguments   → EXPRESSION ( "," EXPRESSION )
+            ;
+parameters  → IDENTIFIER ( "," IDENTIFIER )*
+            ;
+function    → IDENTIFIER '(' PARAMETERS* ') 'as' block
+            ;
+
+program     → declaration* EOF ;
+
+declaration → closure
+            | variable
+            | constant
+            | statement
+            ;
+
+closure     → 'define' function ',,'
+            ;
+variable    → 'let' #IDENTIFIER ':=' EXPRESSION ';'
+            ;
+constant    → 'let'  IDENTIFIER ':'  EXPRESSION ';'
+            ;
+
+Statements  → expression-statement
+            | if
+            | unless
+            | when
+            | return
+            | while
+            | until
+            | block
+            ;
+
+expression-statement  → expression
+            ;
+
+if          → 'if' EXPRESSION '?' BODY ',,'
+            → 'if' EXPRESSION '?' BODY 'else' BODY ',,'
+            ;
+unless      → 'unless' EXPRESSION '?' BODY ',,'
+            → 'unless' EXPRESSION '?' BODY 'else' BODY ',,'
+            ;
+when        → 'when' IDENTIFIER ':' ( 'is' EXPRESSION ',,' )* ',,'
+            ;
+return      → 'return' EXPRESSION ;'|\n
+            ;
+while       → 'while' EXPRESSION '?' BODY ',,'
+            ;
+until       → 'until' EXPRESSION '?' BODY ',,'
+            ;
+quit        → 'quit' EXPRESSION
+            ;
+block       → expression-statement BODY ',,'
+            ;
+
+expression  → assignment
+            ;
+
+assignment  → #IDENTIFIER ( ':=' | '+=' | '*=' | '/=' | '%=' ) EXPRESSION
+            | logic_or
+            ;
+
+logic_or    → logic_and ( "or" logic_and )*
+            ;
+logic_and   → equality ( "and" equality )*
+            ;
+equality    → comparison (( '!~' | '=' ) comparison )*
+            ;
+comparison 	→ term ( ( > | >= | < | <= ) term )*
+            ;
+term       	→ factor ( ( - | + | % ) factor )*
+            ;
+factor     	→ unary ( ( / | * ) unary )*
+            ;
+unary      	→ ( "!" | "-" ) unary | call
+            ;
+call     	→ primary ( "(" arguments? ")" | "." IDENTIFIER )*
+            ;
+primary    	→ "true" | "false" | "null" | "self"
+            | NUMBER | STRING | IDENTIFIER | "(" expression ")"
+            ;
