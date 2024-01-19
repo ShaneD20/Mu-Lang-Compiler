@@ -373,6 +373,10 @@ static InterpretResult run() {
       }
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
+        if (peekTable(&vm.globals, name)) { // createFunction to peek if exists
+          runtimeError("Cannot reassign constant '%s'.", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
         tableSet(&vm.globals, name, peek(0));
         pop();
         break;

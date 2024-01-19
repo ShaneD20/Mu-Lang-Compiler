@@ -12,6 +12,8 @@
 #endif
 // Compiling Expressions include-debug
 
+const int argLimit = 255;
+
 Parser parser;
 Compiler* current = NULL;
 ClassCompiler* currentClass = NULL;
@@ -101,6 +103,17 @@ static int emitJump(uint8_t instruction) {
   return currentChunk()->count - 2;
 }
 
+static void patchJump(int offset) {
+  // -2 to adjust for the bytecode for the jump offset itself.
+  int jump = currentChunk()->count - offset - 2;
+
+  if (jump > UINT16_MAX) {
+    error("Too much code to jump over.");
+  }
+  currentChunk()->code[offset] = (jump >> 8) & 0xff;
+  currentChunk()->code[offset + 1] = jump & 0xff;
+}
+
 static void emitReturn() {
   if (current->type == FT_INITIALIZER) {
     emitBytes(OP_GET_LOCAL, 0);
@@ -121,17 +134,6 @@ static uint8_t makeConstant(Value value) {
 
 static void emitConstant(Value value) {
   emitBytes(OP_CONSTANT, makeConstant(value));
-}
-
-static void patchJump(int offset) {
-  // -2 to adjust for the bytecode for the jump offset itself.
-  int jump = currentChunk()->count - offset - 2;
-
-  if (jump > UINT16_MAX) {
-    error("Too much code to jump over.");
-  }
-  currentChunk()->code[offset] = (jump >> 8) & 0xff;
-  currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
 // Calls and Functions 
@@ -269,7 +271,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
     return addUpvalue(compiler, (uint8_t)local, true);
   }
 
-// resolve-upvalue-recurse
+// recursive
   int upvalue = resolveUpvalue(compiler->enclosing, name);
   if (upvalue != -1) {
     return addUpvalue(compiler, (uint8_t)upvalue, false);
@@ -343,11 +345,15 @@ static void defineMutable(uint8_t mutable) {
   emitBytes(OP_SET_LOCAL, mutable);
 }
 static void defineVariable(uint8_t global) { // TODO mimic for constants
+  /*
+    check globals if variable exists, if it does then error.
+    in vm?
+  */
   if (current->scopeDepth > 0) {
     markInitialized();
 // define-local
     return;
-  }
+  } 
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
@@ -357,11 +363,10 @@ static uint8_t argumentList() {
   if (!check(S_RIGHT_PARENTHESES)) {
     do {
       expression();
-//> arg-limit
-      if (argCount == 255) {
+// arg-limit
+      if (argCount >= argLimit) {
         error("Can't have more than 255 arguments.");
       }
-//< arg-limit
       argCount++;
     } while (matchAdvance(S_COMMA));
   }
@@ -480,7 +485,6 @@ static void string(bool canAssign) {
 //> Global Variables named-variable-signature
 static void namedVariable(Token name, bool canAssign) { 
   uint8_t getOp, setOp;
-
   /*
     if mutables are stored on the stack, how can I get resolveLocal to return 0 ?
   */
@@ -489,19 +493,19 @@ static void namedVariable(Token name, bool canAssign) {
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
-    printf("local:\n"); // REMOVE
+   // printf("local:\n"); // REMOVE
   // Local Variables
   } else if ((arg = resolveUpvalue(current, &name)) != -1) {
     getOp = OP_GET_UPVALUE;
     setOp = OP_SET_UPVALUE;
-    // printf("upvalue:"); // REMOVE
+   // printf("upvalue:"); // REMOVE
   // Closures
   } else {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
-    printf("global:\n"); // REMOVE
-  // global-variable-can-assign
+   // printf("global:\n"); // REMOVE
+  // global
   }
   if (canAssign && matchAdvance(D_COLON_EQUAL)) {
     expression();
@@ -716,7 +720,7 @@ static void function(FunctionType type) {
   if (!check(S_RIGHT_PARENTHESES)) {
     do {
       current->function->arity++;
-      if (current->function->arity > 255) {
+      if (current->function->arity > argLimit) {
         errorAtCurrent("Can't have more than 255 parameters.");
       }
       uint8_t constant = parseVariable("Expect parameter name.");
