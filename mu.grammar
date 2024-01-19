@@ -11,7 +11,7 @@ STRING     	→ "\"" <any char except "\"">* "\""
             ;
 IDENTIFIER 	→ ALPHA ( ALPHA | DIGIT )*
             ;
-#IDENTIFIER → '#' ALPHA ( ALPHA | DIGIT )*
+#IDENTIFIER → "#" ALPHA ( ALPHA | DIGIT )*
             ;
 
 * Utility rules *

@@ -221,23 +221,20 @@ static bool identifiersEqual(Token* a, Token* b) {
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
-// Local Variables
 static int resolveLocal(Compiler* compiler, Token* name) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
     Local* local = &compiler->locals[i];
     if (identifiersEqual(name, &local->name)) {
-//> own-initializer-error
+
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
       }
-//< own-initializer-error
       return i;
     }
   }
   return -1;
 }
-//< Local Variables resolve-local
-//> Closures add-upvalue
+
 static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
   int upvalueCount = compiler->function->upvalueCount;
 
@@ -247,8 +244,8 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
       return i;
     }
   }
-//^ existing-upvalue
-// too-many-upvalues...
+//^ Closures
+
   if (upvalueCount == UINT8_COUNT) {
     error("Too many closure variables in function.");
     return 0;
@@ -874,6 +871,7 @@ static void whenStatement() { // currently has fallthrough, TODO want standard b
     blockWhen();
 
     patchJump(thenJump);
+
   }
 
   consume(D_COMMA, "Expect ,, to complete a when block.");
@@ -995,7 +993,7 @@ static void declaration() { // TODO hub for assigment
     closureDeclaration();
   } else if (matchAdvance(K_BUILD)) {
     classDeclaration();
-  } else if (matchAdvance(K_LET)) { // TODO currently needs 'let' to assign to global
+  } else if (matchAdvance(K_LET)) {
     if (check(L_VARIABLE)) {
       varDeclaration();
     } else {
@@ -1005,12 +1003,12 @@ static void declaration() { // TODO hub for assigment
     statement();
   }
 
-//> call-synchronize
-  if (parser.panicMode) synchronize();
+  if (parser.panicMode) {
+    synchronize();
+  }
 }
 
 // Global Variables
-
 
 ObjFunction* compile(const char* source) {
   initScanner(source);
