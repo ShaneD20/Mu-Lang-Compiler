@@ -1,7 +1,7 @@
 # Mu Programming Language
 
 ## Variable Declarations
-There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword. Constants are initialized with ‘:’ and mutables are assigned with ‘:=‘ . As show below:
+There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword. Constants are initialized with ‘:’ and mutables are assigned with ‘:=‘ . Identifiers for mutables have to begin with "#" such as "#value" or "#name". 
 
 ```
 let phrase : “Hello Word”;
