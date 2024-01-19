@@ -93,6 +93,27 @@ when value:
 // “it’s one”
 
 ```
+Loops are controlled by 'while' and 'until'.
+```
+let #count := 1;
+
+while #count < 100 ?
+    print #count;
+    #count *= 2; 
+,,
+
+// 1 2 4 8 16 32 64
+
+#count := 1;
+
+until #count > 100 ?
+    print #count;
+    #count *= 3;
+,,
+
+// 1 3 9 27 81
+
+```
 ## Functions
 Mu declares functions with the “define” keyword as show below.
 ```
