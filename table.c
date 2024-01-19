@@ -32,15 +32,12 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
 
 //> find-tombstone
     if (entry->key == NULL) {
-      if (IS_NIL(entry->value)) {
-        // Empty entry.
+      if (IS_NIL(entry->value)) { // Empty entry.
         return tombstone != NULL ? tombstone : entry;
-      } else {
-        // We found a tombstone.
+      } else { // We found a tombstone.
         if (tombstone == NULL) tombstone = entry;
       }
-    } else if (entry->key == key) {
-      // We found the key.
+    } else if (entry->key == key) { // We found the key.
       return entry;
     }
 //^ find-tombstone
@@ -57,6 +54,13 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
 
   *value = entry->value;
   return true;
+}
+
+bool peekTable(Table* table, ObjString* key) {
+  if (table->count == 0) return false;
+
+  Entry* entry = findEntry(table->entries, table->capacity, key);
+  return entry->key != NULL;
 }
 
 static void adjustCapacity(Table* table, int capacity) {
