@@ -1,4 +1,3 @@
-//> Hash Tables table-c
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,10 +18,6 @@ void freeTable(Table* table) {
   initTable(table);
 }
 
-/* omit
-  NOTE: The "Optimization" chapter has a manual copy of this function.
-  If you change it here, make sure to update that copy.
-*/ 
 static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
   uint32_t index = key->hash & (capacity - 1);
   Entry* tombstone = NULL;
@@ -44,8 +39,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
     index = (index + 1) & (capacity - 1);
   }
 }
-//< find-entry
-//> table-get
+
 bool tableGet(Table* table, ObjString* key, Value* value) {
   if (table->count == 0) return false;
 

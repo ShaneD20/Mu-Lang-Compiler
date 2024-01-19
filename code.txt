@@ -1,0 +1,153 @@
+print "===Mu sample start===";
+
+print " --Constant assignment";
+let phrase : "Hello World.";
+print phrase;
+
+// let phrase : "Nice to meet you."; // error cannot reassign constant
+// print phrase;
+
+print " --And, Or";
+print 1 or 2;
+print 1 and 2;
+
+print " --Equality";
+print 2 = 1;
+
+print " --Not Operator";
+print !(2 < 5);
+print !(3 = 2 + 1);
+print !(3 > 3 * 2);
+print !(2 = 1);
+
+print " --Modulo";
+let #id := 12;
+#id := #id % 5;
+print #id;
+print #id * 3;
+
+print " --While Loop";
+let #count := 1;
+
+while #count < 100 ?
+    print #count;
+    #count *= 2; 
+,,
+
+print " --Until Loop";
+#count := 1;
+
+until #count > 100 ?
+    print #count;
+    #count *= 3;
+,,
+
+print " --If Clause";
+
+if 0 > -5 ?
+    print "yes, zero is greater than negative five"; 
+,,
+
+if 0 > 10 ?
+    print "yes zero is greater than ten";
+else 
+    print "no, zero is not greater than ten";
+,,
+
+if false ?
+    print "one";
+else
+    print "two";
+,,
+
+print " --Unless Clause";
+
+let x: 5;
+unless x = 4 ?
+    print "good"; 
+else    
+    print "not good";
+,,
+
+unless x = 5 ?
+    print "it's not five"; 
+else
+    print "it is five";
+,,
+
+print " --When Clause";
+let value : 1;
+
+when value:
+    is = 0 ? print "it's zero";
+    ,,
+    is = 1 ? print "it's one";
+    ,, 
+    is >= 1 ? print "it's greater than or equal to one.";
+    ,,
+,,
+
+print " --String Concatenation";
+
+let name: "steve";
+let last: " poe";
+let full_name: name to last;
+print full_name;
+
+print " --functions";
+
+define addTogether(x, y) as
+    return x + y;
+,,
+print addTogether(22, 55);
+
+define multiplyBoth(x, y) as
+    return x * y;
+,,
+print multiplyBoth(10, 99);
+
+define divideByTen(x) as
+    return x / 10;
+,,
+print divideByTen(39);
+
+define isEven(x) as
+    return 0 = x % 2;
+,,
+
+print isEven(3);
+print isEven(58);
+
+define fibonacci(n) as
+    if n < 2 ? return n;
+    ,,
+    return fibonacci(n - 2) + fibonacci(n - 1);
+,,
+
+print fibonacci(20);
+
+print "--Global Scope";
+//  ** Mutables are not in global scope **
+//      let #number := 6;
+//      
+//      define increaseNumber() as
+//          #number := #number + 1; // function doesn't know what #number is
+//          print #number;
+//      ,,
+//      increaseNumber(); // won't work
+//
+//  ** Constants are in global scope **
+
+let number : 6;
+define increaseNumberBy(x) as
+    return number + x;
+,,
+
+print increaseNumberBy(3);
+print increaseNumberBy(2);
+print increaseNumberBy(1);
+print increaseNumberBy(0);
+print increaseNumberBy(-1);
+
+
+print "===Mu sample end ===";
