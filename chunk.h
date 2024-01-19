@@ -44,11 +44,12 @@ typedef enum {
   OP_NEGATE,
 // Global Variables op-print
   OP_PRINT,
-// Jumping Back and Forth operations
+// Jumping operations
   OP_JUMP,
   OP_JUMP_IF_FALSE,
   OP_JUMP_IF_TRUE,
   OP_LOOP,
+  OP_QUIT,
 // Calls and Functions op-call
   OP_CALL,
   OP_INVOKE,
