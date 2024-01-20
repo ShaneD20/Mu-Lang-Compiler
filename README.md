@@ -150,8 +150,10 @@ define fibonacci(n) as
 
 print fibonacci(20);
 ```
-## Function and Global Scope
+## Function Closures and Global Scope
 Constants are stored in the global scope, while mutables are scoped locally to the file. This is a design choice to reduce side effects, as any function can access the global scope. If a mutable is to be used with a function, it has to be passed in as a parameter or declared within the function's scope.
+
+Further as functions create closures, they ignore mutables. Mutables are never captured within a function's closure.
 ```
 //  ** Mutables are not in global scope **
 //      let #number := 6;
