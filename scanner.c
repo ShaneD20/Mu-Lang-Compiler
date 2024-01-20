@@ -167,8 +167,10 @@ static TokenType identifierType() { // tests for keywords
         }
       }
       break;
+    case 'q': return checkKeyword(1, 3, "uit", K_QUIT);
+    case '#': return L_VARIABLE;
   }
-  return scanner.start[0] == '#' ? L_VARIABLE : L_IDENTIFIER;
+  return L_IDENTIFIER;
 }
 
 static Token identifier() {
@@ -224,11 +226,10 @@ Token scanToken() {
     case '?': return makeToken(S_QUESTION); // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON);
     case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
+    case '-': return makeToken(S_MINUS);
     // two characters
     case '.': 
       return makeToken(match('=') ? D_DOT_EQUAL : S_DOT);
-    case '-': 
-      return makeToken(match('=') ? D_MINUS_EQUAL : S_MINUS);
     case '+': 
       return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS);
     case '/': 

@@ -75,18 +75,6 @@ else
     print "it is five";
 ,,
 
-print " --When Clause";
-let value : 1;
-
-when value:
-    is = 0 ? print "it's zero";
-    ,,
-    is = 1 ? print "it's one";
-    ,, 
-    is >= 1 ? print "it's greater than or equal to one.";
-    ,,
-,,
-
 print " --String Concatenation";
 
 let name: "steve";
@@ -143,11 +131,52 @@ define increaseNumberBy(x) as
     return number + x;
 ,,
 
-print increaseNumberBy(3);
-print increaseNumberBy(2);
-print increaseNumberBy(1);
-print increaseNumberBy(0);
-print increaseNumberBy(-1);
+print increaseNumberBy(3);  // 9
+print increaseNumberBy(2);  // 8
+print increaseNumberBy(1);  // 7
+print increaseNumberBy(0);  // 6
+print increaseNumberBy(-1); // 5
 
+define add(x) as
+
+    define addY(y) as
+        print x + y;
+        return x + y;
+    ,,
+    return addY;
+,,
+
+let add5plus : add(5);
+
+print "count.";
+add5plus(3);
+add5plus(1);
+add5plus(2);
+
+print "when statement";
+
+let value : 1;
+when value:
+    is = 0 ? print "it's zero";
+    ,,
+    is <= 1 ? print "it's one";
+    ,,
+    is >= 1 ? print "it's greater than or equal to one.";
+    ,,
+    is = 1 ? print "it's greater than or equal to two.";
+    ,,
+,,
+
+print "Count to four.";
+
+define countTo(x) as
+    let #i := 0;
+    until #i >= x ?
+        #i += 1;
+        print #i;
+    ,,
+,,
+
+countTo(4);
 
 print "===Mu sample end ===";

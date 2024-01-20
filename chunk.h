@@ -50,6 +50,7 @@ typedef enum {
   OP_JUMP_IF_TRUE,
   OP_LOOP,
   OP_QUIT,
+  OP_QUIT_END,
 // Calls and Functions op-call
   OP_CALL,
   OP_INVOKE,
