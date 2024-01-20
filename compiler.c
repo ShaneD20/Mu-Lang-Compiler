@@ -105,7 +105,7 @@ static int emitJump(uint8_t instruction) {
   emitByte(instruction);
   emitByte(0xff);
   emitByte(0xff);
-  return currentChunk()->count - 2; // why is this - 2 ?
+  return currentChunk()->count - 2;
 }
 
 static void patchJump(int offset) {

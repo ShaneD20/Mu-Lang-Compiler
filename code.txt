@@ -155,7 +155,7 @@ add5plus(2);
 
 print "when statement";
 
-let value : 1;
+let value : 3;
 when value:
     is = 0 ? print "it's zero";
     ,,
@@ -163,7 +163,7 @@ when value:
     ,,
     is >= 1 ? print "it's greater than or equal to one.";
     ,,
-    is = 1 ? print "it's greater than or equal to two.";
+    is >= 2 ? print "it's greater than or equal to two.";
     ,,
 ,,
 

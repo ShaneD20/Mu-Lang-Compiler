@@ -489,12 +489,7 @@ static InterpretResult run() {
       case OP_QUIT: {
         do {
           instruction = READ_BYTE();
-          // *frame->ip += 1;
-          // instruction = *frame->ip;
-          if (instruction == OP_QUIT_END) {
-            break;
-          }
-        } while (true);
+        } while (instruction != OP_QUIT_END);
         break;
       }
       case OP_CALL: {
