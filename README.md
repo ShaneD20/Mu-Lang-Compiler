@@ -14,24 +14,25 @@ let #number := 0;
 ## Mutable Operators and Comments
 Mutables have short-hand operators to perform mutations. For single line comments, Mu uses ‘//‘. Both are similar to other programming languages.
 ```
-let #value := 34; 
+let #value := 34;
+let #textString := “Meoow, ”;
 
-#value += 1; 	// assigns the sum of one plus the value
-print #value;	// 35
+#value += 1; 	 // assigns the sum of one plus the value
+print #value;	 // 35
   
-#value -= 5;	// subtracts five from the value
-print #value;	// 30
+#value += -5;	 // assigns the sum of negative five and the value
+print #value;	 // 30
 
-#value *= 10;   // multiplies the value by ten
-print #value;	// 300
+#value *= 10;  // multiplies the value by ten
+print #value;	 // 300
 
-#value /= 3;	// divides the value by three
-print #value;	// 100
+#value /= 3;	  // divides the value by three
+print #value;	 // 100
 
-#value %= 5;	// assigns the remainder of the value from modulus five
+#value %= 5;	  // assigns the remainder of the value from modulus five
 
-let #textString := “Meoow,”; 
-#textString .= “ meow.”; // assigns the concatenation of textString and “ meow.”
+#textString .= “meow.”; // assigns the concatenation of textString and “ meow.”
+
 print #textString; // “Meoow, meow.”
 ```
 
@@ -47,14 +48,14 @@ print #textString; // “Meoow, meow.”
 
 1 !~ 2;    // not equal
 
+!(3 > 2)   // not (3 is greater than 2)
+
 5 <= 9; 		 // less than or equal to
 -7 >= 2; 		// greater than or equal to
 
 ```
 ## Logical Control Flow
-Mu has ternary statements “if-else”, “unless-else”. As a design choice else-if is not supported. If a context is needed where one of several is true, Mu has a “when” statement. 
-
-*note: when statements currently have fallthrough (“it’s greater than or equal to one” current prints as well), in the specification each ‘is’ clause will break by default.
+Mu has ternary statements “if-else”, “unless-else”. As a design choice else-if is not supported. If a context is needed where one of several statements is true, Mu has a “when” statement. The "when" statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any conditional operator (= > < !~) etc.
 
 ```
 if 0 > 10 ?
