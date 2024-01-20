@@ -37,16 +37,18 @@ print #textString; // “Meoow, meow.”
 
 ## Logical Operators
 ```
-1 and 2 // logical and
+1 and 2;   // logical and
 
-3 or 5	// logical or
+3 or 5;    // logical or
 
-3 = 3	// equality
-3 > 5	// greater
-3 < 7	// less
+3 = 3;     // equality
+3 > 5;     // greater
+3 < 7;	    // less
 
-5 <= 9 		 // less than or equal to
--7 >= 2		// greater than or equal to
+1 !~ 2;    // not equal
+
+5 <= 9; 		 // less than or equal to
+-7 >= 2; 		// greater than or equal to
 
 ```
 ## Logical Control Flow
