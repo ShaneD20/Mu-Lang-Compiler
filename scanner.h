@@ -13,7 +13,7 @@ typedef enum {
   D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,     // ,, !~ :=
   D_GREATER_EQUAL, D_LESS_EQUAL,            // >= <=
   D_PLUS_EQUAL, D_STAR_EQUAL, D_SLASH_EQUAL,// += *= /=
-  D_MODULO_EQUAL, D_DOT_EQUAL,              // %= .=
+  D_MODULO_EQUAL, D_DOT_EQUAL, D_DIAMOND,   // %= .=
   // Literals
   L_IDENTIFIER, L_STRING, L_NUMBER, 
   L_VARIABLE, // L_ARRAY,     // TODO implement array
@@ -23,10 +23,11 @@ typedef enum {
   K_AND, K_AS,
   K_BUILD, // mostly to test getting classes to work
   K_DEFINE, K_DO,
-  K_ELSE, K_END,
+  K_EACH, K_ELSE,
   K_FALSE,
   K_IF, K_IS,
   K_LET,
+  K_LIKE, // pattern matching
   K_NULL,
   K_OR,
   K_RETURN,

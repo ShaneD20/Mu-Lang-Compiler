@@ -27,7 +27,7 @@ static void errorAt(Token* token, const char* message) {
     return;
   } 
   parser.panicMode = true;
-  fprintf(stderr, "\n[line %d] Error\n", token->line);
+  fprintf(stderr, "\n[line %d] Error\n", token->line); // TODO : maybe pass in as parameter
 
   if (token->type == END_OF_FILE) {
     fprintf(stderr, " at end");
@@ -573,7 +573,7 @@ ParseRule rules[] = {
   [S_LEFT_PARENTHESES]  = {grouping, call,   PREC_CALL},
   [S_RIGHT_PARENTHESES] = {NULL,     NULL,   PREC_NONE},
   [S_DOT]               = {NULL,     dot,    PREC_CALL},
-// Sructures
+// Sructures (Product Types, Arrays)
   [S_LEFT_CURLY]   = {structure, NULL, PREC_NONE}, 
   [S_RIGHT_CURLY]  = {NULL, NULL, PREC_NONE},
   [S_LEFT_SQUARE]  = {NULL, NULL, PREC_NONE},
@@ -582,7 +582,6 @@ ParseRule rules[] = {
   [S_COMMA]        = {NULL, NULL, PREC_NONE},
   [D_COMMA]        = {NULL, NULL, PREC_NONE},
   [S_SEMICOLON]    = {NULL, NULL, PREC_NONE},
-  [K_END]          = {NULL, NULL, PREC_NONE},
   [S_QUESTION]     = {NULL, NULL, PREC_NONE},
   //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
 // Assignment Operators
@@ -671,15 +670,12 @@ static void block() { // wrapped in begin/end scope else/while/until
   while (!check(D_COMMA) && !check(END_OF_FILE)) {
     declaration();
   }
-  consume(D_COMMA, "Expect ,, to complete a statement block.");
+  consume(D_COMMA, "Expect ,, to complete a statement block.");  
 }
 
 static void blockTernary() { // if-else, unless-else
   while (!check(D_COMMA) && !check(K_ELSE) && !check(END_OF_FILE)) {
     declaration();
-  }
-  if (!check(K_ELSE)) {
-    consume(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");
   }
 }
 
@@ -782,9 +778,9 @@ static void constDeclaration() { // TODO get constants to be immutable;
   if (matchAdvance(S_COLON)) {
     expression(PREC_ASSIGNMENT);
   } else {
-    emitByte(OP_NIL);
+    error("Need to initialize constants.");
   }
-  consume(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
+  consume(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
 
   defineVariable(global);
 }
@@ -813,7 +809,9 @@ static void ifStatement() {
 
   if (matchAdvance(K_ELSE)) { 
     block();
-  } 
+  } else {
+    consume(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");  
+  }
   patchJump(elseJump); // set else jump at end
   endScope();
 }
@@ -834,7 +832,9 @@ static void unlessStatement() {
 
   if (matchAdvance(K_ELSE)) { 
     block();
-  } 
+  } else {
+    consume(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");  
+  }
   patchJump(elseJump);
   endScope();
 }
@@ -853,7 +853,7 @@ static void whenStatement() {
 
     while (!check(D_COMMA) && !check(END_OF_FILE)) {
       declaration();
-      emitByte(OP_QUIT);
+      emitByte(OP_QUIT); // had this in the wrong spot for a bit
     }
     consume(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
     patchJump(thenJump); 
