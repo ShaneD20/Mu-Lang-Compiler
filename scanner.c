@@ -123,8 +123,8 @@ static TokenType identifierType() { // tests for keywords
     case 'e': // branch out to "else", "end"
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
+          case 'a' : return checkKeyword(2, 2, "ch", K_EACH);
           case 'l' : return checkKeyword(2, 2, "se", K_ELSE);
-          case 'n' : return checkKeyword(2, 1, "d", K_END);
         }
       }
       break;

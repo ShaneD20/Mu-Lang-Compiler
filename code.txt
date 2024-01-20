@@ -1,5 +1,11 @@
 print "===Mu sample start===";
 
+//let asdf;  // error, uninitialized constant
+let #mystery;
+print #mystery;
+#mystery := "The mystery is over";
+print #mystery;
+
 print " --Constant assignment";
 let phrase : "Hello World.";
 print phrase;
@@ -44,6 +50,10 @@ until #count > 100 ?
 
 print " --If Clause";
 
+if true ?
+    print "it's true!";
+,,
+
 if 0 > -5 ?
     print "yes, zero is greater than negative five"; 
 ,,
@@ -65,7 +75,9 @@ print " --Unless Clause";
 let x: 5;
 unless x = 4 ?
     print "good"; 
+    print "good"; 
 else    
+    print "not good";
     print "not good";
 ,,
 
@@ -157,9 +169,13 @@ print "when statement";
 
 let value : 3;
 when value:
-    is = 0 ? print "it's zero";
+    is = 0 ? 
+        print "it's zero";
+        print "what can you do?";
     ,,
-    is <= 1 ? print "it's one";
+    is <= 1 ? 
+        print "it's one";
+        print "that's nice.";
     ,,
     is >= 1 ? print "it's greater than or equal to one.";
     ,,
