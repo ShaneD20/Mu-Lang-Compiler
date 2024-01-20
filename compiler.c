@@ -400,7 +400,6 @@ static void binary(bool canAssign) {
     case K_TO:            emitByte(OP_CONCATENATE);
       break;
     case S_PLUS:          emitByte(OP_ADD); 
-      printf("adding, ");
       break;
     case S_MINUS:         emitByte(OP_SUBTRACT); 
       break;
@@ -414,18 +413,18 @@ static void binary(bool canAssign) {
   }
 }
 
-// Calls and Functions compile-call
-static void call(bool canAssign) {
+// invoked by '('
+static void call(bool canAssign) { 
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 }
 
-//> Classes and Instances compile-dot
+// invoked by 'object.'
 static void dot(bool canAssign) {
   consume(L_IDENTIFIER, "Expect property name after '.' .");
   uint8_t name = identifierConstant(&parser.previous);
 
-  if (canAssign && matchAdvance(D_COLON_EQUAL)) { // TODO where we could add immutability
+  if (canAssign && matchAdvance(D_COLON_EQUAL)) { // TODO remove for immutability
     expression(PREC_ASSIGNMENT);
     emitBytes(OP_SET_PROPERTY, name);
 // Methods and Initializers parse-call
@@ -438,6 +437,7 @@ static void dot(bool canAssign) {
     emitBytes(OP_GET_PROPERTY, name);
   }
 }
+//^ currently not used anywhere
 
 // Global Variables
 static void literal(bool canAssign) {
@@ -499,17 +499,7 @@ static void namedVariable(Token name, bool canAssign) {
     emitBytes(setOp, (uint8_t)arg);
   } else if (canAssign && matchAdvance(D_PLUS_EQUAL)) {  // - * / % .
     expression(PREC_ASSIGNMENT);
-    /*
-      this was a real headscratcher on how to properly implement
-      in a single pass compiler, I'm very proud of this solution.
-    */
-    // emitByte(OP_ADD);
-    // emitBytes(getOp, (uint8_t)arg);
-    // emitBytes(setOp, (uint8_t)arg);
     emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && matchAdvance(D_MINUS_EQUAL)) {
-    expression(PREC_ASSIGNMENT);
-    emitCompound(OP_SUBTRACT, getOp, setOp, (uint8_t)arg);
   } else if (canAssign && matchAdvance(D_STAR_EQUAL)) {
     expression(PREC_ASSIGNMENT);
     emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
@@ -534,9 +524,11 @@ static void variable(bool canAssign) {
 }
 
 static void structure(bool canAssign) {
-  // TODO implement
-  // expression(PREC_ASSIGNMENT);
-  //> parameters
+  /*
+    need to be like _t argumentList, create an amount of element
+    then be like a function call that perpetually sits on the table
+  */
+
   if (!check(S_RIGHT_CURLY)) {
     do {
       current->function->arity++; // TODO replace with an anonymous instance
@@ -597,7 +589,6 @@ ParseRule rules[] = {
   [S_COLON]        = {NULL, NULL, PREC_NONE},
   [D_COLON_EQUAL]  = {NULL, NULL, PREC_NONE},
   [D_PLUS_EQUAL]   = {NULL, NULL, PREC_NONE},
-  [D_MINUS_EQUAL]  = {NULL, NULL, PREC_NONE},
   [D_MODULO_EQUAL] = {NULL, NULL, PREC_NONE},
   [D_STAR_EQUAL]   = {NULL, NULL, PREC_NONE},
   [D_SLASH_EQUAL]  = {NULL, NULL, PREC_NONE},
@@ -640,9 +631,11 @@ ParseRule rules[] = {
   [K_AS]            = {NULL,     NULL,   PREC_NONE},
   [K_IF]            = {NULL,     NULL,   PREC_NONE},
   [K_UNLESS]        = {NULL,     NULL,   PREC_NONE},
+  [K_WHEN]          = {NULL,     NULL,   PREC_NONE},
   [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
   [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
+  [K_QUIT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]     = {NULL,     NULL,   PREC_NONE},
   [END_OF_FILE]     = {NULL,     NULL,   PREC_NONE},
 };
@@ -687,15 +680,6 @@ static void blockTernary() { // if-else, unless-else
   }
   if (!check(K_ELSE)) {
     consume(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");
-  }
-}
-
-static void blockWhen() { // wrapped in begin/end scope
-  while (!check(D_COMMA) && !check(K_IS) && !check(END_OF_FILE)) {
-    declaration();
-  }
-  if (!check(K_IS)) {
-    consume(D_COMMA, "Expect ,, to complete a when block, or 'is' to continue.");
   }
 }
 
@@ -855,8 +839,8 @@ static void unlessStatement() {
   endScope();
 }
 
-static void whenStatement() { // currently has fallthrough, TODO want standard break.
-  Token token = parser.current; // hold the value TODO do something similar for +=
+static void whenStatement() { 
+  Token token = parser.current; // hold the value to evaluate all expressions
   advance();
   consume(S_COLON, "Expect ':' to start a when block. ('when' expression ':')");
   beginScope();
@@ -865,17 +849,18 @@ static void whenStatement() { // currently has fallthrough, TODO want standard b
     parser.current = token;
     expression(PREC_ASSIGNMENT);
     consume(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
-    int thenJump = emitJump(OP_JUMP_IF_FALSE);
-    
-    emitByte(OP_POP); // pop-then
-    blockWhen();
+    int thenJump = emitJump(OP_JUMP_IF_FALSE); // skips over two instructions, jump and the next instruction.
 
-    patchJump(thenJump);
-
+    while (!check(D_COMMA) && !check(END_OF_FILE)) {
+      declaration();
+      emitByte(OP_QUIT);
+    }
+    consume(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
+    patchJump(thenJump); 
   }
-
-  consume(D_COMMA, "Expect ,, to complete a when block.");
+  emitByte(OP_QUIT_END);
   endScope();
+  consume(D_COMMA, "Expect ,, to complete a when block.");
 }
 
 // Global Variables print-statement
@@ -952,6 +937,7 @@ static void synchronize() {
       case K_WHEN:
       case K_UNTIL:
       case K_WHILE:
+      case K_QUIT:
       case TOKEN_PRINT:
       case K_RETURN:
         return;
@@ -982,6 +968,10 @@ static void statement() {
     beginScope();
     block();
     endScope();
+  } else if (matchAdvance(K_QUIT)) {
+    printf("quitting, ");
+    consume(S_SEMICOLON, "Expect semicolon to finish 'quit' statement");
+    emitByte(OP_QUIT);
   } else {
     expressionStatement();
   }

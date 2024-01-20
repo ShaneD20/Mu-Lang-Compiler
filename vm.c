@@ -486,6 +486,12 @@ static InterpretResult run() {
         frame->ip -= offset;
         break;
       }
+      case OP_QUIT: {
+        do {
+          instruction = READ_BYTE();
+        } while (instruction != OP_QUIT_END);
+        break;
+      }
       case OP_CALL: {
         int argCount = READ_BYTE();
         if (!callValue(peek(argCount), argCount)) {

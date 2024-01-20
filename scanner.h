@@ -12,9 +12,8 @@ typedef enum {
   // Two character tokens
   D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,     // ,, !~ :=
   D_GREATER_EQUAL, D_LESS_EQUAL,            // >= <=
-  D_DIAMOND, D_PLUS_EQUAL, D_STAR_EQUAL,    // <> += *=
-  D_MINUS_EQUAL, D_MODULO_EQUAL,            // -= %=
-  D_SLASH_EQUAL, D_DOT_EQUAL,               // /= .=
+  D_PLUS_EQUAL, D_STAR_EQUAL, D_SLASH_EQUAL,// += *= /=
+  D_MODULO_EQUAL, D_DOT_EQUAL,              // %= .=
   // Literals
   L_IDENTIFIER, L_STRING, L_NUMBER, 
   L_VARIABLE, // L_ARRAY,     // TODO implement array
@@ -35,6 +34,7 @@ typedef enum {
   K_UNLESS, K_UNTIL,
   K_WHEN, K_WHILE,
   K_TRUE, K_TO,
+  K_QUIT,
   // NEW_LINE, // TODO test
   TOKEN_ERROR, END_OF_FILE
 } TokenType;
