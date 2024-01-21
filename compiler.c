@@ -345,11 +345,12 @@ static void markInitialized() {
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
+// Local
 static void defineMutable(uint8_t mutable) { // Testing having mutables be stack allocated
   current->locals[current->localCount - 1].depth = current->scopeDepth;
   emitBytes(OP_SET_LOCAL, mutable);
 }
-
+// Global
 static void defineVariable(uint8_t global) { // Currently assigns constants
   if (current->scopeDepth > 0) {
     markInitialized();
@@ -374,10 +375,6 @@ static uint8_t argumentList() {
   consume(S_RIGHT_PARENTHESES, "Expect ')' after arguments.");
   return argCount;
 }
-
-/****************************************/
-/* START EXPRESSION RULES AND FUNCTIONS */
-/****************************************/
 
 static void and_(bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
@@ -466,21 +463,25 @@ static void literal(bool canAssign) {
   }
 }
 
+// Global Variables
 static void grouping(bool canAssign) {
   expression(PREC_ASSIGNMENT);
   consume(S_RIGHT_PARENTHESES, "Expect ')' after expression.");
 }
 
+//> Global Variables
 static void number(bool canAssign) {
   double value = strtod(parser.previous.start, NULL);
   emitConstant(NUMBER_VAL(value)); // already prints
 }
 
+//> Global Variables string
 static void string(bool canAssign) {
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2))); // already prints
 }
 
-static void namedVariable(Token name, bool canAssign) {  // housed withing void variable()
+//> Global Variables named-variable-signature
+static void namedVariable(Token name, bool canAssign) { 
   uint8_t getOp, setOp;
 
   int arg = resolveLocal(current, &name);
@@ -517,6 +518,7 @@ static void namedVariable(Token name, bool canAssign) {  // housed withing void 
   }
 }
 
+// Global Variables variable
 static void variable(bool canAssign) {
   namedVariable(parser.previous, canAssign); 
 }
@@ -541,11 +543,22 @@ static void structure(bool canAssign) {
   consume(S_RIGHT_CURLY, "Expect '}' to finish structure literal.");
 }
 
+static void self_(bool canAssign) { // classes
+  if (currentClass == NULL) {
+    error("Can't use 'self' outside of a class.");
+    return;
+  }
+  variable(false);
+} 
+
+// Global Variables unary
 static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
+  // Compile the operand.
 
-  expression(PREC_UNARY); // Compile the operand.
+  expression(PREC_UNARY); // unary-operand
 
+  // Emit the operator instruction.
   switch (operatorType) {
     case S_BANG: emitByte(OP_NOT); 
       break;
@@ -565,6 +578,20 @@ ParseRule rules[] = {
   [S_RIGHT_CURLY]  = {NULL, NULL, PREC_NONE},
   [S_LEFT_SQUARE]  = {NULL, NULL, PREC_NONE},
   [S_RIGHT_SQUARE] = {NULL, NULL, PREC_NONE},
+// Delimiters, Guards, and Terminators
+  [S_COMMA]        = {NULL, NULL, PREC_NONE},
+  [D_COMMA]        = {NULL, NULL, PREC_NONE},
+  [S_SEMICOLON]    = {NULL, NULL, PREC_NONE},
+  [S_QUESTION]     = {NULL, NULL, PREC_NONE},
+  //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
+// Assignment Operators
+  [S_COLON]        = {NULL, NULL, PREC_NONE},
+  [D_COLON_EQUAL]  = {NULL, NULL, PREC_NONE},
+  [D_PLUS_EQUAL]   = {NULL, NULL, PREC_NONE},
+  [D_MODULO_EQUAL] = {NULL, NULL, PREC_NONE},
+  [D_STAR_EQUAL]   = {NULL, NULL, PREC_NONE},
+  [D_SLASH_EQUAL]  = {NULL, NULL, PREC_NONE},
+  [D_DOT_EQUAL]    = {NULL, NULL, PREC_NONE},
 // Concatenation Operator
   [K_TO]          = {NULL,     binary, PREC_TERM},
 // Arithmetic Operators
@@ -592,6 +619,7 @@ ParseRule rules[] = {
   [K_FALSE]         = {literal,  NULL,   PREC_NONE},
   [K_NULL]          = {literal,  NULL,   PREC_NONE},
   [K_TRUE]          = {literal,  NULL,   PREC_NONE},
+  [K_SELF]          = {self_,    NULL,   PREC_NONE},
   [K_OR]            = {NULL,     or_,    PREC_OR},
   [K_AND]           = {NULL,     and_,   PREC_AND},
   [K_BUILD]          = {NULL,     NULL,   PREC_NONE},
@@ -607,22 +635,8 @@ ParseRule rules[] = {
   [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
   [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [K_QUIT]         = {NULL,     NULL,   PREC_NONE},
-// Delimiters, Guards, and Terminators
-  [S_COMMA]        = {NULL, NULL, PREC_NONE},
-  [D_COMMA]        = {NULL, NULL, PREC_NONE},
-  [S_SEMICOLON]    = {NULL, NULL, PREC_NONE},
-  [S_QUESTION]     = {NULL, NULL, PREC_NONE},
   [TOKEN_ERROR]     = {NULL,     NULL,   PREC_NONE},
   [END_OF_FILE]     = {NULL,     NULL,   PREC_NONE},
-  //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
-// Assignment Operators
-  [S_COLON]        = {NULL, NULL, PREC_NONE},
-  [D_COLON_EQUAL]  = {NULL, NULL, PREC_NONE},
-  [D_PLUS_EQUAL]   = {NULL, NULL, PREC_NONE},
-  [D_MODULO_EQUAL] = {NULL, NULL, PREC_NONE},
-  [D_STAR_EQUAL]   = {NULL, NULL, PREC_NONE},
-  [D_SLASH_EQUAL]  = {NULL, NULL, PREC_NONE},
-  [D_DOT_EQUAL]    = {NULL, NULL, PREC_NONE},
 };
 
 static ParseRule* getRule(TokenType type) {
@@ -651,6 +665,9 @@ static void expression(Precedence precedence) {
   }
 }
 
+
+
+// Local Variables
 static void block() { // wrapped in begin/end scope else/while/until
   while (!check(D_COMMA) && !check(END_OF_FILE)) {
     declaration();
@@ -664,6 +681,7 @@ static void blockTernary() { // if-else, unless-else
   }
 }
 
+//> Calls and Functions compile-function
 static void buildClosure(FunctionType type) {
   Compiler compiler;
   initCompiler(&compiler, type);
@@ -722,7 +740,7 @@ static void classDeclaration() {
 
   namedVariable(className, false); // load-class
   consume(K_AS, "Expect 'as' before class body."); 
-
+  // class body
   while (!check(D_COMMA) && !check(END_OF_FILE)) {
     method();
   }
@@ -734,6 +752,7 @@ static void classDeclaration() {
   currentClass = currentClass->enclosing;
 }
 
+//> Calls and Functions fun-declaration
 static void closureDeclaration() {
   uint8_t global = parseVariable("Expect function name.");
   markInitialized();
@@ -741,8 +760,9 @@ static void closureDeclaration() {
   defineVariable(global);
 }
 
-static void varDeclaration() { // (testing stack allocation) local only
-  uint8_t local = parseVariable("Expect variable name."); 
+//> Global Variable declaration (testing stack allocation)
+static void varDeclaration() {
+  uint8_t local = parseVariable("Expect variable name."); // TESTING stack allocation for mutables
   if (check(S_COLON)) {
     error("Declaration of a mutable requires ':=' to complete.");
   }
@@ -756,8 +776,8 @@ static void varDeclaration() { // (testing stack allocation) local only
 
   defineMutable(local); // TODO should be local
 }
-
-static void constDeclaration() { 
+//> Global Constant declaration
+static void constDeclaration() { // TODO get constants to be immutable;
   uint8_t global = parseVariable("Expect variable name.");
 
   if (matchAdvance(S_COLON)) {
@@ -770,6 +790,7 @@ static void constDeclaration() {
   defineVariable(global);
 }
 
+//> Global Variables expression-statement
 static void expressionStatement() {
   expression(PREC_ASSIGNMENT);
   // TODO write optionals for ')', '}', ']', ',,'
@@ -823,7 +844,7 @@ static void unlessStatement() {
   endScope();
 }
 
-static void whenStatement() { // TODO why does this have better error reporting on missing terminator?
+static void whenStatement() { 
   Token token = parser.current; // hold the value to evaluate all expressions
   advance();
   consume(S_COLON, "Expect ':' to start a when block. ('when' expression ':')");
@@ -833,11 +854,11 @@ static void whenStatement() { // TODO why does this have better error reporting 
     parser.current = token;
     expression(PREC_ASSIGNMENT);
     consume(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
-    int thenJump = emitJump(OP_JUMP_IF_FALSE); 
+    int thenJump = emitJump(OP_JUMP_IF_FALSE); // skips over two instructions, jump and the next instruction.
 
     while (!check(D_COMMA) && !check(END_OF_FILE)) {
       declaration();
-      emitByte(OP_QUIT); // currently only use in compiler
+      emitByte(OP_QUIT); // had this in the wrong spot for a bit
     }
     consume(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
     patchJump(thenJump); 
@@ -851,6 +872,7 @@ static void whenStatement() { // TODO why does this have better error reporting 
 static void printStatement() {
   expression(PREC_ASSIGNMENT);
   consume(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+
   emitByte(OP_PRINT);
 }
 
@@ -880,8 +902,9 @@ static void untilStatement() {
   beginScope();
   emitByte(OP_POP);
   block();
+//> loop
   emitLoop(loopStart);
-
+//^ loop
   patchJump(exitJump);
   emitByte(OP_POP);
   endScope();
@@ -896,8 +919,9 @@ static void whileStatement() {
   beginScope();
   emitByte(OP_POP);
   block();
+//> loop
   emitLoop(loopStart);
-
+//^ loop
   patchJump(exitJump);
   emitByte(OP_POP);
   endScope();
@@ -958,9 +982,12 @@ static void statement() {
   }
 }
 
-static void declaration() { // hub for assigment -> else process statements
+// Global Variables declaration
+static void declaration() { // TODO hub for assigment
   if (matchAdvance(K_DEFINE)) {
     closureDeclaration();
+  } else if (matchAdvance(K_BUILD)) {
+    classDeclaration();
   } else if (matchAdvance(K_LET)) {
     if (check(L_VARIABLE)) {
       varDeclaration();
@@ -976,20 +1003,25 @@ static void declaration() { // hub for assigment -> else process statements
   }
 }
 
+// Global Variables
+
 ObjFunction* compile(const char* source) {
   initScanner(source);
 
-  Compiler compiler; // Local Variables 
-  initCompiler(&compiler, FT_SCRIPT); // Calls and Functions
+  Compiler compiler; // Local Variables compiler
+  initCompiler(&compiler, FT_SCRIPT); // Calls and Functions call-init-compiler
 
+  // init-parser-error
   parser.hasError = false;
   parser.panicMode = false;
 
   advance();
+  // Global Variables compile
   while (!matchAdvance(END_OF_FILE)) {
     declaration();
   }
 
+  // Calls and Functions call-end-compiler
   ObjFunction* function = endCompiler();
   return parser.hasError ? NULL : function;
 }

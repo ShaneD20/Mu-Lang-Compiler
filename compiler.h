@@ -26,8 +26,8 @@ typedef enum {
   PREC_PRIMARY
 } Precedence;
 
-// parse-rule
-typedef void (*ParseFn)(bool canAssign); // Global Variables parse-fn-type
+//typedef void (*ParseFn)(Token token, bool canAssign); // to call expressions from rules table
+typedef void (*ParseFn)(bool canAssign); // to call expressions from rules table
 typedef struct {
   ParseFn prefix;
   ParseFn infix;

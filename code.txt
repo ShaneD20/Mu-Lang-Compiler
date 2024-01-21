@@ -87,12 +87,12 @@ else
     print "it is five";
 ,,
 
-print " --String Concatenation";
+// print " --String Concatenation";
 
-let name: "steve";
-let last: " poe";
-let full_name: name to last;
-print full_name;
+// let name: "steve";
+// let last: " poe";
+// let full_name: name to last;
+// print full_name;
 
 print " --functions";
 
@@ -118,13 +118,13 @@ define isEven(x) as
 print isEven(3);
 print isEven(58);
 
-define fibonacci(n) as
-    if n < 2 ? return n;
-    ,,
-    return fibonacci(n - 2) + fibonacci(n - 1);
-,,
+//define fibonacci(n) as
+//    if n < 2 ? return n;
+//    ,,
+//    return fibonacci(n - 2) + fibonacci(n - 1);
+//,,
 
-print fibonacci(20);
+//print fibonacci(20);
 
 print "--Global Scope";
 //  ** Mutables are not in global scope **
