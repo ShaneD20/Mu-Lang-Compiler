@@ -5,7 +5,6 @@
 *.o
 *.so
 *.out
-
 *.txt
 
 # Packages #
