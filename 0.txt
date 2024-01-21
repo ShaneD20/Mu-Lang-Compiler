@@ -1,0 +1,76 @@
+typedef struct {
+  ObjFunction* function;
+  uint8_t* ip;
+  Value* slots; // could have an array of values for [product types]
+} CallFrame;
+
+because mutables are bound to local scopes, we know:
+    reference is 0 when the function is off the stack, // function born mutables don't need to be counted
+
+
+
+
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      current->function->arity++; // a reference to compiler, would need Record instead
+      if (current->function->arity > 255) {
+        errorAtCurrent("Can't have more than 255 parameters.");
+      }
+      uint8_t constant = parseVariable("Expect parameter name."); // might need to expand upon
+      defineVariable(constant);
+    } while (match(TOKEN_COMMA));
+  }
+
+
+static uint8_t argumentList() {
+  uint8_t argCount = 0;
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      expression();
+      argCount++;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+  return argCount;
+}
+
+        push(OBJ_VAL(closure));
+
+vm.c
+in run()
+
+        for (int i = 0; i < closure->upvalueCount; i++) {
+          uint8_t isLocal = READ_BYTE();
+          uint8_t index = READ_BYTE();
+          if (isLocal) {
+            closure->upvalues[i] =
+                captureUpvalue(frame->slots + index);
+          } else {
+            closure->upvalues[i] = frame->closure->upvalues[index];
+          }
+        }
+
+        break;
+
+
+let #a := 12;
+
+define outer() as
+    let x : 1;
+    define inner(y) as
+
+        print x + y;
+    ,,
+    inner(68);
+    return inner;
+,,
+
+let shouter : outer(); // works
+shouter(5);
+
+let #number := 6;
+      
+define increaseNumber() as
+    return #number + 1; // function doesn't know what #number is
+,,
+print increaseNumber(); // won't work

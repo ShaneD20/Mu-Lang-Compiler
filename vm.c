@@ -320,7 +320,7 @@ static InterpretResult run() {
       long long scale = 1; \
       do { \
         scale *= 10; \
-      } while (scale < right); \
+      } while (scale <= right); \
       left *= scale; \
       push(valueType(left op right)); \
     } while (false)
