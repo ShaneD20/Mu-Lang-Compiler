@@ -49,9 +49,9 @@ static bool match(char expected) {
 //^ Scanner Helpers
 
 //> Token Helpers
-static Token makeToken(TokenType type) {
+static Token makeToken(Lexeme lexeme) {
   Token token;
-  token.type = type;
+  token.lexeme = lexeme;
   token.start = scanner.start;
   token.length = (int)(scanner.current - scanner.start);
   token.line = scanner.line;
@@ -60,7 +60,7 @@ static Token makeToken(TokenType type) {
 
 static Token errorToken(const char* message) {
   Token token;
-  token.type = TOKEN_ERROR;
+  token.lexeme = LANGUAGE_ERROR;
   token.start = message;
   token.length = (int)strlen(message);
   token.line = scanner.line;
@@ -93,15 +93,15 @@ static void skipWhitespace() {
   }
 }
 
-static TokenType checkKeyword(int start, int length, const char* rest, TokenType type) {
+static Lexeme checkKeyword(int start, int length, const char* rest, Lexeme lexeme) {
   if (scanner.current - scanner.start == start + length &&
       memcmp(scanner.start + start, rest, length) == 0) {
-    return type;
+    return lexeme;
   }
   return L_IDENTIFIER; // TODO create constant, mutable path
 }
 
-static TokenType identifierType() { // tests for keywords
+static Lexeme identifierType() { // tests for keywords
   switch (scanner.start[0]) {
     case 'a': //branch our to "and", "as"
       if (scanner.current - scanner.start > 1) {
@@ -228,6 +228,8 @@ Token scanToken() {
     case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
     case '-': return makeToken(S_MINUS);
     // two characters
+    case ',': 
+      return makeToken(match(',') ? D_COMMA : S_COMMA);
     case '.': 
       return makeToken(match('=') ? D_DOT_EQUAL : S_DOT);
     case '+': 
@@ -238,8 +240,6 @@ Token scanToken() {
       return makeToken(match('=') ? D_STAR_EQUAL : S_STAR);
     case '%': 
       return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO);
-    case ',': 
-      return makeToken(match(',') ? D_COMMA : S_COMMA);
     case ':': 
       return makeToken(match('=') ? D_COLON_EQUAL: S_COLON); // TODO would be new line aware
     case '!':

@@ -13,17 +13,17 @@ typedef struct {
 } Parser;
 
 typedef enum {
-  PREC_NONE,
-  PREC_ASSIGNMENT,  // =
-  PREC_OR,          // or
-  PREC_AND,         // and
-  PREC_EQUALITY,    // == !=
-  PREC_COMPARISON,  // < > <= >=
-  PREC_TERM,        // + -
-  PREC_FACTOR,      // * /
-  PREC_UNARY,       // ! -
-  PREC_CALL,        // . ()
-  PREC_PRIMARY
+  LVL_NONE,
+  LVL_BASE,    // : :=
+  LVL_OR,      // or
+  LVL_AND,     // and
+  LVL_EQUAL,   // == !=
+  LVL_COMPARE, // < > <= >=
+  LVL_SUM,     // + -
+  LVL_SCALE,   // * /
+  LVL_UNARY,   // ! -
+  LVL_CALL,    // . ()
+  LVL_PRIMARY
 } Precedence;
 
 // parse-rule

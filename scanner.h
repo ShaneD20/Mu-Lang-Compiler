@@ -37,11 +37,11 @@ typedef enum {
   K_TRUE, K_TO,
   K_QUIT,
   // NEW_LINE, // TODO test
-  TOKEN_ERROR, END_OF_FILE
-} TokenType;
+  LANGUAGE_ERROR, END_OF_FILE
+} Lexeme;
 
 typedef struct {
-  TokenType type;
+  Lexeme lexeme;
   const char* start;
   int length;
   int line;
