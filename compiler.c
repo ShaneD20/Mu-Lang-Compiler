@@ -85,12 +85,6 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte2);
 }
 
-static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
-  emitByte(operation);
-  emitBytes(byte1, target);
-  emitBytes(byte2, target);
-}
-
 static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
 
@@ -209,6 +203,22 @@ static ObjFunction* endCompiler() {
 static void declaration();
 static void expression(Precedence precedence);
 static ParseRule* getRule(TokenType type);
+//^ Oddities
+
+static void emitAssignment(uint8_t byte1, uint8_t byte2) {
+  advance();
+  expression(PREC_ASSIGNMENT);
+  emitByte(byte1);
+  emitByte(byte2);
+}
+
+static void emitCompoundAssignment(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
+  advance();
+  expression(PREC_ASSIGNMENT);
+  emitByte(operation);
+  emitBytes(byte1, target);
+  emitBytes(byte2, target);
+}
 
 // Global Variables 
 static uint8_t identifierConstant(Token* name) {
@@ -256,17 +266,18 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
 }
 
 // Closures 
-static int resolveUpvalue(Compiler* compiler, Token* name) {
+static int resolveUpvalue(Compiler* compiler, Token* token) {
   if (compiler->enclosing == NULL) return -1;
+  if (token->type == L_VARIABLE) return -1; // prevents mutables from being an upvalue
 
-  int local = resolveLocal(compiler->enclosing, name);
+  int local = resolveLocal(compiler->enclosing, token);
   if (local != -1) { // mark-local-captured
     compiler->enclosing->locals[local].isCaptured = true;
     return addUpvalue(compiler, (uint8_t)local, true);
   }
 
 // recursive
-  int upvalue = resolveUpvalue(compiler->enclosing, name);
+  int upvalue = resolveUpvalue(compiler->enclosing, token);
   if (upvalue != -1) {
     return addUpvalue(compiler, (uint8_t)upvalue, false);
   }
@@ -472,49 +483,38 @@ static void string(bool canAssign) {
 //> Global Variables named-variable-signature
 static void namedVariable(Token name, bool canAssign) { 
   uint8_t getOp, setOp;
-  /*
-    if mutables are stored on the stack, how can I get resolveLocal to return 0 ?
-  */
 
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
    // printf("local:\n"); // REMOVE
-  // Local Variables
   } else if ((arg = resolveUpvalue(current, &name)) != -1) {
-    getOp = OP_GET_UPVALUE;
+    getOp = OP_GET_UPVALUE;   // Closures
     setOp = OP_SET_UPVALUE;
    // printf("upvalue:"); // REMOVE
-  // Closures
   } else {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
    // printf("global:\n"); // REMOVE
-  // global
   }
-  if (canAssign && matchAdvance(D_COLON_EQUAL)) {
-    expression(PREC_ASSIGNMENT);
-    emitBytes(setOp, (uint8_t)arg);
-  } else if (canAssign && matchAdvance(D_PLUS_EQUAL)) {  // - * / % .
-    expression(PREC_ASSIGNMENT);
-    emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && matchAdvance(D_STAR_EQUAL)) {
-    expression(PREC_ASSIGNMENT);
-    emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && matchAdvance(D_SLASH_EQUAL)) {
-    expression(PREC_ASSIGNMENT);
-    emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && matchAdvance(D_MODULO_EQUAL)) {
-    expression(PREC_ASSIGNMENT);
-    emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && matchAdvance(D_DOT_EQUAL)) {
-    expression(PREC_ASSIGNMENT);
-    emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
-    // integer concatenation ?
-  } else {
-    emitBytes(getOp, (uint8_t)arg);
+  if (canAssign) {
+    switch (parser.current.type) {
+      case D_COLON_EQUAL:  emitAssignment(setOp, (uint8_t)arg);
+        return;
+      case D_PLUS_EQUAL:   emitCompoundAssignment(OP_ADD, getOp, setOp, (uint8_t)arg);
+        return;
+      case D_STAR_EQUAL:   emitCompoundAssignment(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
+        return;
+      case D_SLASH_EQUAL:  emitCompoundAssignment(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
+        return;
+      case D_MODULO_EQUAL: emitCompoundAssignment(OP_MODULO, getOp, setOp, (uint8_t)arg);
+        return;
+      case D_DOT_EQUAL:    emitCompoundAssignment(OP_CONCATENATE, getOp, setOp, (uint8_t)arg); // integer concatenation ?
+        return;
+      default: emitBytes(getOp, (uint8_t)arg);
+    }
   }
 }
 
@@ -639,6 +639,10 @@ ParseRule rules[] = {
   [END_OF_FILE]     = {NULL,     NULL,   PREC_NONE},
 };
 
+static ParseRule* getRule(TokenType type) {
+  return &rules[type];
+}
+
 static void expression(Precedence precedence) {
   advance();
   ParseFn prefixRule = getRule(parser.previous.type)->prefix;
@@ -661,9 +665,7 @@ static void expression(Precedence precedence) {
   }
 }
 
-static ParseRule* getRule(TokenType type) {
-  return &rules[type];
-}
+
 
 // Local Variables
 static void block() { // wrapped in begin/end scope else/while/until

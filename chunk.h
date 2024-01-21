@@ -59,7 +59,10 @@ typedef enum {
   OP_RETURN,
 // Classes and Instances class-op
   OP_CLASS,
-  OP_METHOD
+  OP_METHOD,
+// Product Types
+  OP_CREATE_KEYED,
+  OP_CREATE_INDEXED,
 } OpCode;
 
 typedef struct {

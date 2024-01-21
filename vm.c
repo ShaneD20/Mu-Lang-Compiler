@@ -15,8 +15,9 @@ VM vm; // [one]
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
-static void showText(int argCount, char *args) {
-  printf("show: %s\n", args); // TODO get to work, doesn't segfault, doesn't show expected.
+static void showText(Value value) {
+  printValue(value); // value.h
+  printf("\n");
 }
 //^ Native Functions
 
@@ -79,7 +80,7 @@ void initVM() {
   vm.initString = copyString("init", 4);
 
   defineNative("clock", clockNative); 
-  // defineNative("show", showText); // TODO doesn't work ...
+  //defineNative("show", showText);
 }
 
 //> VM Helpers
@@ -308,6 +309,22 @@ static InterpretResult run() {
       push(valueType(a op b)); \
     } while (false)
 
+#define APPEND_INTEGER(valueType, op) \
+    do { \
+      if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+        runtimeError("Operands must be numbers."); \
+        return INTERPRET_RUNTIME_ERROR; \
+      } \
+      long long right = AS_NUMBER(pop()); \
+      long long left = AS_NUMBER(pop()); \
+      long long scale = 1; \
+      do { \
+        scale *= 10; \
+      } while (scale <= right); \
+      left *= scale; \
+      push(valueType(left op right)); \
+    } while (false)
+
   for (;;) {
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -434,6 +451,10 @@ static InterpretResult run() {
       case OP_CONCATENATE :
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
           concatenate(); 
+          break;
+        } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+          APPEND_INTEGER(NUMBER_VAL, +);
+          break;
         } else {
           runtimeError(
               "Operands must be two strings."); // todo test for integers

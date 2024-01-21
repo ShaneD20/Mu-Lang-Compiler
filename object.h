@@ -35,7 +35,7 @@ typedef enum {
   OBJ_CLASS,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
-  OBJ_INSTANCE,
+  OBJ_INSTANCE, // use for records as well could be OBJ_LITERAL
   OBJ_NATIVE,
   OBJ_STRING,
   OBJ_UPVALUE
@@ -99,6 +99,15 @@ typedef struct {
   ObjClass* model;
   Table fields; // [fields]
 } ObjInstance;
+
+//> TESTING
+typedef struct { // almost like table, but fixed size with a name
+  Obj obj;
+  int size;
+  Entry* properties; // stores the properties
+  ObjString* name;
+} ObjRecord;
+//^ TESTING
 
 typedef struct {
   Obj obj;
