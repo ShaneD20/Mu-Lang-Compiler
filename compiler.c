@@ -6,6 +6,7 @@
 #include "compiler.h"
 #include "memory.h" // Garbage Collection compiler-include-memory
 #include "scanner.h"
+#include "parser.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -13,76 +14,19 @@
 
 const int argLimit = 255;
 
-Parser parser;
 Compiler* current = NULL;
 ClassCompiler* currentClass = NULL;
+
+/* START HELPER FUNCTIONS */
 
 static Chunk* currentChunk() {
   return &current->function->chunk;
 }
 
-// ERROR functions
-static void errorAt(Token* token, const char* message) {
-  if (parser.panicMode) {
-    return;
-  } 
-  parser.panicMode = true;
-  fprintf(stderr, "\n[line %d] Error\n", token->line);
-
-  if (token->lexeme == END_OF_FILE) {
-    fprintf(stderr, " at end");
-  } else if (token->lexeme == LANGUAGE_ERROR) { 
-    // Nothing, pass through
-  } else {
-    fprintf(stderr, " at '%.*s'", token->length, token->start);
-  }
-
-  fprintf(stderr, ": %s\n", message);
-  parser.hasError = true;
-}
-
-static void error(const char* message) { // BOTH don't pass in a token when called
-  errorAt(&parser.previous, message);
-}
-static void errorAtCurrent(const char* message) {
-  errorAt(&parser.current, message);
-}
-
-//> helper functions START
-
-static void advance() {
-  parser.previous = parser.current;
-  parser.current = scanToken();
-
-  if (parser.current.lexeme == LANGUAGE_ERROR) {
-    Token token = parser.current;
-    do {
-      parser.current = scanToken();
-    } while (parser.current.lexeme != LANGUAGE_ERROR);
-    error(token.start); 
-  }
-}
-
-static bool tokenIs(Lexeme test) {        
-  return parser.current.lexeme == test;
-}
-static bool tokenIsNot(Lexeme test) {
-  return parser.current.lexeme != test;
-}
-
-static bool consume(Lexeme glyph) {
-  if (tokenIs(glyph)) advance();
-  return parser.previous.lexeme == glyph;
-}
-static void require(Lexeme test, const char* message) { // kind of doing the same thing
-  if (parser.current.lexeme == test) {
-    advance();
-  } else errorAtCurrent(message);
-}
-
 static void emitByte(uint8_t byte) {
-  writeChunk(currentChunk(), byte, parser.previous.line);
+  writeChunk(currentChunk(), byte, previousToken().line);
 }
+
 static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte1);
   emitByte(byte2);
@@ -163,8 +107,6 @@ static void endScope() {
   }
 }
 
-//^ helper functions END
-
 static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   compiler->function = NULL;
@@ -174,7 +116,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->function = newFunction();
   current = compiler;
   if (type != FT_SCRIPT) {
-    current->function->name = copyString(parser.previous.start, parser.previous.length);
+    current->function->name = copyString(previousToken().start, previousToken().length);
   }
 
   Local* local = &current->locals[current->localCount++];
@@ -208,12 +150,6 @@ static ObjFunction* endCompiler() {
   return function;
 }
 
-// Oddities
-static void compileTokens();
-static void resolveExpression(Precedence precedence);
-static ParseRule* getRule(Lexeme glyph); // RENAME getRuleFor
-//^ Oddities
-
 static uint8_t identifierConstant(Token* token) {
   return makeConstant(OBJ_VAL(copyString(token->start, token->length)));
 }
@@ -222,6 +158,7 @@ static bool identifiersEqual(Token* a, Token* b) {
   if (a->length != b->length) return false;
   return memcmp(a->start, b->start, a->length) == 0;
 }
+/* END HELPER FUNCTIONS */
 
 static int resolveLocal(Compiler* compiler, Token* token) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
@@ -294,8 +231,8 @@ static void declareVariable(bool immutable) {
     bool immutable forces mutables to be stack allocated
     obtains desired behavior but may not be long term solution
   */
-
-  Token* name = &parser.previous;
+  Token prior = previousToken();
+  Token* name = &prior;
 
   for (int i = current->localCount - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
@@ -322,10 +259,10 @@ static uint8_t parseVariable(const char* errorMessage) {
   if (current->scopeDepth > 0) {
     return 0; // Local Variables parse-local
   }
-  return identifierConstant(&parser.previous);
+  Token prior = previousToken();
+  return identifierConstant(&prior);
 }
 
-//> Local Variables mark-initialized
 static void markInitialized() {
   if (current->scopeDepth == 0) {
     return; 
@@ -333,15 +270,19 @@ static void markInitialized() {
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-// Global
 static void defineConstant(uint8_t global) { // Currently assigns constants
   if (current->scopeDepth > 0) {
-    markInitialized();
-// define local
+    markInitialized(); // define local
     return;
   } 
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
+
+/*********************/
+/* BEGIN EXPRESSIONS */
+/*********************/
+static void resolveExpression(Precedence precedence);
+static ParseRule* getRule(Lexeme glyph); 
 
 static uint8_t argumentList() {
   uint8_t argCount = 0;
@@ -373,9 +314,26 @@ static void orJump(bool x) {
   patchJump(endJump);
 }
 
+// static void structure(bool canAssign) {
+//   // TODO look at unary
+//   if (tokenIsNot(S_RIGHT_CURLY)) {
+//     do {
+
+//     } while (consume(S_COMMA));
+//   }
+//   require(S_RIGHT_CURLY, "Expect '}' to finish structure literal.");
+// }
+
+// static void self_(bool unused) { // TODO delete or replace
+//   if (currentClass == NULL) {
+//     error("Can't use 'self' outside of a class.");
+//     return;
+//   }
+//   variable(false);
+// } 
 
 static void binary(bool canAssign) {
-  Lexeme operator = parser.previous.lexeme;
+  Lexeme operator = previousToken().lexeme;
   ParseRule* rule = getRule(operator);    // get the precedence
   resolveExpression((Precedence)(rule->precedence + 1)); // apply the precedence
 
@@ -408,43 +366,27 @@ static void binary(bool canAssign) {
   }
 }
 
-// invoked by '('
 static void call(bool canAssign) { 
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 }
 
-// invoked by 'object.'
-static void dot(bool canAssign) {
+static void dot(bool canAssign) { // product type
   require(L_IDENTIFIER, "Expect property name after '.' .");
-  uint8_t name = identifierConstant(&parser.previous);
+  Token prior = previousToken();
+  uint8_t name = identifierConstant(&prior);
 
   if (canAssign && consume(D_COLON_EQUAL)) { // TODO remove for immutability
     resolveExpression(LVL_BASE);
     emitBytes(OP_SET_PROPERTY, name);
-// Methods and Initializers parse-call
+
   } else if (consume(S_LEFT_PARENTHESES)) {
     uint8_t argCount = argumentList();
     emitBytes(OP_INVOKE, name);
     emitByte(argCount);
-//^ Methods and Initializers parse-call
+
   } else {
     emitBytes(OP_GET_PROPERTY, name);
-  }
-}
-//^ currently not used anywhere
-
-// Global Variables
-static void literal(bool canAssign) {
-  
-  switch (parser.previous.lexeme) {
-    case K_FALSE: emitByte(OP_FALSE); 
-      break;
-    case K_NULL:  emitByte(OP_NIL); 
-      break;
-    case K_TRUE:  emitByte(OP_TRUE); 
-      break;
-    default: return; // Unreachable.
   }
 }
 
@@ -454,12 +396,12 @@ static void grouping(bool unused) {
 }
 
 static void number(bool unused) {
-  double value = strtod(parser.previous.start, NULL);
+  double value = strtod(previousToken().start, NULL);
   emitConstant(NUMBER_VAL(value)); // already prints
 }
 
 static void string(bool unused) {
-  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2))); // already prints
+  emitConstant(OBJ_VAL(copyString(previousToken().start + 1, previousToken().length - 2))); // already prints
 }
 
 static void namedVariable(Token name, bool canAssign) { 
@@ -506,36 +448,31 @@ static void namedVariable(Token name, bool canAssign) {
   }
 }
 
-static void variable(bool canAssign) {
-  namedVariable(parser.previous, canAssign); 
+static void variable(bool canAssign) { // would really like to clear this confusion, but it's needed.
+  namedVariable(previousToken(), canAssign); 
 }
-
-static void structure(bool canAssign) {
-  // TODO look at unary
-  if (tokenIsNot(S_RIGHT_CURLY)) {
-    do {
-
-    } while (consume(S_COMMA));
-  }
-  require(S_RIGHT_CURLY, "Expect '}' to finish structure literal.");
-}
-
-static void self_(bool unused) { // TODO delete or replace
-  if (currentClass == NULL) {
-    error("Can't use 'self' outside of a class.");
-    return;
-  }
-  variable(false);
-} 
 
 static void unary(bool unused) {
-  Lexeme operator = parser.previous.lexeme; // must store first
-  
+  Lexeme operator = previousToken().lexeme; // hold onto the operator, resolve the next expression, then emit
+
   resolveExpression(LVL_UNARY);
   switch (operator) {
     case S_BANG: emitByte(OP_NOT); 
       break;
     case S_MINUS: emitByte(OP_NEGATE); 
+      break;
+    default: return; // Unreachable.
+  }
+}
+
+static void literal(bool canAssign) {
+  
+  switch (previousToken().lexeme) {
+    case K_FALSE: emitByte(OP_FALSE); 
+      break;
+    case K_NULL:  emitByte(OP_NIL); 
+      break;
+    case K_TRUE:  emitByte(OP_TRUE); 
       break;
     default: return; // Unreachable.
   }
@@ -548,7 +485,7 @@ ParseRule rules[] = {
   [S_RIGHT_PARENTHESES] = {NULL,     NULL,   LVL_NONE},
   [S_DOT]               = {NULL,     dot,    LVL_CALL},
 // Sructures (Product Types, Arrays)
-  [S_LEFT_CURLY]   = {structure, NULL, LVL_NONE}, 
+  // [S_LEFT_CURLY]   = {structure, NULL, LVL_NONE}, 
   [S_RIGHT_CURLY]  = {NULL, NULL, LVL_NONE},
   [S_LEFT_SQUARE]  = {NULL, NULL, LVL_NONE},
   [S_RIGHT_SQUARE] = {NULL, NULL, LVL_NONE},
@@ -592,7 +529,7 @@ ParseRule rules[] = {
   [K_FALSE]         = {literal,  NULL,   LVL_NONE},
   [K_NULL]          = {literal,  NULL,   LVL_NONE},
   [K_TRUE]          = {literal,  NULL,   LVL_NONE},
-  [K_SELF]          = {self_,    NULL,   LVL_NONE},
+  // [K_SELF]          = {self_,    NULL,   LVL_NONE},
   [K_OR]            = {NULL,     orJump,   LVL_OR},
   [K_AND]           = {NULL,     andJump, LVL_AND},
   [K_BUILD]         = {NULL,     NULL,   LVL_NONE},
@@ -616,7 +553,7 @@ static ParseRule* getRule(Lexeme type) {
 }
 
 static void resolvePrefix(Precedence hasPrecedence) {
-  ParseFn callPrefix = getRule(parser.previous.lexeme)->prefix;
+  ParseFn callPrefix = getRule(previousToken().lexeme)->prefix;
   if (callPrefix == NULL) {
     error("Expect expression.");
     return;
@@ -626,7 +563,7 @@ static void resolvePrefix(Precedence hasPrecedence) {
 
 static void resolveInfix(Precedence hasPrecedence) {
     advance();
-    ParseFn callInfix = getRule(parser.previous.lexeme)->infix;
+    ParseFn callInfix = getRule(previousToken().lexeme)->infix;
     callInfix(hasPrecedence);
 }
 
@@ -635,7 +572,7 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
   bool hasPrecedence = (level <= LVL_BASE);
   resolvePrefix(hasPrecedence);
 
-  while (level <= getRule(parser.current.lexeme)->precedence) {
+  while (level <= getRule(parserCurrent().lexeme)->precedence) {
     resolveInfix(hasPrecedence);
   }
 
@@ -643,6 +580,12 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
     error("Invalid assignment target.");
   }
 }
+
+/**********************/
+/* FINISH EXPRESSIONS */
+/**********************/
+
+static void compileTokens();
 
 static void block() { // wrapped in begin/end scope else/while/until
   while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
@@ -688,11 +631,12 @@ static void buildClosure(FunctionType type) {
 
 static void method() {
   require(L_IDENTIFIER, "Expect method name.");
-  uint8_t constant = identifierConstant(&parser.previous);
+  Token prior = previousToken();
+  uint8_t constant = identifierConstant(&prior);
   FunctionType type = FT_METHOD;
 
   // initializer name
-  if (parser.previous.length == 5 && memcmp(parser.previous.start, "build", 5) == 0) {
+  if (previousToken().length == 5 && memcmp(previousToken().start, "build", 5) == 0) {
     type = FT_INITIALIZER;
   }
   buildClosure(type); // method body
@@ -701,8 +645,8 @@ static void method() {
 
 static void classDeclaration() {
   require(L_IDENTIFIER, "Expect class name.");
-  Token className = parser.previous;
-  uint8_t nameConstant = identifierConstant(&parser.previous);
+  Token className = previousToken();
+  uint8_t nameConstant = identifierConstant(&className);
   declareVariable(true);
 
   emitBytes(OP_CLASS, nameConstant);
@@ -721,9 +665,7 @@ static void classDeclaration() {
   }
   require(D_COMMA, "Expect ',,' after class body.");
 
-  emitByte(OP_POP); 
-
-  // Methods and Initializers pop-enclosing
+  emitByte(OP_POP); // Methods and Initializers pop-enclosing
   currentClass = currentClass->enclosing;
 }
 
@@ -775,13 +717,14 @@ static void ternaryStatement(OpCode condition) { // unless is jump if true, if j
 
 static void whenStatement() { 
   advance();
-  Token token = parser.current; // hold the value to evaluate all expressions
+  Token token = parserCurrent(); // hold the value to evaluate all expressions
   advance();
   require(S_COLON, "Expect ':' to start a when block. ('when' expression ':')");
   beginScope();
 
   while (tokenIs(K_IS)) {
-    parser.current = token;
+    // parser.current = token;
+    setCurrent(token);
     resolveExpression(LVL_BASE);
     require(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
 
@@ -876,8 +819,9 @@ static void compileExpression() { // TODO write optionals for ')', '}', ']', ',,
 }
 
 static void synchronize() {
-  parser.panicMode = false;
-  Lexeme currentLexeme = parser.current.lexeme;
+  stopPanic();
+  //parser.panicMode = false;
+  Lexeme currentLexeme = parserCurrent().lexeme;
 
   while (currentLexeme != END_OF_FILE) {
     if (currentLexeme == S_SEMICOLON) {
@@ -903,7 +847,7 @@ static void synchronize() {
 }
 
 static void compileTokens() { 
-  switch (parser.current.lexeme) {
+  switch (parserCurrent().lexeme) {
     case K_DEFINE:    return closureDeclaration(); 
     case K_LET:       return variableDeclaration();
     case K_RETURN:    return returnStatement();
@@ -916,7 +860,7 @@ static void compileTokens() {
     case K_DO:        return doBlock();  
     default:          compileExpression();
   }
-  if (parser.panicMode) {
+  if (panic()) {
     synchronize();
   }
 }
@@ -927,8 +871,9 @@ ObjFunction* compile(const char* source) {
   Compiler compiler; 
   initCompiler(&compiler, FT_SCRIPT); 
 
-  parser.hasError = false;
-  parser.panicMode = false;
+  parserError(false);
+  //parser.panicMode = false;
+  stopPanic();
 
   advance();
   while (!consume(END_OF_FILE)) {
@@ -937,7 +882,7 @@ ObjFunction* compile(const char* source) {
 
   // it all ends as one script function
   ObjFunction* function = endCompiler();
-  return parser.hasError ? NULL : function;
+  return hasError() ? NULL : function;
 }
 // Garbage Collection 
 void markCompilerRoots() {

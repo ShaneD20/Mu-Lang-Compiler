@@ -3,36 +3,7 @@
 
 #include "object.h" // Strings compiler-include-object
 #include "vm.h"
-#include "scanner.h" // tokens
-
-typedef struct {
-  Token current;
-  Token previous;
-  bool hasError;
-  bool panicMode;
-} Parser;
-
-typedef enum {
-  LVL_NONE,
-  LVL_BASE,    // : :=
-  LVL_OR,      // or
-  LVL_AND,     // and
-  LVL_EQUAL,   // == !=
-  LVL_COMPARE, // < > <= >=
-  LVL_SUM,     // + -
-  LVL_SCALE,   // * /
-  LVL_UNARY,   // ! -
-  LVL_CALL,    // . ()
-  LVL_PRIMARY
-} Precedence;
-
-// parse-rule
-typedef void (*ParseFn)(bool canAssign); // Global Variables parse-fn-type
-typedef struct {
-  ParseFn prefix;
-  ParseFn infix;
-  Precedence precedence;
-} ParseRule;
+#include "scanner.h"
 
 typedef struct {
   Token name;

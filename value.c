@@ -31,7 +31,7 @@ void printValue(Value value) {
   if (IS_BOOL(value)) {
     printf(AS_BOOL(value) ? "true" : "false");
   } else if (IS_NIL(value)) {
-    printf("nil");
+    printf("null");
   } else if (IS_NUMBER(value)) {
     printf("%g", AS_NUMBER(value));
   } else if (IS_OBJ(value)) {
@@ -50,7 +50,7 @@ void printValue(Value value) {
     case VAL_BOOL:
       printf(AS_BOOL(value) ? "true" : "false");
       break;
-    case VAL_NIL: printf("nil"); break;
+    case VAL_NIL: printf("null"); break;
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
 //> Strings call-print-object
     case VAL_OBJ: printObject(value); break;

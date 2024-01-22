@@ -2,13 +2,13 @@ print "===Mu sample start===";
 
 //let asdf;  // error, uninitialized constant
 let #mystery;
-print #mystery;
-print -5;
-let test : -5;
-print test;
-print 0 - 5;
-print 5 - 6;
-#mystery := "The mystery is over";
+print #mystery; // uninitialized is null, may also enforce initializing in the future
+
+print -5;       // unary negation
+
+print 0 - 5;    // subtraction
+print 5 - 6;    // subtraction
+#mystery := "The mystery is over"; // reassignment
 print #mystery;
 
 print " --Constant assignment";
@@ -33,7 +33,7 @@ print !(2 = 1);
 
 print " --Modulo";
 let #id := 12;
-#id := #id % 5;
+#id %= 5;
 print #id;
 print #id * 3;
 
@@ -59,7 +59,7 @@ if true ?
     print "it's true!";
 ,,
 
-if (0 > -5) ?     // what's up with unary negation? TODO
+if (0 > -5) ?     
     print "yes, zero is greater than negative five"; 
 ,,
 
@@ -165,21 +165,21 @@ define add(x) as
 
  let add5plus : add(5);
 
-print "count.";
+print "functions with currying";
 add5plus(3);
 add5plus(1);
 add5plus(2);
 
 print "when statement";
 
-let value : 3;
+let value : 1;
 when value:
     is = 0 ? 
         print "it's zero";
         print "what can you do?";
     ,,
     is = 1 ? 
-        print "it's one";
+        print "it's one";     // bug,  only does one statement
         print "that's nice.";
     ,,
     is >= 1 ? print "it's greater than or equal to one.";
