@@ -172,7 +172,7 @@ add5plus(2);
 
 print "when statement";
 
-let value : 1;
+let value : 1.1;
 when value:
     is = 0 ? 
         print "it's zero";
@@ -181,8 +181,11 @@ when value:
     is = 1 ? 
         print "it's one";     // bug,  only does one statement
         print "that's nice.";
+        print "Wouldn't you say so?";
     ,,
-    is >= 1 ? print "it's greater than or equal to one.";
+    is >= 1 ? 
+        print "it's greater than or equal to one.";
+        print "sometimes that's something as simple as two.";
     ,,
     is >= 2 ? print "it's greater than or equal to two.";
     ,,

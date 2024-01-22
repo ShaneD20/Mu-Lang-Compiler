@@ -731,8 +731,8 @@ static void whenStatement() {
     int thenJump = emitJump(OP_JUMP_IF_FALSE);
     while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
       compileTokens();
-      emitByte(OP_QUIT);
     }
+    emitByte(OP_QUIT);
     require(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
     patchJump(thenJump); 
   }
