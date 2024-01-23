@@ -1,5 +1,5 @@
 # Mu Programming Language
-
+[Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md)
 ## Variable Declarations
 There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword. Constants are initialized with ‘:’ and mutables are assigned with ‘:=‘ . Identifiers for mutables have to begin with "#" such as "#value" or "#name". 
 
