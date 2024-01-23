@@ -4,9 +4,9 @@
 There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword. Constants are initialized with ‘:’ and mutables are assigned with ‘:=‘ . Identifiers for mutables have to begin with "#" such as "#value" or "#name". 
 
 ```
-let phrase : “Hello Word”;
+let phrase : “Hello Word”;    // constant
 
-let #number := 0;  
+let #number := 0;             // mutable
 #number  := 1;
  
 ```
@@ -33,18 +33,18 @@ print #value;	 // 100
 
 #textString .= “meow.”; // assigns the concatenation of textString and “ meow.”
 
-print #textString; // “Meoow, meow.”
+print #textString;      // “Meoow, meow.”
 ```
 
 ## Logical Operators
 ```
-1 and 2;   // logical and
+1 and 2;   // logical and, short-circuits on false
 
-3 or 5;    // logical or
+3 or 5;    // logical or, short-circuits on true
 
-3 = 3;     // equality
-3 > 5;     // greater
-3 < 7;	    // less
+3 = 3;     // equal to
+3 > 5;     // greater than
+3 < 7;	    // less than
 
 1 !~ 2;    // not equal
 
@@ -54,8 +54,11 @@ print #textString; // “Meoow, meow.”
 -7 >= 2; 		// greater than or equal to
 
 ```
+## The ,, operator and ?
+In programming languages it's beneficial to express the end of a block of code or the end of an expression. In Mu ',,' is used to express the ending of either. The ? operator is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
+
 ## Logical Control Flow
-Mu has ternary statements “if-else”, “unless-else”. As a design choice else-if is not supported. If a context is needed where one of several statements is true, Mu has a “when” statement. The "when" statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any conditional operator (= > < !~) etc.
+Mu has ternary statements “if-else”, “unless-else”. Based on a condition they act as a guard clause for one or two outcomes. Note that else-if chaining is not possible in Mu. If a context is needed where one of several statements is true, Mu has a “when” statement. Shown further below. 
 
 ```
 if 0 > 10 ?
@@ -82,6 +85,9 @@ else
 ,,
 
 // "it is five"
+```
+The "when" statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any conditional operator (= > < !~) etc. Lastly, the "when" statement is break-by-default.
+```
 
 let value : 1;
 
@@ -96,7 +102,7 @@ when value:
 // “it’s one”
 
 ```
-Loops are controlled by 'while' and 'until'.
+Loops are controlled by 'while' and 'until'. While is the standard loop that will break when the condition is false. Until is the same operations except the loop will break if true. This is to allow programmers to think with the booleans they have available and not worry about inverting. A programmer is free to write "until queue.isEmpty()" or "until stack.size() > 100". 
 ```
 let #count := 1;
 
@@ -118,37 +124,52 @@ until #count > 100 ?
 
 ```
 ## Functions
-Mu declares functions with the “define” keyword as show below.
+Mu represents functions with "use" expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression.
 ```
-define addTogether(x, y) as
-    return x + y;
-,,
-print addTogether(22, 55);
-
-define multiplyBoth(x, y) as
-    return x * y;
-,,
-print multiplyBoth(10, 99);
-
-define divideByTen(x) as
-    return x / 10;
-,,
-print divideByTen(39);
-
-define isEven(x) as
-    return 0 = x % 2;
-,,
-
-print isEven(3);
-print isEven(58);
-
-define fibonacci(n) as
+let fibonacci: use n as
     if n < 2 ? return n;
     ,,
     return fibonacci(n - 2) + fibonacci(n - 1);
 ,,
 
 print fibonacci(20);
+
+let addTogether:
+    use x, y return x + y;
+,,
+print addTogether(22, 55);
+
+let multiplyBoth:
+    use x, y return x * y;
+,,
+print multiplyBoth(10, 99);
+
+let divideByTen:
+    use x return x / 10;
+,,
+print divideByTen(39);
+
+let isEven: 
+    use x return 0 = x % 2;
+,,
+
+print isEven(3);
+print isEven(58);
+```
+An example of function currying.
+```
+let defineAdd: 
+    use x return use y as
+        print x + y;
+        return x + y;
+    ,,
+,,
+
+let add5plus : defineAdd(5); 
+
+add5plus(3);
+add5plus(1);
+add5plus(2);
 ```
 ## Function Closures and Global Scope
 Constants are stored in the global scope, while mutables are scoped locally to the file. This is a design choice to reduce side effects, as any function can access the global scope. If a mutable is to be used with a function, it has to be passed in as a parameter or declared within the function's scope.
@@ -176,5 +197,14 @@ print increaseNumberBy(2);  // 8
 print increaseNumberBy(1);  // 7
 print increaseNumberBy(0);  // 6
 print increaseNumberBy(-1); // 5
+
+let magicNumber : 12;
+
+let triplePlusValue : use y as
+  let #z := y;
+  #z *= 3;
+  return #z + magicNumber; 
+,,
+print triplePlusValue(9);
 
 ```
