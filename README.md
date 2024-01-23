@@ -17,25 +17,36 @@ Mutables have short-hand operators to perform mutations. For single line comment
 let #value := 34;
 let #textString := “Meoow, ”;
 
-#value += 1; 	 // assigns the sum of one plus the value
-print #value;	 // 35
-  
-#value += -5;	 // assigns the sum of negative five and the value
-print #value;	 // 30
+// assign the sum of one plus the value
+#value += 1; 	 
+print #value;
 
-#value *= 10;  // multiplies the value by ten
-print #value;	 // 300
+// assign the sum of negative five and the value
+#value += -5;
+print #value;
 
-#value /= 3;	  // divides the value by three
-print #value;	 // 100
+// multiply the value by ten
+#value *= 10;  
+print #value;	 
 
-#value %= 5;	  // assigns the remainder of the value from modulus five
+// divide the value by three
+#value /= 3;	  
+print #value;	 
 
+// assigns the remainder of the value from modulus five
+#value %= 5;	  
+
+// concatenate #textString
 #textString .= “meow.”; // assigns the concatenation of textString and “ meow.”
-
-print #textString;      // “Meoow, meow.”
+print #textString;      
 ```
-
+```
+// 35
+// 30
+// 300
+// 100
+// “Meoow, meow.”
+```
 ## Logical Operators
 Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '<=', '>=') for logical operators. '!' is the character for 'logical not'.
 ```
