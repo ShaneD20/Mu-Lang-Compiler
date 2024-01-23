@@ -54,7 +54,7 @@ print #value;
 #value %= 5;	  
 
 // concatenate #textString
-#textString .= “meow.”; // assigns the concatenation of textString and “ meow.”
+#textString .= “meow.”; 
 print #textString;      
 ```
 ```
