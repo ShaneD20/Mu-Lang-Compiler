@@ -1,5 +1,11 @@
 print "===Mu sample start===";
 
+let #simon : "Simon says!";
+print #simon;
+
+#simon := "Simon says stop!";
+print #simon;
+
 //let asdf;  // error, uninitialized constant
 let #mystery;
 print #mystery; // uninitialized is null, may also enforce initializing in the future
@@ -32,13 +38,13 @@ print !(3 > 3 * 2);
 print !(2 = 1);
 
 print " --Modulo";
-let #id := 12;
+let #id : 12;
 #id %= 5;
 print #id;
 print #id * 3;
 
 print " --While Loop";
-let #count := 1;
+let #count : 1;
 
 while #count < 100 ?
     print #count;
@@ -193,7 +199,7 @@ when value:
 print "Count to four.";
 
 let countTo: use x as
-    let #i := 0;
+    let #i : 0;
     until #i >= x ?
         #i += 1;
         print #i;
@@ -216,11 +222,18 @@ print getProductOf(4, 3);
 let magicNumber : 12;
 
 let triplePlusValue : use y as
-  let #z := y;
+  let #z : y;
   #z *= 3;
   return #z + magicNumber; 
 ,,
-print triplePlusValue(9);
+print triplePlusValue(9); // 39
 
+print " --Mutable Function Parameters";
+
+let test : use x, #y as
+    #y *= #y;
+    return x + #y;
+,,
+print test(1, 2);
 
 print "===Mu sample end ===";

@@ -28,13 +28,6 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte2);
 }
 
-static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
-  // TODO clean up again
-  emitByte(operation);
-  emitBytes(byte1, target);
-  emitBytes(byte2, target);
-}
-
 static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
 
@@ -281,6 +274,15 @@ static void defineConstant(uint8_t global) { // Currently assigns constants
 static void resolveExpression(Precedence precedence);
 static ParseRule* getRule(Lexeme glyph); 
 
+
+static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
+  resolveExpression(LVL_BASE);
+  // TODO clean up again
+  emitByte(operation);
+  emitBytes(byte1, target);
+  emitBytes(byte2, target);
+}
+
 static uint8_t argumentList() {
   uint8_t argCount = 0;
   if (tokenIsNot(S_RIGHT_PARENTHESES)) {
@@ -388,25 +390,22 @@ static void namedVariable(Token name, bool canAssign) {
     setOp = OP_SET_GLOBAL;
    // printf("global:\n"); // REMOVE
   }
-  if (canAssign && consume(D_COLON_EQUAL)) {  // ugly but it works
+  if (canAssign && consume(S_COLON)) { // for error reporting
     resolveExpression(LVL_BASE);
     emitBytes(setOp, (uint8_t)arg);
-  } else if (canAssign && consume(D_PLUS_EQUAL)) {
+  } else if (canAssign && consume(D_COLON_EQUAL)) {  
     resolveExpression(LVL_BASE);
+    emitBytes(setOp, (uint8_t)arg);
+  } else if (canAssign && consume(D_PLUS_EQUAL)) { // ugly but it works
     emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
   } else if (canAssign && consume(D_STAR_EQUAL)) {
-    resolveExpression(LVL_BASE);
     emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
   } else if (canAssign && consume(D_SLASH_EQUAL)) {
-    resolveExpression(LVL_BASE);
     emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
   } else if (canAssign && consume(D_MODULO_EQUAL)) {
-    resolveExpression(LVL_BASE);
     emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
   } else if (canAssign && consume(D_DOT_EQUAL)) {
-    resolveExpression(LVL_BASE);
     emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
-    // integer concatenation ?
   } else {
     emitBytes(getOp, (uint8_t)arg);
   }
@@ -600,7 +599,7 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
 static void handleMutable() { 
   uint8_t local = parseVariable("Expect variable name."); 
 
-  if (consume(D_COLON_EQUAL)) { // extra weight for an aesthetic
+  if (consume(S_COLON)) { // extra weight for an aesthetic
     resolveExpression(LVL_BASE);
   } else {
     emitByte(OP_NIL);
