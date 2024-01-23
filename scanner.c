@@ -141,7 +141,6 @@ static Lexeme identifierType() { // tests for keywords
     case 'o': return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT); // TODO replace with native function
     case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
-    case 's': return checkKeyword(1, 3, "elf", K_SELF);
     case 't': // branch out to "to", "true"
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
@@ -233,7 +232,16 @@ Token scanToken() {
     case ',': 
       return makeToken(match(',') ? D_COMMA : S_COMMA);
     case '.': 
-      return makeToken(match('=') ? D_DOT_EQUAL : S_DOT);
+      switch(scanner.start[1]) {
+        case '=': advance();
+          return  makeToken(D_DOT_EQUAL);
+        case '.': advance();
+          return makeToken(D_DOT);
+        default: 
+          return makeToken(S_DOT);
+      }
+      break;
+      //return makeToken(match('=') ? D_DOT_EQUAL : S_DOT);
     case '+': 
       return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS);
     case '/': 

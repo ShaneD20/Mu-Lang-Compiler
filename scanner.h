@@ -11,7 +11,7 @@ typedef enum {
   S_LEFT_SQUARE, S_RIGHT_SQUARE, S_BANG,    // [ ] !
   // Two character tokens
   D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,     // ,, !~ :=
-  D_GREATER_EQUAL, D_LESS_EQUAL,            // >= <=
+  D_GREATER_EQUAL, D_LESS_EQUAL, D_DOT,     // >= <= ..
   D_PLUS_EQUAL, D_STAR_EQUAL, D_SLASH_EQUAL,// += *= /=
   D_MODULO_EQUAL, D_DOT_EQUAL, D_DIAMOND,   // %= .=
   // Literals
@@ -30,7 +30,6 @@ typedef enum {
   K_NULL,
   K_OR,
   K_RETURN,
-  K_SELF,
   K_UNLESS, K_UNTIL, K_USE,
   K_WHEN, K_WHILE,
   K_TRUE, K_TO,
