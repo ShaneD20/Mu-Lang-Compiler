@@ -11,7 +11,7 @@ let #number : 0;             // mutable
  
 ```
 ## Core Operators
-For single line comments, Mu uses ‘//‘, for arithmetic operators Mu uses ('+', '-', '/', '*'), for concatenation '..' is used.
+For single line comments, Mu uses ‘//‘, for arithmetic operators Mu uses ('+', '-', '/', '*'), for concatenation '..' is used. Note concatenation works with strings and strings or numbers and numbers.
 ```
 // addition
 let sum : 3 + 8;
@@ -27,6 +27,14 @@ let quotient : x / y;
 
 // concatenation
 let phrase : "Hello" .. " " .. "World";
+print phrase;
+
+let number : 2 .. 1;
+print number;
+```
+```
+// "Hello World"
+// 21
 ```
 ## Mutable Operators and Comments
 Mutables have short-hand operators to perform mutations. Both are similar to other programming languages.
