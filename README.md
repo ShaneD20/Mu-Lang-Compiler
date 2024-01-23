@@ -167,9 +167,9 @@ let defineAdd:
 
 let add5plus : defineAdd(5); 
 
-add5plus(3);
-add5plus(1);
-add5plus(2);
+add5plus(3);   // 8
+add5plus(1);   // 6
+add5plus(2);   // 7
 ```
 ## Function Closures and Global Scope
 Constants are stored in the global scope, while mutables are scoped locally to the file. This is a design choice to reduce side effects, as any function can access the global scope. If a mutable is to be used with a function, it has to be passed in as a parameter or declared within the function's scope.
