@@ -60,7 +60,7 @@ if true ?
 ,,
 
 if (0 > -5) ?     
-    print "yes, zero is greater than negative five"; 
+    print "yes, zero is greater than negative five";
 ,,
 
 if 0 > 10 ?
@@ -96,7 +96,7 @@ print " --String Concatenation";
 
 let name: "steve";
 let last: " poe";
-let full_name: name . last;
+let full_name: name .. last;
 print full_name;
 
 print " --functions";
@@ -111,7 +111,7 @@ let multiplyBoth:
 ,,
 print multiplyBoth(10, 99);
 
-let divideByTen:
+let divideByTen:            // missing let on declaration has no way to disclose
     use x return x / 10;
 ,,
 print divideByTen(39);
@@ -139,7 +139,7 @@ print "--Global Scope";
 //          #number := #number + x; // function doesn't know what #number is
 //          print #number;
 //      ,,
-//      increaseNumber(); // won't work
+//      increaseNumberBy(7); // won't work
 //
 //  ** Constants are in global scope **
 

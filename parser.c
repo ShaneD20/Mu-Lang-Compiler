@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "common.h"
@@ -48,6 +48,7 @@ void errorAt(Token* token, const char* message) {
 
   fprintf(stderr, ": %s\n", message);
   parser.hasError = true;
+  exit(1);
 }
 
 void error(const char* message) { // BOTH don't pass in a token when called
@@ -88,5 +89,5 @@ bool consume(Lexeme glyph) {
 void require(Lexeme test, const char* message) { // kind of doing the same thing
   if (parser.current.lexeme == test) {
     advance();
-  } else errorAtCurrent(message);
+  } else error(message);
 }

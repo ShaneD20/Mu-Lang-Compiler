@@ -15,8 +15,6 @@
 const int argLimit = 255;
 Compiler* current = NULL;
 
-/* START HELPER FUNCTIONS */
-
 static Chunk* currentChunk() {
   return &current->function->chunk;
 }
@@ -136,8 +134,7 @@ static ObjFunction* endCompiler() {
 
 //> dump-chunk
 #ifdef DEBUG_PRINT_CODE
-  if (!parser.hadError) {
-// Calls and Functions disassemble end
+  if (!parser.hadError) { // Calls and Functions disassemble end
     disassembleChunk(currentChunk(), function->name != NULL
         ? function->name->chars : "<script>");
   }
@@ -336,7 +333,7 @@ static void binary(bool canAssign) {
       break;
     case D_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
       break;
-    case K_TO:            emitByte(OP_CONCATENATE);
+    case D_DOT:           emitByte(OP_CONCATENATE);
       break;
     case S_PLUS:          emitByte(OP_ADD); 
       break;
@@ -467,7 +464,7 @@ static void buildClosure(FunctionType type) {
   if (tokenIs(K_RETURN)) {
     block();
   } else {
-    require(K_AS, "Expect 'as' after parameters and before function body.");
+    require(K_AS, "Expect 'as' or 'return' after parameters and before function body.");
     block();
   }
   
@@ -496,6 +493,7 @@ static void literal(bool canAssign) {
 ParseRule rules[] = {
 //                         prefix, infix, precedence
 // Calls and FunctiLVL
+  [S_DOT]               = {NULL,     call, LVL_CALL}, // call struct properties?
   [S_LEFT_PARENTHESES]  = {grouping, call,   LVL_CALL},
   [S_RIGHT_PARENTHESES] = {NULL,     NULL,   LVL_NONE},
 // Sructures (Product Types, Arrays)
@@ -518,7 +516,7 @@ ParseRule rules[] = {
   [D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
   [D_DOT_EQUAL]    = {NULL, NULL, LVL_NONE},
 // Arithmetic, Concatenation Operators
-  [S_DOT]         = {NULL,     binary, LVL_SUM}, // can add method call, maybe
+  [D_DOT]         = {NULL,     binary, LVL_SUM}, // can add method call, maybe
   [S_MINUS]       = {unary,    binary, LVL_SUM},
   [S_PLUS]        = {NULL,     binary, LVL_SUM},
   [S_SLASH]       = {NULL,     binary, LVL_SCALE},
@@ -540,7 +538,7 @@ ParseRule rules[] = {
   [L_NUMBER]        = {number,    NULL,   LVL_NONE},
 //  KEYWORDS
   [TOKEN_PRINT]     = {NULL,     NULL,   LVL_NONE},
-  [K_USE]          = {literal,  NULL,   LVL_NONE},
+  [K_USE]           = {literal,  NULL,   LVL_NONE},
   [K_FALSE]         = {literal,  NULL,   LVL_NONE},
   [K_NULL]          = {literal,  NULL,   LVL_NONE},
   [K_TRUE]          = {literal,  NULL,   LVL_NONE},
@@ -730,7 +728,7 @@ static void variableDeclaration() {
   if (consume(S_COLON)) {
     resolveExpression(LVL_BASE);
   } else {
-    error("Need to initialize constants.");
+    error("Need to initialize constants. ('let' identifier : expression ';')");
   }
   if (previousIsNot(D_COMMA)) { // testing single comma for objects
     require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
