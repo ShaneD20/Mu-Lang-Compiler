@@ -77,7 +77,8 @@ Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '
 
 ```
 ## The ,, operator and ?
-In programming languages it's beneficial to express the end of a block of code or the end of an expression. In Mu ',,' is used to express the ending of either. The ? operator is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
+In programming languages it's beneficial to express the end of a block of code. In Mu ',,' is used to express the ending of a code block. 
+The ? operator is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
 
 ## Logical Control Flow
 Mu has ternary statements “if-else”, “unless-else”. Based on a condition they act as a guard clause for one or two outcomes. Note that else-if chaining is not possible in Mu. If a context is needed where one of several statements is true, Mu has a “when” statement. Shown further below. 
