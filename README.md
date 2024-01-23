@@ -240,3 +240,14 @@ let triplePlusValue : use y as
 print triplePlusValue(9);
 
 ```
+## Mutable Function Parameters
+```
+let #test := use x, #y as
+    #y *= #y;
+    return x + #y;
+,,
+print #test(1, 2);
+```
+```
+// 5
+```
