@@ -31,8 +31,8 @@ let phrase : "Hello" .. " " .. "World";
 ## Mutable Operators and Comments
 Mutables have short-hand operators to perform mutations. Both are similar to other programming languages.
 ```
-let #value := 34;
-let #textString := “Meoow, ”;
+let #value : 34;
+let #textString : “Meoow, ”;
 
 // assign the sum of one plus the value
 #value += 1; 	 
@@ -135,7 +135,7 @@ when value:
 ```
 Loops are controlled by 'while' and 'until'. While is the standard loop that will break when the condition is false. Until is the same operations except the loop will break if true. This is to allow programmers to think with the booleans they have available and not worry about inverting. A programmer is free to write "until queue.isEmpty()" or "until stack.size() > 100". 
 ```
-let #count := 1;
+let #count : 1;
 
 while #count < 100 ?
     print #count;
@@ -209,7 +209,7 @@ Constants are stored in the global scope, while mutables are scoped locally to t
 Further as functions create closures, they ignore mutables. Mutables are never captured within a function's closure.
 ```
 //  ** Mutables are not in global scope **
-//      let #number := 6;
+//      let #number : 6;
 //      
 //      define increaseNumber() as
 //          #number := #number + 1; // function doesn't know what #number is
@@ -242,7 +242,7 @@ print triplePlusValue(9);
 ```
 ## Mutable Function Parameters
 ```
-let #test := use x, #y as
+let #test : use x, #y as
     #y *= #y;
     return x + #y;
 ,,
