@@ -4,15 +4,32 @@
 There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword. Constants are initialized with ‘:’ and mutables are assigned with ‘:=‘ . Identifiers for mutables have to begin with "#" such as "#value" or "#name". 
 
 ```
-let phrase : “Hello Word”;    // constant
+let phrase : “Hello World”;    // constant
 
 let #number := 0;             // mutable
 #number  := 1;
  
 ```
+## Core Operators
+For single line comments, Mu uses ‘//‘, for arithmetic operators Mu uses ('+', '-', '/', '*'), for concatenation '..' is used.
+```
+// addition
+let sum : 3 + 8;
 
+// subtraction
+let net : proft - cost;
+
+// multiplication
+let product : x * y;
+
+// division
+let quotient : x / y;
+
+// concatenation
+let phrase : "Hello" .. " " .. "World";
+```
 ## Mutable Operators and Comments
-Mutables have short-hand operators to perform mutations. For single line comments, Mu uses ‘//‘. Both are similar to other programming languages.
+Mutables have short-hand operators to perform mutations. Both are similar to other programming languages.
 ```
 let #value := 34;
 let #textString := “Meoow, ”;
