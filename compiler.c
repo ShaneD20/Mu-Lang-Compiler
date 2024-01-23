@@ -136,8 +136,7 @@ static ObjFunction* endCompiler() {
 
 //> dump-chunk
 #ifdef DEBUG_PRINT_CODE
-  if (!parser.hadError) {
-// Calls and Functions disassemble end
+  if (!parser.hadError) { // Calls and Functions disassemble end
     disassembleChunk(currentChunk(), function->name != NULL
         ? function->name->chars : "<script>");
   }
@@ -195,7 +194,7 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
 }
 
 // Closures 
-static int resolveUpvalue(Compiler* compiler, Token* name) {
+static int resolveUpvalue(Compiler* compiler, Token* token) {
   if (compiler->enclosing == NULL) return -1;
   if (name->lexeme == L_VARIABLE) return -1; // prevents mutables from being an upvalue
 
@@ -206,7 +205,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
   }
 
 // recursive
-  int upvalue = resolveUpvalue(compiler->enclosing, name);
+  int upvalue = resolveUpvalue(compiler->enclosing, token);
   if (upvalue != -1) {
     return addUpvalue(compiler, (uint8_t)upvalue, false);
   }
@@ -382,7 +381,7 @@ static void namedVariable(Token name, bool canAssign) {
     setOp = OP_SET_LOCAL;
    // printf("local:\n"); // REMOVE
   } else if ((arg = resolveUpvalue(current, &name)) != -1) {
-    getOp = OP_GET_UPVALUE;
+    getOp = OP_GET_UPVALUE;   // Closures
     setOp = OP_SET_UPVALUE;
    // printf("upvalue:"); // REMOVE
   } else {
