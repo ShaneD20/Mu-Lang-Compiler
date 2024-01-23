@@ -6,83 +6,35 @@
 #include "compiler.h"
 #include "memory.h" // Garbage Collection compiler-include-memory
 #include "scanner.h"
+#include "parser.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
 #endif
 
 const int argLimit = 255;
-
-Parser parser;
 Compiler* current = NULL;
-ClassCompiler* currentClass = NULL;
+
+/* START HELPER FUNCTIONS */
 
 static Chunk* currentChunk() {
   return &current->function->chunk;
 }
 
-// ERROR functions
-static void errorAt(Token* token, const char* message) {
-  if (parser.panicMode) {
-    return;
-  } 
-  parser.panicMode = true;
-  fprintf(stderr, "\n[line %d] Error\n", token->line); // TODO : maybe pass in as parameter
-
-  if (token->type == END_OF_FILE) {
-    fprintf(stderr, " at end");
-  } else if (token->type == TOKEN_ERROR) { // Nothing.
-  } else {
-    fprintf(stderr, " at '%.*s'", token->length, token->start);
-  }
-
-  fprintf(stderr, ": %s\n", message);
-  parser.hasError = true;
-}
-static void error(const char* message) {
-  errorAt(&parser.previous, message);
-}
-static void errorAtCurrent(const char* message) {
-  errorAt(&parser.current, message);
-}
-
-//> helper functions START
-
-static void advance() {
-  parser.previous = parser.current;
-
-  for (;;) {
-    parser.current = scanToken();
-    if (parser.current.type != TOKEN_ERROR) break;
-    errorAtCurrent(parser.current.start);
-  }
-}
-
-static void consume(TokenType type, const char* message) {
-  if (parser.current.type == type) {
-    advance();
-    return;
-  }
-  errorAtCurrent(message);
-}
-
-static bool check(TokenType type) {
-  return parser.current.type == type;
-}
-
-static bool matchAdvance(TokenType type) {
-  if (!check(type)) return false;
-  advance();
-  return true;
-}
-
 static void emitByte(uint8_t byte) {
-  writeChunk(currentChunk(), byte, parser.previous.line);
+  writeChunk(currentChunk(), byte, previousToken().line);
 }
 
 static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte1);
   emitByte(byte2);
+}
+
+static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
+  // TODO clean up again
+  emitByte(operation);
+  emitBytes(byte1, target);
+  emitBytes(byte2, target);
 }
 
 static void emitLoop(int loopStart) {
@@ -117,7 +69,7 @@ static void emitReturn() {
   if (current->type == FT_INITIALIZER) {
     emitBytes(OP_GET_LOCAL, 0);
   } else {
-    emitByte(OP_NIL);
+    emitByte(OP_NIL); // I frequently wonder if false would be prefereable
   }
   emitByte(OP_RETURN);
 }
@@ -138,7 +90,6 @@ static void emitConstant(Value value) {
 static void beginScope() {
   current->scopeDepth++;
 }
-
 static void endScope() {
   current->scopeDepth--;
 
@@ -154,8 +105,6 @@ static void endScope() {
   }
 }
 
-//^ helper functions END
-
 static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   compiler->function = NULL;
@@ -165,7 +114,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->function = newFunction();
   current = compiler;
   if (type != FT_SCRIPT) {
-    current->function->name = copyString(parser.previous.start, parser.previous.length);
+    current->function->name = copyString(previousToken().start, previousToken().length);
   }
 
   Local* local = &current->locals[current->localCount++];
@@ -173,7 +122,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   local->isCaptured = false;
 // Methods and Initializers slot-zero
   if (type != FT_FUNCTION) {
-    local->name.start = "this";
+    local->name.start = "self";
     local->name.length = 4;
   } else {
     local->name.start = "";
@@ -187,8 +136,7 @@ static ObjFunction* endCompiler() {
 
 //> dump-chunk
 #ifdef DEBUG_PRINT_CODE
-  if (!parser.hadError) {
-// Calls and Functions disassemble end
+  if (!parser.hadError) { // Calls and Functions disassemble end
     disassembleChunk(currentChunk(), function->name != NULL
         ? function->name->chars : "<script>");
   }
@@ -199,42 +147,19 @@ static ObjFunction* endCompiler() {
   return function;
 }
 
-// Oddities
-static void declaration();
-static void expression(Precedence precedence);
-static ParseRule* getRule(TokenType type);
-//^ Oddities
-
-static void emitAssignment(uint8_t byte1, uint8_t byte2) {
-  advance();
-  expression(PREC_ASSIGNMENT);
-  emitByte(byte1);
-  emitByte(byte2);
+static uint8_t identifierConstant(Token* token) {
+  return makeConstant(OBJ_VAL(copyString(token->start, token->length)));
 }
 
-static void emitCompoundAssignment(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
-  advance();
-  expression(PREC_ASSIGNMENT);
-  emitByte(operation);
-  emitBytes(byte1, target);
-  emitBytes(byte2, target);
-}
-
-// Global Variables 
-static uint8_t identifierConstant(Token* name) {
-  return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
-}
-
-// Local Variables
 static bool identifiersEqual(Token* a, Token* b) {
   if (a->length != b->length) return false;
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
-static int resolveLocal(Compiler* compiler, Token* name) {
+static int resolveLocal(Compiler* compiler, Token* token) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
     Local* local = &compiler->locals[i];
-    if (identifiersEqual(name, &local->name)) {
+    if (identifiersEqual(token, &local->name)) {
 
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
@@ -244,7 +169,11 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   }
   return -1;
 }
+/************************/
+/* END HELPER FUNCTIONS */
+/************************/
 
+// Closures
 static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
   int upvalueCount = compiler->function->upvalueCount;
 
@@ -254,7 +183,6 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
       return i;
     }
   }
-//^ Closures
 
   if (upvalueCount == UINT8_COUNT) {
     error("Too many closure variables in function.");
@@ -268,12 +196,12 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
 // Closures 
 static int resolveUpvalue(Compiler* compiler, Token* token) {
   if (compiler->enclosing == NULL) return -1;
-  if (token->type == L_VARIABLE) return -1; // prevents mutables from being an upvalue
+  if (name->lexeme == L_VARIABLE) return -1; // prevents mutables from being an upvalue
 
-  int local = resolveLocal(compiler->enclosing, token);
-  if (local != -1) { // mark-local-captured
-    compiler->enclosing->locals[local].isCaptured = true;
-    return addUpvalue(compiler, (uint8_t)local, true);
+  int depth = resolveLocal(compiler->enclosing, name);
+  if (depth != -1) { // mark-local-captured
+    compiler->enclosing->locals[depth].isCaptured = true;
+    return addUpvalue(compiler, (uint8_t)depth, true);
   }
 
 // recursive
@@ -284,9 +212,7 @@ static int resolveUpvalue(Compiler* compiler, Token* token) {
   return -1;
 }
 
-// Local Variables
 static void addLocal(Token name) {
-//> too many...
   if (current->localCount == UINT8_COUNT) {
     error("Too many local variables in function.");
     return;
@@ -297,16 +223,15 @@ static void addLocal(Token name) {
   local->depth = -1;
   local->isCaptured = false;
 }
-//< Local Variables add-local
-//> Local Variables declare-variable
+
 static void declareVariable(bool immutable) {
   if (immutable && current->scopeDepth == 0) return; 
   /* 
     bool immutable forces mutables to be stack allocated
     obtains desired behavior but may not be long term solution
   */
-
-  Token* name = &parser.previous;
+  Token prior = previousToken();
+  Token* name = &prior;
 
   for (int i = current->localCount - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
@@ -322,82 +247,81 @@ static void declareVariable(bool immutable) {
   addLocal(*name);
 }
 
-// Global Variables
 static uint8_t parseVariable(const char* errorMessage) {
-  if (check(L_VARIABLE)) {
-    consume(L_VARIABLE, errorMessage);
+  if (tokenIs(L_VARIABLE)) {
+    require(L_VARIABLE, errorMessage);
     declareVariable(false);
-  } else {
-    consume(L_IDENTIFIER, errorMessage);
+  } else {      
+    require(L_IDENTIFIER, errorMessage);
     declareVariable(true);
   }
   if (current->scopeDepth > 0) {
     return 0; // Local Variables parse-local
   }
-  return identifierConstant(&parser.previous);
+  Token prior = previousToken();
+  return identifierConstant(&prior);
 }
 
-//> Local Variables mark-initialized
 static void markInitialized() {
   if (current->scopeDepth == 0) {
-    return; // Calls and Functions check-depth
+    return; 
   }
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-static void defineMutable(uint8_t mutable) { // Testing having mutables be stack allocated
-  current->locals[current->localCount - 1].depth = current->scopeDepth;
-  emitBytes(OP_SET_LOCAL, mutable);
-}
-
-static void defineVariable(uint8_t global) { // Currently assigns constants
+static void defineConstant(uint8_t global) { // Currently assigns constants
   if (current->scopeDepth > 0) {
-    markInitialized();
-// define local
+    markInitialized(); // define local
     return;
   } 
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
+/*********************/
+/* BEGIN EXPRESSIONS */
+/*********************/
+static void resolveExpression(Precedence precedence);
+static ParseRule* getRule(Lexeme glyph); 
+
 static uint8_t argumentList() {
   uint8_t argCount = 0;
-  if (!check(S_RIGHT_PARENTHESES)) {
+  if (tokenIsNot(S_RIGHT_PARENTHESES)) {
     do {
-      expression(PREC_ASSIGNMENT);
+      resolveExpression(LVL_BASE);
 
       if (argCount >= argLimit) {
         error("Can't have more than 255 arguments.");
       }
       argCount++;
-    } while (matchAdvance(S_COMMA));
+    } while (consume(S_COMMA));
   }
-  consume(S_RIGHT_PARENTHESES, "Expect ')' after arguments.");
+  require(S_RIGHT_PARENTHESES, "Expect ')' after arguments.");
   return argCount;
 }
 
-/****************************************/
-/* START EXPRESSION RULES AND FUNCTIONS */
-/****************************************/
-
-static void and_(bool canAssign) {
+static void andJump(bool x) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
-  expression(PREC_AND);
+  resolveExpression(LVL_AND);
   patchJump(endJump);
 }
 
-static void or_(bool canAssign) {
+static void orJump(bool x) {
   int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
-  expression(PREC_OR);
+  resolveExpression(LVL_OR);
   patchJump(endJump);
+}
+
+static void structure(bool canAssign) {
+
 }
 
 static void binary(bool canAssign) {
-  TokenType operator = parser.previous.type;
-  ParseRule* rule = getRule(operator);
-  expression((Precedence)(rule->precedence + 1));
-  //printf("OP_binary, "); // REMOVE
+  Lexeme operator = previousToken().lexeme;
+  ParseRule* rule = getRule(operator);    // get the precedence
+  resolveExpression((Precedence)(rule->precedence + 1)); // apply the precedence
+
   switch (operator) {
     case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
       break;
@@ -427,62 +351,30 @@ static void binary(bool canAssign) {
   }
 }
 
-// invoked by '('
 static void call(bool canAssign) { 
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 }
 
-// invoked by 'object.'
-static void dot(bool canAssign) {
-  consume(L_IDENTIFIER, "Expect property name after '.' .");
-  uint8_t name = identifierConstant(&parser.previous);
-
-  if (canAssign && matchAdvance(D_COLON_EQUAL)) { // TODO remove for immutability
-    expression(PREC_ASSIGNMENT);
-    emitBytes(OP_SET_PROPERTY, name);
-// Methods and Initializers parse-call
-  } else if (matchAdvance(S_LEFT_PARENTHESES)) {
-    uint8_t argCount = argumentList();
-    emitBytes(OP_INVOKE, name);
-    emitByte(argCount);
-//^ Methods and Initializers parse-call
-  } else {
-    emitBytes(OP_GET_PROPERTY, name);
-  }
-}
-//^ currently not used anywhere
-
-// Global Variables
-static void literal(bool canAssign) {
-  switch (parser.previous.type) {
-    case K_FALSE: emitByte(OP_FALSE); 
-      break;
-    case K_NULL:  emitByte(OP_NIL); 
-      break;
-    case K_TRUE:  emitByte(OP_TRUE); 
-      break;
-    default: return; // Unreachable.
-  }
+static void grouping(bool unused) {
+  resolveExpression(LVL_BASE);
+  require(S_RIGHT_PARENTHESES, "Expect ')' after expression.");
 }
 
-static void grouping(bool canAssign) {
-  expression(PREC_ASSIGNMENT);
-  consume(S_RIGHT_PARENTHESES, "Expect ')' after expression.");
-}
-
-static void number(bool canAssign) {
-  double value = strtod(parser.previous.start, NULL);
+static void number(bool unused) {
+  double value = strtod(previousToken().start, NULL);
   emitConstant(NUMBER_VAL(value)); // already prints
 }
 
-static void string(bool canAssign) {
-  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2))); // already prints
+static void string(bool unused) {
+  emitConstant(OBJ_VAL(copyString(previousToken().start + 1, previousToken().length - 2))); // already prints
 }
 
-static void namedVariable(Token name, bool canAssign) {  // housed withing void variable()
+static void namedVariable(Token name, bool canAssign) { 
   uint8_t getOp, setOp;
-
+  /*
+    if mutables are stored on the stack, how can I get resolveLocal to return 0 ?
+  */
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
@@ -498,55 +390,39 @@ static void namedVariable(Token name, bool canAssign) {  // housed withing void 
     setOp = OP_SET_GLOBAL;
    // printf("global:\n"); // REMOVE
   }
-  if (canAssign) {
-    switch (parser.current.type) {
-      case D_COLON_EQUAL:  emitAssignment(setOp, (uint8_t)arg);
-        return;
-      case D_PLUS_EQUAL:   emitCompoundAssignment(OP_ADD, getOp, setOp, (uint8_t)arg);
-        return;
-      case D_STAR_EQUAL:   emitCompoundAssignment(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
-        return;
-      case D_SLASH_EQUAL:  emitCompoundAssignment(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
-        return;
-      case D_MODULO_EQUAL: emitCompoundAssignment(OP_MODULO, getOp, setOp, (uint8_t)arg);
-        return;
-      case D_DOT_EQUAL:    emitCompoundAssignment(OP_CONCATENATE, getOp, setOp, (uint8_t)arg); // integer concatenation ?
-        return;
-      default: emitBytes(getOp, (uint8_t)arg);
-    }
+  if (canAssign && consume(D_COLON_EQUAL)) {  // ugly but it works
+    resolveExpression(LVL_BASE);
+    emitBytes(setOp, (uint8_t)arg);
+  } else if (canAssign && consume(D_PLUS_EQUAL)) {
+    resolveExpression(LVL_BASE);
+    emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && consume(D_STAR_EQUAL)) {
+    resolveExpression(LVL_BASE);
+    emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && consume(D_SLASH_EQUAL)) {
+    resolveExpression(LVL_BASE);
+    emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && consume(D_MODULO_EQUAL)) {
+    resolveExpression(LVL_BASE);
+    emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
+  } else if (canAssign && consume(D_DOT_EQUAL)) {
+    resolveExpression(LVL_BASE);
+    emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
+    // integer concatenation ?
+  } else {
+    emitBytes(getOp, (uint8_t)arg);
   }
 }
 
-static void variable(bool canAssign) {
-  namedVariable(parser.previous, canAssign); 
+static void variable(bool canAssign) { // would really like to clear this confusion, but it's needed.
+  namedVariable(previousToken(), canAssign); 
 }
 
-static void structure(bool canAssign) {
-  /*
-    need to be like _t argumentList, create an amount of element
-    then be like a function call that perpetually sits on the table
-  */
+static void unary(bool unused) {
+  Lexeme operator = previousToken().lexeme; // hold onto the operator, resolve the next expression, then emit
 
-  if (!check(S_RIGHT_CURLY)) {
-    do {
-      current->function->arity++; // TODO replace with an anonymous instance
-      if (current->function->arity > argLimit) {
-        errorAtCurrent("Can't have more than 255 parameters.");
-      }
-      uint8_t constant = parseVariable("Expect parameter name.");
-      defineVariable(constant);
-    } while (matchAdvance(S_COMMA));
-  }
-//^ parameters
-  consume(S_RIGHT_CURLY, "Expect '}' to finish structure literal.");
-}
-
-static void unary(bool canAssign) {
-  TokenType operatorType = parser.previous.type;
-
-  expression(PREC_UNARY); // Compile the operand.
-
-  switch (operatorType) {
+  resolveExpression(LVL_UNARY);
+  switch (operator) {
     case S_BANG: emitByte(OP_NOT); 
       break;
     case S_MINUS: emitByte(OP_NEGATE); 
@@ -555,112 +431,19 @@ static void unary(bool canAssign) {
   }
 }
 
-ParseRule rules[] = {
-// Calls and Functions 
-  [S_LEFT_PARENTHESES]  = {grouping, call,   PREC_CALL},
-  [S_RIGHT_PARENTHESES] = {NULL,     NULL,   PREC_NONE},
-  [S_DOT]               = {NULL,     dot,    PREC_CALL},
-// Sructures (Product Types, Arrays)
-  [S_LEFT_CURLY]   = {structure, NULL, PREC_NONE}, 
-  [S_RIGHT_CURLY]  = {NULL, NULL, PREC_NONE},
-  [S_LEFT_SQUARE]  = {NULL, NULL, PREC_NONE},
-  [S_RIGHT_SQUARE] = {NULL, NULL, PREC_NONE},
-// Concatenation Operator
-  [K_TO]          = {NULL,     binary, PREC_TERM},
-// Arithmetic Operators
-  [S_MINUS]       = {unary,    binary, PREC_TERM},
-  [S_PLUS]        = {NULL,     binary, PREC_TERM},
-  [S_SLASH]       = {NULL,     binary, PREC_FACTOR},
-  [S_MODULO]      = {NULL,     binary, PREC_FACTOR},
-  [S_STAR]        = {NULL,     binary, PREC_FACTOR},
-// Equality
-  [S_BANG]          = {unary,    NULL,   PREC_NONE},
-  [D_BANG_TILDE]    = {NULL,     binary, PREC_EQUALITY},
-  [S_EQUAL]         = {NULL,     binary, PREC_EQUALITY},
-// Comparisons
-  [S_GREATER]       = {NULL,     binary, PREC_COMPARISON},
-  [D_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
-  [S_LESS]          = {NULL,     binary, PREC_COMPARISON},
-  [D_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
-// Literals: Constants, Variables, Strings, Numbers (doubles)
-  [L_IDENTIFIER]    = {variable,  NULL,   PREC_NONE},
-  [L_VARIABLE]      = {variable,  NULL,   PREC_NONE},
-  [L_STRING]        = {string,    NULL,   PREC_NONE},
-  [L_NUMBER]        = {number,    NULL,   PREC_NONE},
-//  KEYWORDS
-  [TOKEN_PRINT]        = {NULL,     NULL,   PREC_NONE},
-  [K_FALSE]         = {literal,  NULL,   PREC_NONE},
-  [K_NULL]          = {literal,  NULL,   PREC_NONE},
-  [K_TRUE]          = {literal,  NULL,   PREC_NONE},
-  [K_OR]            = {NULL,     or_,    PREC_OR},
-  [K_AND]           = {NULL,     and_,   PREC_AND},
-  [K_BUILD]          = {NULL,     NULL,   PREC_NONE},
-  [K_LET]           = {NULL,     NULL,   PREC_NONE},
-  [K_DEFINE]        = {NULL,     NULL,   PREC_NONE},
-  [K_ELSE]          = {NULL,     NULL,   PREC_NONE},
-  [K_IS]            = {NULL,     NULL,   PREC_NONE},
-  [K_AS]            = {NULL,     NULL,   PREC_NONE},
-  [K_IF]            = {NULL,     NULL,   PREC_NONE},
-  [K_UNLESS]        = {NULL,     NULL,   PREC_NONE},
-  [K_WHEN]          = {NULL,     NULL,   PREC_NONE},
-  [K_RETURN]        = {NULL,     NULL,   PREC_NONE},
-  [K_UNTIL]         = {NULL,     NULL,   PREC_NONE},
-  [K_WHILE]         = {NULL,     NULL,   PREC_NONE},
-  [K_QUIT]         = {NULL,     NULL,   PREC_NONE},
-// Delimiters, Guards, and Terminators
-  [S_COMMA]        = {NULL, NULL, PREC_NONE},
-  [D_COMMA]        = {NULL, NULL, PREC_NONE},
-  [S_SEMICOLON]    = {NULL, NULL, PREC_NONE},
-  [S_QUESTION]     = {NULL, NULL, PREC_NONE},
-  [TOKEN_ERROR]     = {NULL,     NULL,   PREC_NONE},
-  [END_OF_FILE]     = {NULL,     NULL,   PREC_NONE},
-  //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
-// Assignment Operators
-  [S_COLON]        = {NULL, NULL, PREC_NONE},
-  [D_COLON_EQUAL]  = {NULL, NULL, PREC_NONE},
-  [D_PLUS_EQUAL]   = {NULL, NULL, PREC_NONE},
-  [D_MODULO_EQUAL] = {NULL, NULL, PREC_NONE},
-  [D_STAR_EQUAL]   = {NULL, NULL, PREC_NONE},
-  [D_SLASH_EQUAL]  = {NULL, NULL, PREC_NONE},
-  [D_DOT_EQUAL]    = {NULL, NULL, PREC_NONE},
-};
-
-static ParseRule* getRule(TokenType type) {
-  return &rules[type];
-}
-
-static void expression(Precedence precedence) {
-  advance();
-  ParseFn prefixRule = getRule(parser.previous.type)->prefix;
-  if (prefixRule == NULL) {
-    error("Expect expression.");
-    return;
-  }
-  bool canAssign = precedence <= PREC_ASSIGNMENT;
-  prefixRule(canAssign);
-
-// infix
-  while (precedence <= getRule(parser.current.type)->precedence) {
-    advance();
-    ParseFn infixRule = getRule(parser.previous.type)->infix;
-    infixRule(canAssign);
-  }
-
-  if (canAssign && matchAdvance(D_COLON_EQUAL)) {
-    error("Invalid assignment target.");
-  }
-}
+// Where the expression / statement delineation blurs
+static void compileTokens();
 
 static void block() { // wrapped in begin/end scope else/while/until
-  while (!check(D_COMMA) && !check(END_OF_FILE)) {
-    declaration();
+  while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
+    compileTokens();
   }
-  consume(D_COMMA, "Expect ,, to complete a statement block.");  
+  require(D_COMMA, "Expect ,, to complete a statement block.");  
 }
 
 static void blockTernary() { // if-else, unless-else
-  while (!check(D_COMMA) && !check(K_ELSE) && !check(END_OF_FILE)) {
-    declaration();
+  while (tokenIsNot(D_COMMA) && tokenIsNot(K_ELSE) && tokenIsNot(END_OF_FILE)) {
+    compileTokens();
   }
 }
 
@@ -669,22 +452,24 @@ static void buildClosure(FunctionType type) {
   initCompiler(&compiler, type);
   beginScope(); // no end scope
 
-  consume(S_LEFT_PARENTHESES, "Expect '(' after closure name, to start parameters.");
-  if (!check(S_RIGHT_PARENTHESES)) {
+  // require(S_DOT, "Expect '.' to start parameter list.");
+  if (tokenIsNot(K_AS) || tokenIsNot(K_RETURN)) {
     do {
       current->function->arity++;
       if (current->function->arity > argLimit) {
         errorAtCurrent("Can't have more than 255 parameters.");
       }
       uint8_t constant = parseVariable("Expect parameter name.");
-      defineVariable(constant);
-    } while (matchAdvance(S_COMMA));
+      defineConstant(constant);
+    } while (consume(S_COMMA));
   }
-  consume(S_RIGHT_PARENTHESES, "Expect ')' after parameters.");
-
-  consume(K_AS, "Expect 'as' before function body.");
-  block();
-
+  if (tokenIs(K_RETURN)) {
+    block();
+  } else {
+    require(K_AS, "Expect 'as' after parameters and before function body.");
+    block();
+  }
+  
   ObjFunction* function = endCompiler();
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // Closures emit-closure
   for (int i = 0; i < function->upvalueCount; i++) {
@@ -693,190 +478,228 @@ static void buildClosure(FunctionType type) {
   }
 }
 
-static void method() {
-  consume(L_IDENTIFIER, "Expect method name.");
-  uint8_t constant = identifierConstant(&parser.previous);
-  FunctionType type = FT_METHOD;
-
-  // initializer name
-  if (parser.previous.length == 5 && memcmp(parser.previous.start, "build", 5) == 0) {
-    type = FT_INITIALIZER;
+static void literal(bool canAssign) {
+  switch (previousToken().lexeme) {
+    case K_FALSE: emitByte(OP_FALSE); 
+      break;
+    case K_NULL:  emitByte(OP_NIL); 
+      break;
+    case K_TRUE:  emitByte(OP_TRUE); 
+      break;
+    case K_USE:  buildClosure(FT_FUNCTION);
+      break;
+    default: return; // Unreachable.
   }
-  buildClosure(type); // method body
-  emitBytes(OP_METHOD, constant);
 }
 
-static void classDeclaration() {
-  consume(L_IDENTIFIER, "Expect class name.");
-  Token className = parser.previous;
-  uint8_t nameConstant = identifierConstant(&parser.previous);
-  declareVariable(true);
+ParseRule rules[] = {
+//                         prefix, infix, precedence
+// Calls and FunctiLVL
+  [S_LEFT_PARENTHESES]  = {grouping, call,   LVL_CALL},
+  [S_RIGHT_PARENTHESES] = {NULL,     NULL,   LVL_NONE},
+// Sructures (Product Types, Arrays)
+  [S_LEFT_CURLY]   = {literal, NULL, LVL_NONE}, 
+  [S_RIGHT_CURLY]  = {NULL, NULL, LVL_NONE},
+  [S_LEFT_SQUARE]  = {NULL, NULL, LVL_NONE},
+  [S_RIGHT_SQUARE] = {NULL, NULL, LVL_NONE},
+// Delimiters, Guards, and Terminators
+  [S_COMMA]        = {NULL, NULL, LVL_NONE},
+  [D_COMMA]        = {NULL, NULL, LVL_NONE},
+  [S_SEMICOLON]    = {NULL, NULL, LVL_NONE},
+  [S_QUESTION]     = {NULL, NULL, LVL_NONE},
+  //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
+// Assignment Operators
+  [S_COLON]        = {NULL, NULL, LVL_NONE},
+  [D_COLON_EQUAL]  = {NULL, NULL, LVL_NONE},
+  [D_PLUS_EQUAL]   = {NULL, NULL, LVL_NONE},
+  [D_MODULO_EQUAL] = {NULL, NULL, LVL_NONE},
+  [D_STAR_EQUAL]   = {NULL, NULL, LVL_NONE},
+  [D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
+  [D_DOT_EQUAL]    = {NULL, NULL, LVL_NONE},
+// Arithmetic, Concatenation Operators
+  [S_DOT]         = {NULL,     binary, LVL_SUM}, // can add method call, maybe
+  [S_MINUS]       = {unary,    binary, LVL_SUM},
+  [S_PLUS]        = {NULL,     binary, LVL_SUM},
+  [S_SLASH]       = {NULL,     binary, LVL_SCALE},
+  [S_MODULO]      = {NULL,     binary, LVL_SCALE},
+  [S_STAR]        = {NULL,     binary, LVL_SCALE},
+// Equality
+  [S_BANG]          = {unary,    NULL,   LVL_UNARY},
+  [D_BANG_TILDE]    = {NULL,     binary, LVL_EQUAL},
+  [S_EQUAL]         = {NULL,     binary, LVL_EQUAL},
+// Comparisn
+  [S_GREATER]       = {NULL,     binary, LVL_COMPARE},
+  [D_GREATER_EQUAL] = {NULL,     binary, LVL_COMPARE},
+  [S_LESS]          = {NULL,     binary, LVL_COMPARE},
+  [D_LESS_EQUAL]    = {NULL,     binary, LVL_COMPARE},
+// Literals: Constants, Variables, Strings, Numbers (doubles)
+  [L_IDENTIFIER]    = {variable,  NULL,   LVL_NONE},
+  [L_VARIABLE]      = {variable,  NULL,   LVL_NONE},
+  [L_STRING]        = {string,    NULL,   LVL_NONE},
+  [L_NUMBER]        = {number,    NULL,   LVL_NONE},
+//  KEYWORDS
+  [TOKEN_PRINT]     = {NULL,     NULL,   LVL_NONE},
+  [K_USE]          = {literal,  NULL,   LVL_NONE},
+  [K_FALSE]         = {literal,  NULL,   LVL_NONE},
+  [K_NULL]          = {literal,  NULL,   LVL_NONE},
+  [K_TRUE]          = {literal,  NULL,   LVL_NONE},
+  // [K_SELF]          = {self_,    NULL,   LVL_NONE},
+  [K_OR]            = {NULL,     orJump,   LVL_OR},
+  [K_AND]           = {NULL,     andJump, LVL_AND},
+  [K_LET]           = {NULL,     NULL,   LVL_NONE},
+  [K_DEFINE]        = {NULL,     NULL,   LVL_NONE},
+  [K_ELSE]          = {NULL,     NULL,   LVL_NONE},
+  [K_IS]            = {NULL,     NULL,   LVL_NONE},
+  [K_AS]            = {NULL,     NULL,   LVL_NONE},
+  [K_IF]            = {NULL,     NULL,   LVL_NONE},
+  [K_UNLESS]        = {NULL,     NULL,   LVL_NONE},
+  [K_WHEN]          = {NULL,     NULL,   LVL_NONE},
+  [K_RETURN]        = {NULL,     NULL,   LVL_NONE},
+  [K_UNTIL]         = {NULL,     NULL,   LVL_NONE},
+  [K_WHILE]         = {NULL,     NULL,   LVL_NONE},
+  [K_QUIT]          = {NULL,     NULL,   LVL_NONE},
+  [LANGUAGE_ERROR]  = {NULL,     NULL,   LVL_NONE},
+  [END_OF_FILE]     = {NULL,     NULL,   LVL_NONE},
+};
+static ParseRule* getRule(Lexeme type) {
+  return &rules[type];
+}
 
-  emitBytes(OP_CLASS, nameConstant);
-  defineVariable(nameConstant);
-
-  ClassCompiler classCompiler;
-  classCompiler.hasSuperclass = false; // removed logic for superclass, but may still be usefule for future grammars
-  classCompiler.enclosing = currentClass;
-  currentClass = &classCompiler;
-
-  namedVariable(className, false); // load-class
-  consume(K_AS, "Expect 'as' before class body."); 
-
-  while (!check(D_COMMA) && !check(END_OF_FILE)) {
-    method();
+static void resolvePrefix(Precedence hasPrecedence) {
+  ParseFn callPrefix = getRule(previousToken().lexeme)->prefix;
+  if (callPrefix == NULL) {
+    error("Expect expression.");
+    return;
   }
-  consume(D_COMMA, "Expect ',,' after class body.");
-
-  emitByte(OP_POP); 
-
-  // Methods and Initializers pop-enclosing
-  currentClass = currentClass->enclosing;
+  callPrefix(hasPrecedence);
 }
 
-static void closureDeclaration() {
-  uint8_t global = parseVariable("Expect function name.");
-  markInitialized();
-  buildClosure(FT_FUNCTION);
-  defineVariable(global);
+static void resolveInfix(Precedence hasPrecedence) {
+    advance();
+    ParseFn callInfix = getRule(previousToken().lexeme)->infix;
+    callInfix(hasPrecedence);
 }
 
-static void varDeclaration() { // (testing stack allocation) local only
+static void resolveExpression(Precedence level) {   // TODO rename handleExpression? resolveExpression?
+  advance();
+  bool hasPrecedence = (level <= LVL_BASE);
+  resolvePrefix(hasPrecedence);
+
+  while (level <= getRule(parserCurrent().lexeme)->precedence) {
+    resolveInfix(hasPrecedence);
+  }
+
+  if (hasPrecedence && consume(D_COLON_EQUAL)) {
+    error("Invalid assignment target.");
+  }
+}
+
+/**********************/
+/* FINISH EXPRESSIONS */
+/**********************/
+
+static void handleMutable() { 
   uint8_t local = parseVariable("Expect variable name."); 
-  if (check(S_COLON)) {
-    error("Declaration of a mutable requires ':=' to complete.");
-  }
 
-  if (matchAdvance(D_COLON_EQUAL)) {
-    expression(PREC_ASSIGNMENT);
+  if (consume(D_COLON_EQUAL)) { // extra weight for an aesthetic
+    resolveExpression(LVL_BASE);
   } else {
     emitByte(OP_NIL);
   }
-  consume(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
-
-  defineMutable(local); // TODO should be local
-}
-
-static void constDeclaration() { 
-  uint8_t global = parseVariable("Expect variable name.");
-
-  if (matchAdvance(S_COLON)) {
-    expression(PREC_ASSIGNMENT);
-  } else {
-    error("Need to initialize constants.");
+  if (previousIsNot(D_COMMA)) {
+    require(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
   }
-  consume(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
-
-  defineVariable(global);
+// TESTING stack allocation for mutables
+  current->locals[current->localCount - 1].depth = current->scopeDepth;
+  emitBytes(OP_SET_LOCAL, local);
 }
 
-static void expressionStatement() {
-  expression(PREC_ASSIGNMENT);
-  // TODO write optionals for ')', '}', ']', ',,'
-  consume(S_SEMICOLON, "Expect ';' after expression."); 
-  emitByte(OP_POP);
-}
-
-static void ifStatement() {
-  expression(PREC_ASSIGNMENT);
-  consume(S_QUESTION, "Expect 'if' BOOLEAN '?' to test condition.");
+static void ternaryStatement(OpCode condition) { // unless is jump if true, if jump if false
+  advance();
+  resolveExpression(LVL_BASE);
+  require(S_QUESTION, "Expect a '?' after BOOLEAN test condition.");
   beginScope();
-  int thenJump = emitJump(OP_JUMP_IF_FALSE);
+  int thenJump = emitJump(condition);
 
   emitByte(OP_POP); // then
-  blockTernary(); // statement();
+  blockTernary();
 
   int elseJump = emitJump(OP_JUMP); 
   patchJump(thenJump);
 
-  emitByte(OP_POP); // pop-end
+  emitByte(OP_POP); // end
 
-  if (matchAdvance(K_ELSE)) { 
+  if (consume(K_ELSE)) { 
     block();
   } else {
-    consume(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");  
-  }
-  patchJump(elseJump); // set else jump at end
-  endScope();
-}
-
-static void unlessStatement() {
-  expression(PREC_ASSIGNMENT);
-  consume(S_QUESTION, "Expect 'unless' BOOLEAN '?' to test condition.");
-  beginScope();
-  int thenJump = emitJump(OP_JUMP_IF_TRUE);
-
-  emitByte(OP_POP); //then
-  blockTernary();
-
-  int elseJump = emitJump(OP_JUMP); // jump-over-else
-  patchJump(thenJump);
-
-  emitByte(OP_POP); // pop-end
-
-  if (matchAdvance(K_ELSE)) { 
-    block();
-  } else {
-    consume(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");  
+    require(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");  
   }
   patchJump(elseJump);
   endScope();
 }
 
-static void whenStatement() { // TODO why does this have better error reporting on missing terminator?
-  Token token = parser.current; // hold the value to evaluate all expressions
+static void whenStatement() { 
   advance();
-  consume(S_COLON, "Expect ':' to start a when block. ('when' expression ':')");
+  Token token = parserCurrent(); // hold the value to evaluate all expressions
+  advance();
+  require(S_COLON, "Expect ':' to start a when block. ('when' expression ':')");
   beginScope();
 
-  while (check(K_IS)) {
-    parser.current = token;
-    expression(PREC_ASSIGNMENT);
-    consume(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
-    int thenJump = emitJump(OP_JUMP_IF_FALSE); 
+  while (tokenIs(K_IS)) {
+    // parser.current = token;
+    setCurrent(token);
+    resolveExpression(LVL_BASE);
+    require(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
 
-    while (!check(D_COMMA) && !check(END_OF_FILE)) {
-      declaration();
-      emitByte(OP_QUIT); // currently only use in compiler
+    int thenJump = emitJump(OP_JUMP_IF_FALSE);
+    while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
+      compileTokens();
     }
-    consume(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
+    emitByte(OP_QUIT);
+    require(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
     patchJump(thenJump); 
   }
-  emitByte(OP_QUIT_END);
+  emitByte(OP_QUIT_END); // only statement that has this, might add to while and until
   endScope();
-  consume(D_COMMA, "Expect ,, to complete a when block.");
+  require(D_COMMA, "Expect ,, to complete a when block.");
 }
 
-// Global Variables print-statement
-static void printStatement() {
-  expression(PREC_ASSIGNMENT);
-  consume(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+static void printStatement() {   // TODO remove
+  advance();
+  resolveExpression(LVL_BASE);
+  if (previousIsNot(D_COMMA)) {
+    require(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+  }
   emitByte(OP_PRINT);
 }
 
 static void returnStatement() {
+  advance();
   if (current->type == FT_SCRIPT) {
-    error("Can't return from top-level code."); // prevents top level return
+    error("Can't return from top-level code."); 
   }
 
-  if (matchAdvance(S_SEMICOLON)) {
-    emitReturn();
+  if (consume(S_SEMICOLON)) {  
+    emitReturn(); // no expression
   } else {
     if (current->type == FT_INITIALIZER) {   // Methods and Initializers
       error("Can't return a value from an initializer.");
     }
-    expression(PREC_ASSIGNMENT);
-    consume(S_SEMICOLON, "Expect ';' after return value.");
-    emitByte(OP_RETURN);
+    resolveExpression(LVL_BASE);
+    if (previousIsNot(D_COMMA)) {   // testing
+      require(S_SEMICOLON, "Expect ';' after return value.");
+    }
+    emitByte(OP_RETURN); // TODO am I missing an OP_POP ?
   }
 }
 
-static void untilStatement() {
+static void loopWithCondition(OpCode condition) {
+  advance();
   int loopStart = currentChunk()->count;
-  expression(PREC_ASSIGNMENT);
-  consume(S_QUESTION, "Expect '?' after condition, to begin conditional until-loop.");
+  resolveExpression(LVL_BASE);
+  require(S_QUESTION, "Expect '?' after condition, to begin conditional loop.");
 
-  int exitJump = emitJump(OP_JUMP_IF_TRUE);
+  int exitJump = emitJump(condition); // false for while, true for until
   beginScope();
   emitByte(OP_POP);
   block();
@@ -887,31 +710,49 @@ static void untilStatement() {
   endScope();
 }
 
-static void whileStatement() {
-  int loopStart = currentChunk()->count;
-  expression(PREC_ASSIGNMENT);
-  consume(S_QUESTION, "Expect '?' after condition, to begin conditional while-loop.");
-
-  int exitJump = emitJump(OP_JUMP_IF_FALSE);
+static void doBlock() {
+  advance();
   beginScope();
-  emitByte(OP_POP);
   block();
-  emitLoop(loopStart);
-
-  patchJump(exitJump);
-  emitByte(OP_POP);
   endScope();
 }
 
-// Global Variables synchronize
+static void variableDeclaration() {
+  advance();
+  if (tokenIs(L_VARIABLE)) {
+    handleMutable();
+    return;
+  } 
+
+  uint8_t global = parseVariable("Expect variable name.");
+
+  if (consume(S_COLON)) {
+    resolveExpression(LVL_BASE);
+  } else {
+    error("Need to initialize constants.");
+  }
+  if (previousIsNot(D_COMMA)) { // testing single comma for objects
+    require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
+  }
+  defineConstant(global);
+}
+
+static void compileExpression() { // TODO write optionals for ')', '}', ']',
+  resolveExpression(LVL_BASE);
+  require(S_SEMICOLON, "Expect ';' after expression.");
+  emitByte(OP_POP); // get the value
+}
+
 static void synchronize() {
-  parser.panicMode = false;
+  stopPanic();
+  //parser.panicMode = false;
+  Lexeme currentLexeme = parserCurrent().lexeme;
 
-  while (parser.current.type != END_OF_FILE) {
-    if (parser.previous.type == S_SEMICOLON) return;
-    switch (parser.current.type) {
-      case K_BUILD:
-      case K_DEFINE:
+  while (currentLexeme != END_OF_FILE) {
+    if (currentLexeme == S_SEMICOLON) {
+      return;
+    } 
+    switch (currentLexeme) {
       case K_LET:
       case K_IF:
       case K_UNLESS:
@@ -922,56 +763,26 @@ static void synchronize() {
       case TOKEN_PRINT:
       case K_RETURN:
         return;
-
-      default:
-        ; // Do nothing.
+      default: ; // either way, it's in the while loop
     }
     advance();
   }
 }
 
-static void statement() {
-  if (matchAdvance(TOKEN_PRINT)) {
-    printStatement();
-  } else if (matchAdvance(K_IF)) {
-    ifStatement();
-  } else if (matchAdvance(K_WHEN)) {
-    whenStatement();
-  } else if (matchAdvance(K_UNLESS)) {
-    unlessStatement();
-  } else if (matchAdvance(K_RETURN)) {
-    returnStatement();
-  } else if (matchAdvance(K_UNTIL)) {
-    untilStatement();
-  } else if (matchAdvance(K_WHILE)) {
-    whileStatement();
-  } else if (matchAdvance(K_DO)) {
-    beginScope();
-    block();
-    endScope();
-  } else if (matchAdvance(K_QUIT)) {
-    printf("quitting, ");
-    consume(S_SEMICOLON, "Expect semicolon to finish 'quit' statement");
-    emitByte(OP_QUIT);
-  } else {
-    expressionStatement();
+static void compileTokens() { 
+  switch (parserCurrent().lexeme) {
+    case K_LET:       return variableDeclaration();
+    case K_RETURN:    return returnStatement();
+    case TOKEN_PRINT: return printStatement();
+    case K_WHEN:      return whenStatement();
+    case K_IF:        return ternaryStatement(OP_JUMP_IF_FALSE);
+    case K_UNLESS:    return ternaryStatement(OP_JUMP_IF_TRUE);
+    case K_WHILE:     return loopWithCondition(OP_JUMP_IF_FALSE);
+    case K_UNTIL:     return loopWithCondition(OP_JUMP_IF_TRUE);
+    case K_DO:        return doBlock();  
+    default:          compileExpression();
   }
-}
-
-static void declaration() { // hub for assigment -> else process statements
-  if (matchAdvance(K_DEFINE)) {
-    closureDeclaration();
-  } else if (matchAdvance(K_LET)) {
-    if (check(L_VARIABLE)) {
-      varDeclaration();
-    } else {
-      constDeclaration();
-    }
-  } else {
-    statement();
-  }
-
-  if (parser.panicMode) {
+  if (panic()) {
     synchronize();
   }
 }
@@ -979,21 +790,23 @@ static void declaration() { // hub for assigment -> else process statements
 ObjFunction* compile(const char* source) {
   initScanner(source);
 
-  Compiler compiler; // Local Variables 
-  initCompiler(&compiler, FT_SCRIPT); // Calls and Functions
+  Compiler compiler; 
+  initCompiler(&compiler, FT_SCRIPT); 
 
-  parser.hasError = false;
-  parser.panicMode = false;
+  parserError(false);
+  //parser.panicMode = false;
+  stopPanic();
 
   advance();
-  while (!matchAdvance(END_OF_FILE)) {
-    declaration();
+  while (!consume(END_OF_FILE)) {
+    compileTokens();
   }
 
+  // it all ends as one script function
   ObjFunction* function = endCompiler();
-  return parser.hasError ? NULL : function;
+  return hasError() ? NULL : function;
 }
-//> Garbage Collection 
+// Garbage Collection 
 void markCompilerRoots() {
   Compiler* compiler = current;
   while (compiler != NULL) {

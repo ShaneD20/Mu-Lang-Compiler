@@ -23,11 +23,6 @@ typedef enum {
 // Closures operations
   OP_GET_UPVALUE,
   OP_SET_UPVALUE,
-// Classes and Instances property-ops
-  OP_GET_PROPERTY,
-  OP_SET_PROPERTY,
-// Superclasses get-super-op
-  OP_GET_SUPER, // maybe re use for something else
 // Types of Values comparison-ops
   OP_EQUAL,
   OP_GREATER,
@@ -57,12 +52,6 @@ typedef enum {
   OP_CLOSURE,
   OP_CLOSE_UPVALUE,
   OP_RETURN,
-// Classes and Instances class-op
-  OP_CLASS,
-  OP_METHOD,
-// Product Types
-  OP_CREATE_KEYED,
-  OP_CREATE_INDEXED,
 } OpCode;
 
 typedef struct {

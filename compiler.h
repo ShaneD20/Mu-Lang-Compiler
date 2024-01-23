@@ -3,36 +3,7 @@
 
 #include "object.h" // Strings compiler-include-object
 #include "vm.h"
-#include "scanner.h" // tokens
-
-typedef struct {
-  Token current;
-  Token previous;
-  bool hasError;
-  bool panicMode;
-} Parser;
-
-typedef enum {
-  PREC_NONE,
-  PREC_ASSIGNMENT,  // =
-  PREC_OR,          // or
-  PREC_AND,         // and
-  PREC_EQUALITY,    // == !=
-  PREC_COMPARISON,  // < > <= >=
-  PREC_TERM,        // + -
-  PREC_FACTOR,      // * /
-  PREC_UNARY,       // ! -
-  PREC_CALL,        // . ()
-  PREC_PRIMARY
-} Precedence;
-
-// parse-rule
-typedef void (*ParseFn)(bool canAssign); // Global Variables parse-fn-type
-typedef struct {
-  ParseFn prefix;
-  ParseFn infix;
-  Precedence precedence;
-} ParseRule;
+#include "scanner.h"
 
 typedef struct {
   Token name;
@@ -64,7 +35,6 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   struct ClassCompiler* enclosing;
-  bool hasSuperclass; // removed logic for superclass, but may still be usefule for future grammars
 } ClassCompiler;
 
 ObjFunction* compile(const char* source); // Calls and Functions compile-h
