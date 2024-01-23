@@ -35,7 +35,6 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   struct ClassCompiler* enclosing;
-  bool hasSuperclass; // removed logic for superclass, but may still be usefule for future grammars
 } ClassCompiler;
 
 ObjFunction* compile(const char* source); // Calls and Functions compile-h

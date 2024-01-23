@@ -13,21 +13,16 @@
 #define GC_HEAP_GROW_FACTOR 2 // Garbage Collection heap-grow-factor
 
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
-//> Garbage Collection updated-bytes-allocated
-  vm.bytesAllocated += newSize - oldSize;
-//^ Garbage Collection updated-bytes-allocated
-//> Garbage Collection call-collect
+  vm.bytesAllocated += newSize - oldSize; // updated bytes allocated
+
   if (newSize > oldSize) {
 #ifdef DEBUG_STRESS_GC
     collectGarbage();
 #endif
-//> collect-on-next
     if (vm.bytesAllocated > vm.nextGC) {
-      collectGarbage();
+      collectGarbage(); // collect-on-next
     }
-//^ collect-on-next
   }
-//^ Garbage Collection call-collect
 
   if (newSize == 0) {
     free(pointer);
@@ -35,8 +30,9 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
   }
   void* result = realloc(pointer, newSize);
 // out of memory
-  if (result == NULL) exit(1); 
-
+  if (result == NULL) {
+    exit(1); 
+  } 
   return result;
 }
 
@@ -44,7 +40,7 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 void markObject(Obj* object) {
   if (object == NULL) return;
   if (object->isMarked) return;
-//> log-mark-object
+
 #ifdef DEBUG_LOG_GC
   printf("%p mark ", (void*)object);
   printValue(OBJ_VAL(object));
@@ -53,7 +49,7 @@ void markObject(Obj* object) {
 //^ log-mark-object
 
   object->isMarked = true;
-//> add-to-gray-stack
+//> adding to gray stack
   if (vm.grayCapacity < vm.grayCount + 1) {
     vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
     vm.grayStack = (Obj**)realloc(vm.grayStack,
@@ -61,21 +57,20 @@ void markObject(Obj* object) {
     if (vm.grayStack == NULL) exit(1); // exit-gray-stack
   }
   vm.grayStack[vm.grayCount++] = object;
-//^ add-to-gray-stack
+//^ adding to ...
 }
-// Garbage Collection
+
 void markValue(Value value) {
   if (IS_OBJ(value)) markObject(AS_OBJ(value));
 }
-// Garbage Collection
+
 static void markArray(ValueArray* array) {
   for (int i = 0; i < array->count; i++) {
     markValue(array->values[i]);
   }
 }
-// Garbage Collection
+
 static void blackenObject(Obj* object) {
-//> log-blacken-object
 #ifdef DEBUG_LOG_GC
   printf("%p blacken ", (void*)object);
   printValue(OBJ_VAL(object));
@@ -84,18 +79,6 @@ static void blackenObject(Obj* object) {
 //^ log-blacken-object
 
   switch (object->type) {
-    case OBJ_BOUND_METHOD: {
-      ObjBoundMethod* bound = (ObjBoundMethod*)object;
-      markValue(bound->receiver);
-      markObject((Obj*)bound->method);
-      break;
-    }
-    case OBJ_CLASS: {
-      ObjClass* model = (ObjClass*)object;
-      markObject((Obj*)model->name);
-      markTable(&model->methods); // Methods and Initializers mark-methods
-      break;
-    }
     case OBJ_CLOSURE: {
       ObjClosure* closure = (ObjClosure*)object;
       markObject((Obj*)closure->function);
@@ -110,12 +93,6 @@ static void blackenObject(Obj* object) {
       markArray(&function->chunk.constantPool);
       break;
     }
-    case OBJ_INSTANCE: {
-      ObjInstance* instance = (ObjInstance*)object;
-      markObject((Obj*)instance->model);
-      markTable(&instance->fields);
-      break;
-    }
     case OBJ_UPVALUE:
       markValue(((ObjUpvalue*)object)->closed);
       break;
@@ -127,29 +104,15 @@ static void blackenObject(Obj* object) {
 
 //> Strings free-object
 static void freeObject(Obj* object) {
-//> Garbage Collection log-free-object
 #ifdef DEBUG_LOG_GC
   printf("%p free type %d\n", (void*)object, object->type);
 #endif
 //^ Garbage Collection log-free-object
 
   switch (object->type) {
-    case OBJ_BOUND_METHOD:
-      FREE(ObjBoundMethod, object);
-      break;
-    case OBJ_CLASS: {
-  //> Methods and Initializers free-methods
-      ObjClass* model = (ObjClass*)object;
-      freeTable(&model->methods);
-  //^ Methods and Initializers free-methods
-      FREE(ObjClass, object);
-      break;
-    } // [braces]
     case OBJ_CLOSURE: {
-  //> free-upvalues
       ObjClosure* closure = (ObjClosure*)object;
-      FREE_ARRAY(ObjUpvalue*, closure->upvalues,
-                 closure->upvalueCount);
+      FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);
   //^ free-upvalues
       FREE(ObjClosure, object);
       break;
@@ -158,12 +121,6 @@ static void freeObject(Obj* object) {
       ObjFunction* function = (ObjFunction*)object;
       freeChunk(&function->chunk);
       FREE(ObjFunction, object);
-      break;
-    }
-    case OBJ_INSTANCE: {
-      ObjInstance* instance = (ObjInstance*)object;
-      freeTable(&instance->fields);
-      FREE(ObjInstance, object);
       break;
     }
     case OBJ_NATIVE:
@@ -180,7 +137,7 @@ static void freeObject(Obj* object) {
       break;
   }
 }
-//< Strings free-object
+//^ Strings free-object
 //> Garbage Collection mark-roots
 static void markRoots() {
   for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
@@ -196,24 +153,22 @@ static void markRoots() {
        upvalue = upvalue->next) {
     markObject((Obj*)upvalue);
   }
-  // mark-globals
-  markTable(&vm.globals);
+  
+  markTable(&vm.globals); // mark-globals
 
   markCompilerRoots();
-// Methods and Initializers mark-init-string
-  markObject((Obj*)vm.initString);
+
+  markObject((Obj*)vm.initString); // Methods and Initializers
 }
 
-//> Garbage Collection
-static void traceReferences() {
+static void traceReferences() { // GC
   while (vm.grayCount > 0) {
     Obj* object = vm.grayStack[--vm.grayCount];
     blackenObject(object);
   }
 }
 
-// Garbage Collection
-static void sweep() {
+static void sweep() { // GC
   Obj* previous = NULL;
   Obj* object = vm.objects;
   while (object != NULL) {
@@ -233,9 +188,8 @@ static void sweep() {
     }
   }
 }
-// Garbage Collection
-void collectGarbage() {
-//> log-before-collect
+
+void collectGarbage() { // GC
 #ifdef DEBUG_LOG_GC
   printf("-- gc begin\n");
 //> log-before-size
@@ -253,22 +207,20 @@ void collectGarbage() {
 // log-after-collect
 #ifdef DEBUG_LOG_GC
   printf("-- gc end\n");
-//> log-collected-amount
   printf("   collected %zu bytes (from %zu to %zu) next at %zu\n",
          before - vm.bytesAllocated, before, vm.bytesAllocated,
          vm.nextGC);
-//< log-collected-amount
+//^ log-collected-amount
 #endif
 }
 
-//> Strings free-objects
-void freeObjects() {
+
+void freeObjects() {  // strings as well
   Obj* object = vm.objects;
   while (object != NULL) {
     Obj* next = object->next;
     freeObject(object);
     object = next;
   }
-// Garbage Collection free-gray-stack
   free(vm.grayStack);
 }

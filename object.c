@@ -7,8 +7,7 @@
 #include "value.h"
 #include "vm.h"
 
-#define ALLOCATE_OBJ(type, objectType) \
-    (type*)allocateObject(sizeof(type), objectType)
+#define ALLOCATE_OBJ(type, objectType) (type*)allocateObject(sizeof(type), objectType)
 
 static Obj* allocateObject(size_t size, ObjType type) {
   Obj* object = (Obj*)reallocate(NULL, 0, size);
@@ -24,20 +23,6 @@ static Obj* allocateObject(size_t size, ObjType type) {
 #endif
 
   return object;
-}
-
-ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
-  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
-  bound->receiver = receiver;
-  bound->method = method;
-  return bound;
-}
-
-ObjClass* newClass(ObjString* name) {
-  ObjClass* model = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
-  model->name = name;
-  initTable(&model->methods); // init-methods
-  return model;
 }
 
 ObjClosure* newClosure(ObjFunction* function) {
@@ -61,13 +46,6 @@ ObjFunction* newFunction() {
   function->name = NULL;
   initChunk(&function->chunk);
   return function;
-}
-
-ObjInstance* newInstance(ObjClass* model) {
-  ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
-  instance->model = model;
-  initTable(&instance->fields);
-  return instance;
 }
 
 ObjNative* newNative(NativeFn function) {
@@ -139,23 +117,13 @@ static void printFunction(ObjFunction* function) {
   printf("<fn %s>", function->name->chars);
 }
 
-void printObject(Value value) {
+void printObject(Value value) { 
   switch (OBJ_TYPE(value)) {
-    case OBJ_BOUND_METHOD:
-      printFunction(AS_BOUND_METHOD(value)->method->function);
-      break;
-    case OBJ_CLASS:
-      printf("%s", AS_CLASS(value)->name->chars);
-      break;
     case OBJ_CLOSURE:
       printFunction(AS_CLOSURE(value)->function);
       break;
     case OBJ_FUNCTION:
       printFunction(AS_FUNCTION(value));
-      break;
-    case OBJ_INSTANCE:
-      printf("%s instance",
-             AS_INSTANCE(value)->model->name->chars);
       break;
     case OBJ_NATIVE:
       printf("<native fn>");

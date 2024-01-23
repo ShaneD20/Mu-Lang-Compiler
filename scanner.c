@@ -112,7 +112,6 @@ static Lexeme identifierType() { // tests for keywords
         }
       }
       break;
-    case 'b': return checkKeyword(1, 4, "uild", K_BUILD);
     case 'd': 
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
@@ -121,10 +120,9 @@ static Lexeme identifierType() { // tests for keywords
         }
       }
       break;
-    case 'e': // branch out to "else", "end"
+    case 'e': // branch out to "else",
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
-          case 'a' : return checkKeyword(2, 2, "ch", K_EACH);
           case 'l' : return checkKeyword(2, 2, "se", K_ELSE);
         }
       }
@@ -152,11 +150,14 @@ static Lexeme identifierType() { // tests for keywords
         }
       }
       break;
-    case 'u': // if 'n' then branch out to 'unless', 'until'
-      if (scanner.current - scanner.start > 1 && scanner.start[1] == 'n') {
-        switch (scanner.start[2]) {
-          case 'l': return checkKeyword(3, 3, "ess", K_UNLESS);
-          case 't': return checkKeyword(3, 2, "il", K_UNTIL);
+    case 'u': // if 'n' then branch out to 'use', 'unless', 'until'
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 's': return checkKeyword(2, 1, "e", K_USE);
+          case 'n': switch (scanner.start[2]) {
+            case 'l': return checkKeyword(3, 3, "ess", K_UNLESS);
+            case 't': return checkKeyword(3, 2, "il", K_UNTIL);
+          }
         }
       }
       break;

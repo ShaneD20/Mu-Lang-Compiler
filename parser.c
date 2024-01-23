@@ -76,6 +76,9 @@ bool tokenIs(Lexeme test) {
 bool tokenIsNot(Lexeme test) {
   return parser.current.lexeme != test;
 }
+bool previousIsNot(Lexeme test) {
+  return parser.previous.lexeme != test;
+}
 
 bool consume(Lexeme glyph) {
   if (tokenIs(glyph)) advance();
@@ -87,7 +90,3 @@ void require(Lexeme test, const char* message) { // kind of doing the same thing
     advance();
   } else errorAtCurrent(message);
 }
-
-/*******************************/
-/* END PARSER HELPER FUNCTIONS */
-/*******************************/

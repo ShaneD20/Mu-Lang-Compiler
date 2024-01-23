@@ -21,9 +21,8 @@ typedef enum {
   TOKEN_PRINT, 
 
   K_AND, K_AS,
-  K_BUILD, // mostly to test getting classes to work
   K_DEFINE, K_DO,
-  K_EACH, K_ELSE,
+  K_ELSE,
   K_FALSE,
   K_IF, K_IS,
   K_LET,
@@ -32,7 +31,7 @@ typedef enum {
   K_OR,
   K_RETURN,
   K_SELF,
-  K_UNLESS, K_UNTIL,
+  K_UNLESS, K_UNTIL, K_USE,
   K_WHEN, K_WHILE,
   K_TRUE, K_TO,
   K_QUIT,

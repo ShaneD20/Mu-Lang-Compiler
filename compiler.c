@@ -13,9 +13,7 @@
 #endif
 
 const int argLimit = 255;
-
 Compiler* current = NULL;
-ClassCompiler* currentClass = NULL;
 
 /* START HELPER FUNCTIONS */
 
@@ -158,7 +156,6 @@ static bool identifiersEqual(Token* a, Token* b) {
   if (a->length != b->length) return false;
   return memcmp(a->start, b->start, a->length) == 0;
 }
-/* END HELPER FUNCTIONS */
 
 static int resolveLocal(Compiler* compiler, Token* token) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
@@ -173,6 +170,9 @@ static int resolveLocal(Compiler* compiler, Token* token) {
   }
   return -1;
 }
+/************************/
+/* END HELPER FUNCTIONS */
+/************************/
 
 // Closures
 static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
@@ -314,23 +314,9 @@ static void orJump(bool x) {
   patchJump(endJump);
 }
 
-// static void structure(bool canAssign) {
-//   // TODO look at unary
-//   if (tokenIsNot(S_RIGHT_CURLY)) {
-//     do {
+static void structure(bool canAssign) {
 
-//     } while (consume(S_COMMA));
-//   }
-//   require(S_RIGHT_CURLY, "Expect '}' to finish structure literal.");
-// }
-
-// static void self_(bool unused) { // TODO delete or replace
-//   if (currentClass == NULL) {
-//     error("Can't use 'self' outside of a class.");
-//     return;
-//   }
-//   variable(false);
-// } 
+}
 
 static void binary(bool canAssign) {
   Lexeme operator = previousToken().lexeme;
@@ -369,25 +355,6 @@ static void binary(bool canAssign) {
 static void call(bool canAssign) { 
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
-}
-
-static void dot(bool canAssign) { // product type
-  require(L_IDENTIFIER, "Expect property name after '.' .");
-  Token prior = previousToken();
-  uint8_t name = identifierConstant(&prior);
-
-  if (canAssign && consume(D_COLON_EQUAL)) { // TODO remove for immutability
-    resolveExpression(LVL_BASE);
-    emitBytes(OP_SET_PROPERTY, name);
-
-  } else if (consume(S_LEFT_PARENTHESES)) {
-    uint8_t argCount = argumentList();
-    emitBytes(OP_INVOKE, name);
-    emitByte(argCount);
-
-  } else {
-    emitBytes(OP_GET_PROPERTY, name);
-  }
 }
 
 static void grouping(bool unused) {
@@ -465,14 +432,62 @@ static void unary(bool unused) {
   }
 }
 
-static void literal(bool canAssign) {
+// Where the expression / statement delineation blurs
+static void compileTokens();
+
+static void block() { // wrapped in begin/end scope else/while/until
+  while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
+    compileTokens();
+  }
+  require(D_COMMA, "Expect ,, to complete a statement block.");  
+}
+
+static void blockTernary() { // if-else, unless-else
+  while (tokenIsNot(D_COMMA) && tokenIsNot(K_ELSE) && tokenIsNot(END_OF_FILE)) {
+    compileTokens();
+  }
+}
+
+static void buildClosure(FunctionType type) {
+  Compiler compiler;
+  initCompiler(&compiler, type);
+  beginScope(); // no end scope
+
+  // require(S_DOT, "Expect '.' to start parameter list.");
+  if (tokenIsNot(K_AS) || tokenIsNot(K_RETURN)) {
+    do {
+      current->function->arity++;
+      if (current->function->arity > argLimit) {
+        errorAtCurrent("Can't have more than 255 parameters.");
+      }
+      uint8_t constant = parseVariable("Expect parameter name.");
+      defineConstant(constant);
+    } while (consume(S_COMMA));
+  }
+  if (tokenIs(K_RETURN)) {
+    block();
+  } else {
+    require(K_AS, "Expect 'as' after parameters and before function body.");
+    block();
+  }
   
+  ObjFunction* function = endCompiler();
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // Closures emit-closure
+  for (int i = 0; i < function->upvalueCount; i++) {
+    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+    emitByte(compiler.upvalues[i].index);
+  }
+}
+
+static void literal(bool canAssign) {
   switch (previousToken().lexeme) {
     case K_FALSE: emitByte(OP_FALSE); 
       break;
     case K_NULL:  emitByte(OP_NIL); 
       break;
     case K_TRUE:  emitByte(OP_TRUE); 
+      break;
+    case K_USE:  buildClosure(FT_FUNCTION);
       break;
     default: return; // Unreachable.
   }
@@ -483,9 +498,8 @@ ParseRule rules[] = {
 // Calls and FunctiLVL
   [S_LEFT_PARENTHESES]  = {grouping, call,   LVL_CALL},
   [S_RIGHT_PARENTHESES] = {NULL,     NULL,   LVL_NONE},
-  [S_DOT]               = {NULL,     dot,    LVL_CALL},
 // Sructures (Product Types, Arrays)
-  // [S_LEFT_CURLY]   = {structure, NULL, LVL_NONE}, 
+  [S_LEFT_CURLY]   = {literal, NULL, LVL_NONE}, 
   [S_RIGHT_CURLY]  = {NULL, NULL, LVL_NONE},
   [S_LEFT_SQUARE]  = {NULL, NULL, LVL_NONE},
   [S_RIGHT_SQUARE] = {NULL, NULL, LVL_NONE},
@@ -504,7 +518,7 @@ ParseRule rules[] = {
   [D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
   [D_DOT_EQUAL]    = {NULL, NULL, LVL_NONE},
 // Arithmetic, Concatenation Operators
-  [K_TO]          = {NULL,     binary, LVL_SUM},
+  [S_DOT]         = {NULL,     binary, LVL_SUM}, // can add method call, maybe
   [S_MINUS]       = {unary,    binary, LVL_SUM},
   [S_PLUS]        = {NULL,     binary, LVL_SUM},
   [S_SLASH]       = {NULL,     binary, LVL_SCALE},
@@ -526,13 +540,13 @@ ParseRule rules[] = {
   [L_NUMBER]        = {number,    NULL,   LVL_NONE},
 //  KEYWORDS
   [TOKEN_PRINT]     = {NULL,     NULL,   LVL_NONE},
+  [K_USE]          = {literal,  NULL,   LVL_NONE},
   [K_FALSE]         = {literal,  NULL,   LVL_NONE},
   [K_NULL]          = {literal,  NULL,   LVL_NONE},
   [K_TRUE]          = {literal,  NULL,   LVL_NONE},
   // [K_SELF]          = {self_,    NULL,   LVL_NONE},
   [K_OR]            = {NULL,     orJump,   LVL_OR},
   [K_AND]           = {NULL,     andJump, LVL_AND},
-  [K_BUILD]         = {NULL,     NULL,   LVL_NONE},
   [K_LET]           = {NULL,     NULL,   LVL_NONE},
   [K_DEFINE]        = {NULL,     NULL,   LVL_NONE},
   [K_ELSE]          = {NULL,     NULL,   LVL_NONE},
@@ -585,98 +599,6 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
 /* FINISH EXPRESSIONS */
 /**********************/
 
-static void compileTokens();
-
-static void block() { // wrapped in begin/end scope else/while/until
-  while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
-    compileTokens();
-  }
-  require(D_COMMA, "Expect ,, to complete a statement block.");  
-}
-
-static void blockTernary() { // if-else, unless-else
-  while (tokenIsNot(D_COMMA) && tokenIsNot(K_ELSE) && tokenIsNot(END_OF_FILE)) {
-    compileTokens();
-  }
-}
-
-static void buildClosure(FunctionType type) {
-  Compiler compiler;
-  initCompiler(&compiler, type);
-  beginScope(); // no end scope
-
-  require(S_LEFT_PARENTHESES, "Expect '(' after closure name, to start parameters.");
-  if (tokenIsNot(S_RIGHT_PARENTHESES)) {
-    do {
-      current->function->arity++;
-      if (current->function->arity > argLimit) {
-        errorAtCurrent("Can't have more than 255 parameters.");
-      }
-      uint8_t constant = parseVariable("Expect parameter name.");
-      defineConstant(constant);
-    } while (consume(S_COMMA));
-  }
-  require(S_RIGHT_PARENTHESES, "Expect ')' after parameters.");
-
-  require(K_AS, "Expect 'as' before function body.");
-  block();
-
-  ObjFunction* function = endCompiler();
-  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // Closures emit-closure
-  for (int i = 0; i < function->upvalueCount; i++) {
-    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
-  }
-}
-
-static void method() {
-  require(L_IDENTIFIER, "Expect method name.");
-  Token prior = previousToken();
-  uint8_t constant = identifierConstant(&prior);
-  FunctionType type = FT_METHOD;
-
-  // initializer name
-  if (previousToken().length == 5 && memcmp(previousToken().start, "build", 5) == 0) {
-    type = FT_INITIALIZER;
-  }
-  buildClosure(type); // method body
-  emitBytes(OP_METHOD, constant);
-}
-
-static void classDeclaration() {
-  require(L_IDENTIFIER, "Expect class name.");
-  Token className = previousToken();
-  uint8_t nameConstant = identifierConstant(&className);
-  declareVariable(true);
-
-  emitBytes(OP_CLASS, nameConstant);
-  defineConstant(nameConstant);
-
-  ClassCompiler classCompiler;
-  classCompiler.hasSuperclass = false; // removed logic for superclass, but may still be usefule for future grammars
-  classCompiler.enclosing = currentClass;
-  currentClass = &classCompiler;
-
-  namedVariable(className, false); // load-class
-  require(K_AS, "Expect 'as' before class body."); 
-  // class body
-  while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
-    method();
-  }
-  require(D_COMMA, "Expect ',,' after class body.");
-
-  emitByte(OP_POP); // Methods and Initializers pop-enclosing
-  currentClass = currentClass->enclosing;
-}
-
-static void closureDeclaration() { // TODO could pass the name into the closure declaration
-  advance();
-  uint8_t global = parseVariable("Expect function name.");
-  markInitialized();
-  buildClosure(FT_FUNCTION);
-  defineConstant(global);
-}
-
 static void handleMutable() { 
   uint8_t local = parseVariable("Expect variable name."); 
 
@@ -685,7 +607,9 @@ static void handleMutable() {
   } else {
     emitByte(OP_NIL);
   }
-  require(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
+  if (previousIsNot(D_COMMA)) {
+    require(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
+  }
 // TESTING stack allocation for mutables
   current->locals[current->localCount - 1].depth = current->scopeDepth;
   emitBytes(OP_SET_LOCAL, local);
@@ -744,28 +668,28 @@ static void whenStatement() {
 static void printStatement() {   // TODO remove
   advance();
   resolveExpression(LVL_BASE);
-  require(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+  if (previousIsNot(D_COMMA)) {
+    require(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+  }
   emitByte(OP_PRINT);
 }
 
 static void returnStatement() {
   advance();
-
   if (current->type == FT_SCRIPT) {
-   // error("Can't return from top-level code."); // prevents top level return
-  }
-  if (current->scopeDepth < 1) {
-    error("Can't return from top-level code."); // want to test to see if more desireable
+    error("Can't return from top-level code."); 
   }
 
-  if (consume(S_SEMICOLON)) {
-    emitReturn();
+  if (consume(S_SEMICOLON)) {  
+    emitReturn(); // no expression
   } else {
     if (current->type == FT_INITIALIZER) {   // Methods and Initializers
       error("Can't return a value from an initializer.");
     }
     resolveExpression(LVL_BASE);
-    require(S_SEMICOLON, "Expect ';' after return value.");
+    if (previousIsNot(D_COMMA)) {   // testing
+      require(S_SEMICOLON, "Expect ';' after return value.");
+    }
     emitByte(OP_RETURN); // TODO am I missing an OP_POP ?
   }
 }
@@ -808,11 +732,13 @@ static void variableDeclaration() {
   } else {
     error("Need to initialize constants.");
   }
-  require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
+  if (previousIsNot(D_COMMA)) { // testing single comma for objects
+    require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
+  }
   defineConstant(global);
 }
 
-static void compileExpression() { // TODO write optionals for ')', '}', ']', ',,'
+static void compileExpression() { // TODO write optionals for ')', '}', ']',
   resolveExpression(LVL_BASE);
   require(S_SEMICOLON, "Expect ';' after expression.");
   emitByte(OP_POP); // get the value
@@ -828,8 +754,6 @@ static void synchronize() {
       return;
     } 
     switch (currentLexeme) {
-      case K_BUILD:
-      case K_DEFINE:
       case K_LET:
       case K_IF:
       case K_UNLESS:
@@ -848,7 +772,6 @@ static void synchronize() {
 
 static void compileTokens() { 
   switch (parserCurrent().lexeme) {
-    case K_DEFINE:    return closureDeclaration(); 
     case K_LET:       return variableDeclaration();
     case K_RETURN:    return returnStatement();
     case TOKEN_PRINT: return printStatement();

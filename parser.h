@@ -19,7 +19,7 @@ typedef enum {
   LVL_BASE,    // : :=
   LVL_OR,      // or
   LVL_AND,     // and
-  LVL_EQUAL,   // == !=
+  LVL_EQUAL,   // == !~
   LVL_COMPARE, // < > <= >=
   LVL_SUM,     // + -
   LVL_SCALE,   // * /
@@ -49,6 +49,7 @@ void errorAtCurrent(const char* message);
 void advance();
 bool tokenIs(Lexeme test);
 bool tokenIsNot(Lexeme test);
+bool previousIsNot(Lexeme test);
 bool consume(Lexeme glyph); // maybe rename
 void require(Lexeme test, const char* message);
 

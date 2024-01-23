@@ -64,10 +64,9 @@ static void defineNative(const char* name, NativeFn function) {
 void initVM() {
   resetStack();
   vm.objects = NULL;
-// Garbage Collection init-gc-fields
-  vm.bytesAllocated = 0;
+// GC
+  vm.bytesAllocated = 0; 
   vm.nextGC = 1024 * 1024;
-//> Garbage Collection init-gray-stack
   vm.grayCount = 0;
   vm.grayCapacity = 0;
   vm.grayStack = NULL;
@@ -113,7 +112,6 @@ static bool call(ObjClosure* closure, int argCount) {
   } 
 //^ check-arity
 
-//> check-overflow
   if (vm.frameCount == FRAMES_MAX) {
     runtimeError("Stack overflow.");
     return false;
@@ -123,34 +121,14 @@ static bool call(ObjClosure* closure, int argCount) {
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
   frame->slots = vm.stackTop - argCount - 1;
+  // testing free on call. FREE_ARRAY messes up currying...
   return true;
 }
 
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
-      case OBJ_BOUND_METHOD: {
-        ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
-      //> store-receiver
-        vm.stackTop[-argCount - 1] = bound->receiver;
-      //^ store-receiver
-        return call(bound->method, argCount);
-      }
-      case OBJ_CLASS: {
-        ObjClass* model = AS_CLASS(callee);
-        vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(model));
-        // Methods and Initializers call-init
-        Value initializer;
-        if (tableGet(&model->methods, vm.initString, &initializer)) {
-          return call(AS_CLOSURE(initializer), argCount);
-        //> no-init-arity-error
-        } else if (argCount != 0) {
-          runtimeError("Expected 0 arguments but got %d.", argCount);
-          return false;
-        //^ no-init-arity-error
-        }
-        return true;
-      }
+
       case OBJ_CLOSURE:
         return call(AS_CLOSURE(callee), argCount);
       case OBJ_NATIVE: {
@@ -166,47 +144,6 @@ static bool callValue(Value callee, int argCount) {
   }
   runtimeError("Can only call functions and classes.");
   return false;
-}
-
-static bool invokeFromClass(ObjClass* model, ObjString* name, int argCount) {
-  Value method;
-  if (!tableGet(&model->methods, name, &method)) {
-    runtimeError("Undefined property '%s'.", name->chars);
-    return false;
-  }
-  return call(AS_CLOSURE(method), argCount);
-}
-
-static bool invoke(ObjString* name, int argCount) {
-  Value receiver = peek(argCount);
-
-  if (!IS_INSTANCE(receiver)) {
-    runtimeError("Only instances have methods.");
-    return false;
-  }
-
-  ObjInstance* instance = AS_INSTANCE(receiver);
-
-  Value value;    // invoke-field
-  if (tableGet(&instance->fields, name, &value)) {
-    vm.stackTop[-argCount - 1] = value;
-    return callValue(value, argCount);
-  }
-
-  return invokeFromClass(instance->model, name, argCount);
-}
-
-static bool bindMethod(ObjClass* model, ObjString* name) {
-  Value method;
-  if (!tableGet(&model->methods, name, &method)) {
-    runtimeError("Undefined property '%s'.", name->chars);
-    return false;
-  }
-
-  ObjBoundMethod* bound = newBoundMethod(peek(0), AS_CLOSURE(method));
-  pop();
-  push(OBJ_VAL(bound));
-  return true;
 }
 
 static ObjUpvalue* captureUpvalue(Value* local) {
@@ -242,14 +179,6 @@ static void closeUpvalues(Value* last) {
     vm.openUpvalues = upvalue->next;
   }
 }
-
-static void defineMethod(ObjString* name) {
-  Value method = peek(0);
-  ObjClass* model = AS_CLASS(peek(1));
-  tableSet(&model->methods, name, method);
-  pop();
-}
-
 static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
@@ -407,37 +336,6 @@ static InterpretResult run() {
         *frame->closure->upvalues[slot]->location = peek(0);
         break;
       }
-      case OP_GET_PROPERTY: {
-        if (!IS_INSTANCE(peek(0))) {
-          runtimeError("Only instances have properties.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        ObjInstance* instance = AS_INSTANCE(peek(0));
-        ObjString* name = READ_STRING();
-        
-        Value value;
-        if (tableGet(&instance->fields, name, &value)) {
-          pop(); // Instance.
-          push(value);
-          break;
-        }
-        if (!bindMethod(instance->model, name)) {
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        break;
-      }
-      case OP_SET_PROPERTY: {
-        if (!IS_INSTANCE(peek(1))) {
-          runtimeError("Only instances have fields.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        ObjInstance* instance = AS_INSTANCE(peek(1));
-        tableSet(&instance->fields, READ_STRING(), peek(0));
-        Value value = pop();
-        pop();
-        push(value);
-        break;
-      }
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();
@@ -521,15 +419,6 @@ static InterpretResult run() {
         frame = &vm.frames[vm.frameCount - 1];
         break;
       }
-      case OP_INVOKE: {
-        ObjString* method = READ_STRING();
-        int argCount = READ_BYTE();
-        if (!invoke(method, argCount)) {
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        frame = &vm.frames[vm.frameCount - 1];
-        break;
-      }
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
         ObjClosure* closure = newClosure(function);
@@ -566,12 +455,6 @@ static InterpretResult run() {
         frame = &vm.frames[vm.frameCount - 1];
         break;
       }
-      case OP_CLASS:
-        push(OBJ_VAL(newClass(READ_STRING())));
-        break;
-      case OP_METHOD:
-        defineMethod(READ_STRING());
-        break;
     }
   }
 

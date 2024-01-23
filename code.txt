@@ -96,34 +96,34 @@ print " --String Concatenation";
 
 let name: "steve";
 let last: " poe";
-let full_name: name to last;
+let full_name: name . last;
 print full_name;
 
 print " --functions";
 
-define addTogether(x, y) as
-    return x + y;
+let addTogether:
+    use x, y return x + y;
 ,,
 print addTogether(22, 55);
 
-define multiplyBoth(x, y) as
-    return x * y;
+let multiplyBoth:
+    use x, y return x * y;
 ,,
 print multiplyBoth(10, 99);
 
-define divideByTen(x) as
-    return x / 10;
+let divideByTen:
+    use x return x / 10;
 ,,
 print divideByTen(39);
 
-define isEven(x) as
-    return 0 = x % 2;
+let isEven: 
+    use x return 0 = x % 2;
 ,,
 
 print isEven(3);
 print isEven(58);
 
-define fibonacci(n) as
+let fibonacci: use n as
     if n < 2 ? return n;
     ,,
     return fibonacci(n - 2) + fibonacci(n - 1);
@@ -135,8 +135,8 @@ print "--Global Scope";
 //  ** Mutables are not in global scope **
 //      let #number := 6;
 //      
-//      define increaseNumber() as
-//          #number := #number + 1; // function doesn't know what #number is
+//      let increaseNumberBy: use x as
+//          #number := #number + x; // function doesn't know what #number is
 //          print #number;
 //      ,,
 //      increaseNumber(); // won't work
@@ -144,8 +144,8 @@ print "--Global Scope";
 //  ** Constants are in global scope **
 
 let number : 6;
-define increaseNumberBy(x) as
-    return number + x;
+let increaseNumberBy: 
+    use x return number + x;
 ,,
 
 print increaseNumberBy(3);  // 9
@@ -154,18 +154,16 @@ print increaseNumberBy(1);  // 7
 print increaseNumberBy(0);  // 6
 print increaseNumberBy(-1); // 5
 
-define add(x) as
-    
-    define addY(y) as
+print "functions with currying";
+let defineAdd: 
+    use x return use y as
         print x + y;
         return x + y;
     ,,
-    return addY;
 ,,
 
- let add5plus : add(5);
+let add5plus : defineAdd(5); 
 
-print "functions with currying";
 add5plus(3);
 add5plus(1);
 add5plus(2);
@@ -193,7 +191,7 @@ when value:
 
 print "Count to four.";
 
-define countTo(x) as
+let countTo: use x as
     let #i := 0;
     until #i >= x ?
         #i += 1;
@@ -202,5 +200,26 @@ define countTo(x) as
 ,,
 
 countTo(4);
+
+let getSumOf : use x, y as 
+    return x + y; 
+,,
+
+print getSumOf(2, 5);
+
+let getProductOf : 
+    use x, y return x * y; 
+,, 
+print getProductOf(4, 3);
+
+let magicNumber : 12;
+
+let triplePlusValue : use y as
+  let #z := y;
+  #z *= 3;
+  return #z + magicNumber; 
+,,
+print triplePlusValue(9);
+
 
 print "===Mu sample end ===";
