@@ -89,7 +89,6 @@ if (0 > -5) ?
 ```
 The "when" statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any conditional operator (= > < !~) etc. Lastly, the "when" statement is break-by-default.
 ```
-
 let value : 1;
 
 when value:
@@ -100,7 +99,6 @@ when value:
     is >= 1 ? print "it's greater than or equal to one.";
     ,,
 ,,
-
 
 ```
 ```
@@ -122,7 +120,6 @@ until #count > 100 ?
     print #count;
     #count *= 3;
 ,,
-
 
 ```
 ```
