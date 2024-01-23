@@ -37,21 +37,15 @@ print #textString;      // “Meoow, meow.”
 ```
 
 ## Logical Operators
+Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '<=', '>=') for logical operators. '!' is the character for 'logical not'.
 ```
-1 and 2;   // logical and, short-circuits on false
+1 and 2;   3 or 5;
 
-3 or 5;    // logical or, short-circuits on true
-
-3 = 3;     // equal to
-3 > 5;     // greater than
-3 < 7;	    // less than
-
-1 !~ 2;    // not equal
+3 = 3;     1 !~ 2;
+3 > 5;    -7 >= 2;
+5 < 9;     3 <= 7;	    
 
 !(3 > 2)   // not (3 is greater than 2)
-
-5 <= 9; 		 // less than or equal to
--7 >= 2; 		// greater than or equal to
 
 ```
 ## The ,, operator and ?
@@ -67,7 +61,6 @@ else
     print "no, zero is not greater than ten";
 ,,
 
-// "no, zero is not greater than ten”
 
 let x: 5;
 unless x = 4 ?
@@ -76,7 +69,6 @@ else
     print "not good";
 ,,
 
-// “good”
 
 unless x = 5 ?
     print "it's not five"; 
@@ -84,11 +76,16 @@ else
     print "it is five";
 ,,
 
-// "it is five"
 
 if (0 > -5) ?     
     print "yes, zero is greater than negative five"; 
 ,,
+```
+// "no, zero is not greater than ten”
+// “good”
+// "it is five"
+// "yes, zero is greater than negative five"
+```
 ```
 The "when" statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any conditional operator (= > < !~) etc. Lastly, the "when" statement is break-by-default.
 ```
@@ -103,8 +100,11 @@ when value:
     is >= 1 ? print "it's greater than or equal to one.";
     ,,
 ,,
-// “it’s one”
 
+
+```
+```
+// “it’s one”
 ```
 Loops are controlled by 'while' and 'until'. While is the standard loop that will break when the condition is false. Until is the same operations except the loop will break if true. This is to allow programmers to think with the booleans they have available and not worry about inverting. A programmer is free to write "until queue.isEmpty()" or "until stack.size() > 100". 
 ```
@@ -115,7 +115,6 @@ while #count < 100 ?
     #count *= 2; 
 ,,
 
-// 1 2 4 8 16 32 64
 
 #count := 1;
 
@@ -124,8 +123,11 @@ until #count > 100 ?
     #count *= 3;
 ,,
 
-// 1 3 9 27 81
 
+```
+```
+// 1 2 4 8 16 32 64
+// 1 3 9 27 81
 ```
 ## Functions
 Mu represents functions with "use" expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression.
