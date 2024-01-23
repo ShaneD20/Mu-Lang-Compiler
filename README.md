@@ -233,7 +233,7 @@ print increaseNumberBy(-1); // 5
 let magicNumber : 12;
 
 let triplePlusValue : use y as
-  let #z := y;
+  let #z : y;
   #z *= 3;
   return #z + magicNumber; 
 ,,
