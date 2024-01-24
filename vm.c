@@ -74,6 +74,7 @@ void initVM() {
 
   initTable(&vm.globals);
   initTable(&vm.strings);
+//  initTable(&vm.mutables); // TODO test for top-level mutables
 
   vm.initString = NULL;
   vm.initString = copyString("init", 4);
@@ -86,6 +87,7 @@ void initVM() {
 void freeVM() {
   freeTable(&vm.globals);
   freeTable(&vm.strings);
+//  freeTable(&vm.mutables); // TODO test for top-level mutables
   vm.initString = NULL;
   freeObjects();
 }
@@ -111,7 +113,6 @@ static bool call(ObjClosure* closure, int argCount) {
     return false;
   } 
 //^ check-arity
-
   if (vm.frameCount == FRAMES_MAX) {
     runtimeError("Stack overflow.");
     return false;
@@ -147,7 +148,6 @@ static bool callValue(Value callee, int argCount) {
 }
 
 static ObjUpvalue* captureUpvalue(Value* local) {
-//> look-for-existing-upvalue
   ObjUpvalue* prevUpvalue = NULL;
   ObjUpvalue* upvalue = vm.openUpvalues;
   while (upvalue != NULL && upvalue->location > local) {
@@ -274,6 +274,7 @@ static InterpretResult run() {
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
+
       case OP_CONSTANT: {
         Value constant = READ_CONSTANT();
         push(constant);
@@ -307,16 +308,6 @@ static InterpretResult run() {
         push(value);
         break;
       }
-      case OP_DEFINE_GLOBAL: {
-        ObjString* name = READ_STRING();
-        if (peekTable(&vm.globals, name)) { // allows for immutability
-          runtimeError("Cannot reassign constant '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        tableSet(&vm.globals, name, peek(0));
-        pop();
-        break;
-      }
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
         if (tableSet(&vm.globals, name, peek(0))) {
@@ -324,6 +315,12 @@ static InterpretResult run() {
           runtimeError("Undefined variable '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
+        break;
+      }
+      case OP_DEFINE_GLOBAL: {
+        ObjString* name = READ_STRING();
+        tableSet(&vm.globals, name, peek(0));
+        pop();
         break;
       }
       case OP_GET_UPVALUE: {
@@ -336,6 +333,7 @@ static InterpretResult run() {
         *frame->closure->upvalues[slot]->location = peek(0);
         break;
       }
+// Binary Operations
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();
@@ -372,7 +370,7 @@ static InterpretResult run() {
         break;
       }
       case OP_CONCATENATE : {
-        if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+        if (IS_STRING(peek(1)) && IS_STRING(peek(0))) {
           concatenate(); 
         } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
           APPEND_INTEGER(NUMBER_VAL, +);
@@ -440,16 +438,14 @@ static InterpretResult run() {
         pop();
         break;
       case OP_RETURN: {
-      // Calls and Functions interpret-return
         Value result = pop();
-      // Closures return-close-upvalues
-        closeUpvalues(frame->slots);
+      
+        closeUpvalues(frame->slots); // Closures
         vm.frameCount--;
         if (vm.frameCount == 0) {
           pop();
           return INTERPRET_OK;
         }
-
         vm.stackTop = frame->slots;
         push(result);
         frame = &vm.frames[vm.frameCount - 1];

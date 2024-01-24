@@ -185,9 +185,8 @@ static Token identifier() {
 static Token number() {
   while (isDigit(peek())) advance();
 
-  // Look for a fractional part.
-  if (peek() == '.' && isDigit(peekNext())) {
-    advance(); // Consume the "."
+  if (peek() == '.' && isDigit(peekNext())) { // Look for a fractional part.
+    advance(); // Consume "."
 
     while (isDigit(peek())) advance();
   }
@@ -195,7 +194,7 @@ static Token number() {
 }
 
 static Token string() {
-  while (peek() != '"' && !isAtEnd()) { // TODO use similar logic if implementing meaningufl new lines
+  while (peek() != '"' && !isAtEnd()) {
     if (peek() == '\n') scanner.line++;
     advance();
   }
@@ -222,15 +221,13 @@ Token scanToken() {
     case '#': return identifier();
     case '(': return makeToken(S_LEFT_PARENTHESES); // TODO would be new line aware
     case ')': return makeToken(S_RIGHT_PARENTHESES);
-    case '{': return makeToken(S_LEFT_CURLY); // TODO would be new line aware
+    case '{': return makeToken(S_LEFT_CURLY);   // TODO would be new line aware
     case '}': return makeToken(S_RIGHT_CURLY);
-    case '?': return makeToken(S_QUESTION); // TODO would be new line aware
+    case '?': return makeToken(S_QUESTION);     // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON);
-    case '=': return makeToken(S_EQUAL); //TOKEN_EQUAL_EQUAL
+    case '=': return makeToken(S_EQUAL); 
     case '-': return makeToken(S_MINUS);
     // two characters
-    case ',': 
-      return makeToken(match(',') ? D_COMMA : S_COMMA);
     case '.': 
       switch(scanner.start[1]) {
         case '=': advance();
@@ -241,23 +238,24 @@ Token scanToken() {
           return makeToken(S_DOT);
       }
       break;
-      //return makeToken(match('=') ? D_DOT_EQUAL : S_DOT);
+    case ',': 
+      return makeToken(match(',') ? D_COMMA : S_COMMA);
+    case '%': 
+      return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO);
     case '+': 
       return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS);
     case '/': 
       return makeToken(match('=') ? D_SLASH_EQUAL : S_SLASH);
     case '*': 
       return makeToken(match('=') ? D_STAR_EQUAL : S_STAR);
-    case '%': 
-      return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO);
     case ':': 
-      return makeToken(match('=') ? D_COLON_EQUAL: S_COLON); // TODO would be new line aware
-    case '!':
-      return makeToken(match('~') ? D_BANG_TILDE : S_BANG);
+      return makeToken(match('=') ? D_COLON_EQUAL: S_COLON);
     case '<':
       return makeToken(match('=') ? D_LESS_EQUAL : S_LESS);
     case '>':
       return makeToken(match('=') ? D_GREATER_EQUAL : S_GREATER);
+    case '!':
+      return makeToken(match('~') ? D_BANG_TILDE : S_BANG);
     case '"': return string();
   }
   return errorToken("Unexpected character.");

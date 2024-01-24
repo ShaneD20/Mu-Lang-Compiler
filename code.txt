@@ -1,28 +1,50 @@
 print "===Mu sample start===";
 
-let #simon : "Simon says!";
-print #simon;
-
-#simon := "Simon says stop!";
-print #simon;
-
-//let asdf;  // error, uninitialized constant
-let #mystery;
-print #mystery; // uninitialized is null, may also enforce initializing in the future
-
-print -5;       // unary negation
-
-print 0 - 5;    // subtraction
-print 5 - 6;    // subtraction
-#mystery := "The mystery is over"; // reassignment
-print #mystery;
-
 print " --Constant assignment";
 let phrase : "Hello World.";
 print phrase;
 
 // let phrase : "Nice to meet you."; // error cannot reassign constant
 // print phrase;
+
+print " --Mutable assignment";
+
+let #mystery : null; // even mutables need to be initialized
+print #mystery; 
+#mystery := "The mystery is over"; // reassignment
+print #mystery;
+
+print " --Arithmetic";
+print -5;       
+print 5 - 6;
+print 6 - 5;    
+print 3 + 14;
+print 12 * 12;
+print 60 / 25;
+print 5 % 4;
+
+print " --Compound Addition";
+let #test : 0;
+#test += 2;
+print #test; 
+#test := -15;
+#test += 10;
+print #test;
+print " --Compound Multiplication";
+#test := 2;
+#test *= 5;
+print #test;
+print " --Compound Division";
+#test /= 3;
+print #test;
+#test := 7;
+print " --Compound Modulo";
+#test %= 3;
+print #test;
+print " --Compound Concatenation";
+let #text : "one, two, three, ";
+#text .= "four, ";
+print #text;
 
 print " --And, Or";
 print 1 or 2;
@@ -36,12 +58,6 @@ print !(2 < 5);
 print !(3 = 2 + 1);
 print !(3 > 3 * 2);
 print !(2 = 1);
-
-print " --Modulo";
-let #id : 12;
-#id %= 5;
-print #id;
-print #id * 3;
 
 print " --While Loop";
 let #count : 1;
@@ -105,6 +121,10 @@ let last: " poe";
 let full_name: name .. last;
 print full_name;
 
+print " --Number Concatenation";
+let appended : 1 .. 5;
+print appended;
+
 print " --functions";
 
 let addTogether:
@@ -139,14 +159,14 @@ print fibonacci(20);
 
 print "--Global Scope";
 //  ** Mutables are not in global scope **
-//      let #number := 6;
-//      
-//      let increaseNumberBy: use x as
-//          #number := #number + x; // function doesn't know what #number is
-//          print #number;
-//      ,,
-//      increaseNumberBy(7); // won't work
-//
+      let #number : 6;
+      
+      let increaseNumberByFail: use x as
+          #number := #number + x; // function doesn't know what #number is
+          print #number;
+      ,,
+      increaseNumberByFail(7); // won't work
+
 //  ** Constants are in global scope **
 
 let number : 6;
@@ -208,26 +228,6 @@ let countTo: use x as
 
 countTo(4);
 
-let getSumOf : use x, y as 
-    return x + y; 
-,,
-
-print getSumOf(2, 5);
-
-let getProductOf : 
-    use x, y return x * y; 
-,, 
-print getProductOf(4, 3);
-
-let magicNumber : 12;
-
-let triplePlusValue : use y as
-  let #z : y;
-  #z *= 3;
-  return #z + magicNumber; 
-,,
-print triplePlusValue(9); // 39
-
 print " --Mutable Function Parameters";
 
 let test : use x, #y as
@@ -235,5 +235,15 @@ let test : use x, #y as
     return x + #y;
 ,,
 print test(1, 2);
+
+let #xyz : 15;
+#xyz *= 1.2;
+print #xyz;
+
+let moduloThis: use a, z as
+    return a % z;
+,,
+
+print moduloThis(19, 6);
 
 print "===Mu sample end ===";

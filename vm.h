@@ -5,7 +5,7 @@
 #include "table.h"  // Hash Tables vm-include-table
 #include "value.h"  // vm-include-value
 
-#define FRAMES_MAX 64
+#define FRAMES_MAX 128
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 // Calls and Functions frame-max
 
@@ -23,15 +23,15 @@ typedef struct {
 //^ TESTING
 
 typedef struct {
-// Array Calls and Functions
   CallFrame frames[FRAMES_MAX];
-  int frameCount; 
-// VM Stack
+  int frameCount;
+//^ Array Calls and Functions
   Value stack[STACK_MAX];
   Value* stackTop;
-// VM Tables
+//^ VM Stack
   Table globals; // Constants
   Table strings; // Strings
+//^ VM Tables
   ObjString* initString; // Methods and Initializers
   ObjUpvalue* openUpvalues; // Closures 
 
@@ -57,7 +57,6 @@ extern VM vm; // Strings extern-vm
 
 void initVM();
 void freeVM();
-
 InterpretResult interpret(const char* source);
 void push(Value value);
 Value pop();
