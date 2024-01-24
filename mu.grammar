@@ -64,7 +64,7 @@ while       → 'while' EXPRESSION '?' BODY ',,'
             ;
 until       → 'until' EXPRESSION '?' BODY ',,'
             ;
-quit        → 'quit' EXPRESSION
+quit        → 'quit' ';'
             ;
 block       → expression-statement BODY ',,'
             ;

@@ -15,6 +15,13 @@ typedef struct {
   Value* slots;
 } CallFrame;
 
+//> TESTING for product types
+// typedef struct {
+//   uint8_t* ip;
+//   Value* slots;
+// } ProductType;
+//^ TESTING
+
 typedef struct {
   CallFrame frames[FRAMES_MAX];
   int frameCount;
