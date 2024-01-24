@@ -96,6 +96,29 @@ static void endScope() {
   }
 }
 
+static uint8_t identifierConstant(Token* token) {
+  return makeConstant(OBJ_VAL(copyString(token->start, token->length)));
+}
+
+static bool identifiersEqual(Token* a, Token* b) {
+  if (a->length != b->length) return false;
+  return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int resolveLocal(Compiler* compiler, Token* token) {
+  for (int i = compiler->localCount - 1; i >= 0; i--) {
+    Local* local = &compiler->locals[i];
+    if (identifiersEqual(token, &local->name)) {
+      if (local->depth == -1) {
+        error("Can't read local variable in its own initializer.");
+      }
+      // printf("\nlocalCount: %d .", i);
+      return i;
+    }
+  }
+  return -1;
+}
+
 static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   compiler->function = NULL;
@@ -138,28 +161,6 @@ static ObjFunction* endCompiler() {
   return function;
 }
 
-static uint8_t identifierConstant(Token* token) {
-  return makeConstant(OBJ_VAL(copyString(token->start, token->length)));
-}
-
-static bool identifiersEqual(Token* a, Token* b) {
-  if (a->length != b->length) return false;
-  return memcmp(a->start, b->start, a->length) == 0;
-}
-
-static int resolveLocal(Compiler* compiler, Token* token) {
-  for (int i = compiler->localCount - 1; i >= 0; i--) {
-    Local* local = &compiler->locals[i];
-    if (identifiersEqual(token, &local->name)) {
-
-      if (local->depth == -1) {
-        error("Can't read local variable in its own initializer.");
-      }
-      return i;
-    }
-  }
-  return -1;
-}
 /************************/
 /* END HELPER FUNCTIONS */
 /************************/
@@ -186,19 +187,20 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
 
 // Closures 
 static int resolveUpvalue(Compiler* compiler, Token* name) {
-  if (compiler->enclosing == NULL) return -1;
-  if (name->lexeme == L_VARIABLE) return -1; // prevents mutables from being an upvalue
-
-  int depth = resolveLocal(compiler->enclosing, name);
-  if (depth != -1) { // mark-local-captured
-    compiler->enclosing->locals[depth].isCaptured = true;
-    return addUpvalue(compiler, (uint8_t)depth, true);
-  }
-
-// recursive
-  int upvalue = resolveUpvalue(compiler->enclosing, name);
-  if (upvalue != -1) {
-    return addUpvalue(compiler, (uint8_t)upvalue, false);
+  Token test = *name;
+  if (test.lexeme == L_VARIABLE || compiler->enclosing == NULL) {
+    return -1;
+  } else {
+    int depth = resolveLocal(compiler->enclosing, name);
+    if (depth != -1) { // mark-local-captured
+      compiler->enclosing->locals[depth].isCaptured = true;
+      return addUpvalue(compiler, (uint8_t)depth, true);
+    }
+  // recursive
+    int upvalue = resolveUpvalue(compiler->enclosing, name);
+    if (upvalue != -1) {
+      return addUpvalue(compiler, (uint8_t)upvalue, false);
+    }
   }
   return -1;
 }
@@ -241,7 +243,7 @@ static void declareVariable(bool immutable) {
 static uint8_t parseVariable(const char* errorMessage) {
   if (tokenIs(L_VARIABLE)) {
     require(L_VARIABLE, errorMessage);
-    declareVariable(false);
+    declareVariable(true); // was false for stack
   } else {      
     require(L_IDENTIFIER, errorMessage);
     declareVariable(true);
@@ -276,10 +278,11 @@ static ParseRule* getRule(Lexeme glyph);
 
 
 static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
-  resolveExpression(LVL_BASE);
-  // TODO clean up again
-  emitByte(operation);
+  //advance(); // TODO get working for /= %= .= (operands are performed backwards)
+  advance();
   emitBytes(byte1, target);
+  resolveExpression(LVL_BASE); // gathers everything to the right of operator.
+  emitByte(operation);
   emitBytes(byte2, target);
 }
 
@@ -299,14 +302,14 @@ static uint8_t argumentList() {
   return argCount;
 }
 
-static void andJump(bool x) {
+static void andJump(bool unused) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
   resolveExpression(LVL_AND);
   patchJump(endJump);
 }
 
-static void orJump(bool x) {
+static void orJump(bool unused) {
   int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
   resolveExpression(LVL_OR);
@@ -351,7 +354,7 @@ static void binary(bool canAssign) {
   }
 }
 
-static void call(bool canAssign) { 
+static void call(bool unused) { 
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 }
@@ -370,49 +373,56 @@ static void string(bool unused) {
   emitConstant(OBJ_VAL(copyString(previousToken().start + 1, previousToken().length - 2))); // already prints
 }
 
-static void namedVariable(Token name, bool canAssign) { 
+static void findVariable(Token name, bool canAssign) { 
   uint8_t getOp, setOp;
-  /*
-    if mutables are stored on the stack, how can I get resolveLocal to return 0 ?
-  */
+
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
-   // printf("local:\n"); // REMOVE
-  } else if ((arg = resolveUpvalue(current, &name)) != -1) {
+  } else if (name.lexeme == L_IDENTIFIER && (arg = resolveUpvalue(current, &name)) != -1) {
     getOp = OP_GET_UPVALUE;
     setOp = OP_SET_UPVALUE;
-   // printf("upvalue:"); // REMOVE
+  } else if (current->type != FT_SCRIPT && name.lexeme != L_IDENTIFIER) {
+      error("Cannot access mutables from outside the function's scope.");
   } else {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
-   // printf("global:\n"); // REMOVE
   }
-  if (canAssign && consume(S_COLON)) { // for error reporting
-    resolveExpression(LVL_BASE);
-    emitBytes(setOp, (uint8_t)arg);
-  } else if (canAssign && consume(D_COLON_EQUAL)) {  
-    resolveExpression(LVL_BASE);
-    emitBytes(setOp, (uint8_t)arg);
-  } else if (canAssign && consume(D_PLUS_EQUAL)) { // ugly but it works
-    emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && consume(D_STAR_EQUAL)) {
-    emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && consume(D_SLASH_EQUAL)) {
-    emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && consume(D_MODULO_EQUAL)) {
-    emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
-  } else if (canAssign && consume(D_DOT_EQUAL)) {
-    emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
-  } else {
-    emitBytes(getOp, (uint8_t)arg);
+
+  if (canAssign) {
+    Lexeme lexeme = parserCurrent().lexeme;
+    switch (lexeme) {
+      case S_COLON : error("Cannot reassign with ':' must use the ':=' operator.");
+
+      case D_COLON_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+        advance();
+        resolveExpression(LVL_BASE);
+        return emitBytes(setOp, (uint8_t)arg);
+      
+      case D_PLUS_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+        return emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
+
+      case D_STAR_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+        return emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
+
+      case D_SLASH_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+        return emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
+
+      case D_MODULO_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+        return emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
+
+      case D_DOT_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+        return emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
+      default : break;
+    }
   }
+  return emitBytes(getOp, (uint8_t)arg);
 }
 
 static void variable(bool canAssign) { // would really like to clear this confusion, but it's needed.
-  namedVariable(previousToken(), canAssign); 
+  findVariable(previousToken(), canAssign); 
 }
 
 static void unary(bool unused) {
@@ -475,7 +485,7 @@ static void buildClosure(FunctionType type) {
   }
 }
 
-static void literal(bool canAssign) {
+static void literal(bool unused) {
   switch (previousToken().lexeme) {
     case K_FALSE: emitByte(OP_FALSE); 
       break;
@@ -510,10 +520,10 @@ ParseRule rules[] = {
   [S_COLON]        = {NULL, NULL, LVL_NONE},
   [D_COLON_EQUAL]  = {NULL, NULL, LVL_NONE},
   [D_PLUS_EQUAL]   = {NULL, NULL, LVL_NONE},
-  [D_MODULO_EQUAL] = {NULL, NULL, LVL_NONE},
   [D_STAR_EQUAL]   = {NULL, NULL, LVL_NONE},
-  [D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
   [D_DOT_EQUAL]    = {NULL, NULL, LVL_NONE},
+  //[D_MODULO_EQUAL] = {NULL, NULL, LVL_NONE},
+  //[D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
 // Arithmetic, Concatenation Operators
   [D_DOT]         = {NULL,     binary, LVL_SUM}, // can add method call, maybe
   [S_MINUS]       = {unary,    binary, LVL_SUM},
@@ -541,7 +551,6 @@ ParseRule rules[] = {
   [K_FALSE]         = {literal,  NULL,   LVL_NONE},
   [K_NULL]          = {literal,  NULL,   LVL_NONE},
   [K_TRUE]          = {literal,  NULL,   LVL_NONE},
-  // [K_SELF]          = {self_,    NULL,   LVL_NONE},
   [K_OR]            = {NULL,     orJump,   LVL_OR},
   [K_AND]           = {NULL,     andJump, LVL_AND},
   [K_LET]           = {NULL,     NULL,   LVL_NONE},
@@ -608,7 +617,7 @@ static void handleMutable() {
     require(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
   }
 // TESTING stack allocation for mutables
-  current->locals[current->localCount - 1].depth = current->scopeDepth;
+  current->locals[current->localCount - 1].depth = current->scopeDepth; // need to be set at scope 0
   emitBytes(OP_SET_LOCAL, local);
 }
 
@@ -717,10 +726,10 @@ static void doBlock() {
 
 static void variableDeclaration() {
   advance();
-  if (tokenIs(L_VARIABLE)) {
-    handleMutable();
-    return;
-  } 
+  // if (tokenIs(L_VARIABLE)) {
+  //   handleMutable();
+  //   return;
+  // } 
 
   uint8_t global = parseVariable("Expect variable name.");
 

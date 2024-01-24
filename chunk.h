@@ -16,9 +16,13 @@ typedef enum {
 // Local Variable operations
   OP_GET_LOCAL,
   OP_SET_LOCAL,
-// Global Variables get-global-op
-  OP_GET_GLOBAL,
+// Mutable Variables
+  OP_DEFINE_MUTABLE,
+  OP_SET_MUTABLE,
+  OP_GET_MUTABLE,
+// Global Constants get-global-op
   OP_DEFINE_GLOBAL,
+  OP_GET_GLOBAL,
   OP_SET_GLOBAL,
 // Closures operations
   OP_GET_UPVALUE,
@@ -34,6 +38,7 @@ typedef enum {
   OP_DIVIDE,
   OP_MODULO,
   OP_CONCATENATE, // TODO implement
+// MU_CONCATENATE,
 // Types of Values unary-ops
   OP_NOT,
   OP_NEGATE,
