@@ -1,7 +1,8 @@
 # Mμ Programming Language
 [Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md)
-## Variable Declarations
-There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword and are initialized with the ‘:’ character. Mutables can be reassigned with ‘:=‘ . Identifiers for mutables must begin with "#" such as "#value" or "#name". 
+## Comments and Variable Declarations
+For single line comments, Mu uses ‘//‘. 
+There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword and are initialized with the ‘:’ character. Mutables can be reassigned with ‘:=‘ and Identifiers for mutables must begin with "#", such as "#value" or "#name". 
 
 ```
 let phrase : “Hello World”;   // constant
@@ -10,8 +11,8 @@ let #number : 0;             // mutable
 #number  := 1;               // reassignment operator
  
 ```
-## Core Operators
-For single line comments, Mu uses ‘//‘, for arithmetic operators Mu uses ('+', '-', '/', '*'), for concatenation '..' is used. Note concatenation works with strings and strings or numbers and numbers.
+## Arithmetic and Concatenation
+For arithmetic operators Mu uses ('+', '-', '/', '*'), for concatenation '..' is used. Note concatenation works with strings and strings or numbers and numbers. And, if one of the operands for number concatenation is negative, the runtime errors.
 ```
 // addition
 let sum : 3 + 8;
@@ -36,8 +37,38 @@ print number;
 // "Hello World"
 // 21
 ```
-## Mutable Operators and Comments
-Mutables have short-hand operators to perform mutations. Both are similar to other programming languages.
+## Logical Operators
+Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '<=', '>=') for logical operators. '!' is the character for 'logical not'.
+```
+1 and 2;   3 or 5;
+
+3 = 3;     1 !~ 2;
+3 > 5;    -7 >= 2;
+5 < 9;     3 <= 7;	    
+
+!(3 > 2)   // not (3 is greater than 2)
+
+```
+## Bitwise Operators
+Mu uses standard operators for bitwise and, or, xor, and not. ( &, |, ^, ~ ). In the future Mu will support bit shifting left or right, but the implemtation is still being thought out.
+```
+print 60 & 13;
+
+print 60 ^ 13;
+
+print 60 | 13;
+
+print ~60;
+```
+```
+//  12
+//  41
+//  61
+// -61
+```
+
+## Mutable Assignment Operators
+Mutables have short-hand operators to perform mutations. They are similar to other programming languages: sum assignment (+=), product assignment (*=), quotient assignment (/=), concatenation assignment (.=), and modulus assignment (%=).
 ```
 let #value : 34;
 let #textString : “Meoow, ”;
@@ -71,18 +102,6 @@ print #textString;
 // 300
 // 100
 // “Meoow, meow.”
-```
-## Logical Operators
-Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '<=', '>=') for logical operators. '!' is the character for 'logical not'.
-```
-1 and 2;   3 or 5;
-
-3 = 3;     1 !~ 2;
-3 > 5;    -7 >= 2;
-5 < 9;     3 <= 7;	    
-
-!(3 > 2)   // not (3 is greater than 2)
-
 ```
 ## The ,, operator and ?
 In programming languages it's beneficial to express the end of a block of code. In Mu ',,' is used to express the ending of a code block. 
@@ -164,7 +183,9 @@ until #count > 100 ?
 // 1 3 9 27 81
 ```
 ## Functions
-Mu represents functions with "use" expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression.
+Mu represents functions with "use" expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression. 
+  Functions can access constants from the global scope or within their closure, but they cannot access mutables outside of their scope.
+Function parameters can be constant or immutable, a function can be passed in a constant and have a mutable copy of the value.
 ```
 let fibonacci: use n as
     if n < 2 ? return n;
@@ -211,10 +232,19 @@ add5plus(3);   // 8
 add5plus(1);   // 6
 add5plus(2);   // 7
 ```
+An example with mutable Function Parameters
+```
+let test : use x, #y as
+    #y *= #y;
+    return x + #y;
+,,
+print test(1, 2);
+```
+```
+// 5
+```
 ## Function Closures and Global Scope
-Constants are stored in the global scope, while mutables are scoped locally to the file. This is a design choice to reduce side effects, as any function can access the global scope. If a mutable is to be used with a function, it has to be passed in as a parameter or declared within the function's scope.
-
-Further as functions create closures, they ignore mutables. Mutables are never captured within a function's closure.
+Functions only being able to get constants from the global scope or their closure is a design choice to reduce side effects. If a mutable is to be used with a function, it has to be passed in as a parameter or declared within the function's scope.
 ```
 //  ** Mutables are not in global scope **
 //      let #number : 6;
@@ -247,15 +277,4 @@ let triplePlusValue : use y as
 ,,
 print triplePlusValue(9);
 
-```
-## Mutable Function Parameters
-```
-let test : use x, #y as
-    #y *= #y;
-    return x + #y;
-,,
-print test(1, 2);
-```
-```
-// 5
 ```
