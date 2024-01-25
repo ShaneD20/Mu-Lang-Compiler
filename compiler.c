@@ -159,10 +159,6 @@ static ObjFunction* endCompiler() {
   return function;
 }
 
-/************************/
-/* END HELPER FUNCTIONS */
-/************************/
-
 static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) { // Closures
   int upvalueCount = compiler->function->upvalueCount;
 
@@ -260,9 +256,9 @@ static void defineConstant(uint8_t global) { // Currently assigns constants
   } 
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
-/*********************/
-/* BEGIN EXPRESSIONS */
-/*********************/
+/*******************************************
+  END HELPER FUNCTIONS & BEGIN EXPRESSIONS 
+********************************************/
 static void resolveExpression(Precedence precedence);
 static ParseRule* getRule(Lexeme glyph); 
 
@@ -427,11 +423,14 @@ static void unary(bool unused) {
 ************************/
 static void compileTokens();
 
-static void block() { // TODO
+static void block(Token* errorMarker) { // TODO
   while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
     compileTokens();
   }
-  require(D_COMMA, "Expect ,, to complete a statement block.");  
+  if (tokenIsNot(D_COMMA)) {
+    errorAt(errorMarker, "Need a ,, to finish code block.");
+  }
+  consume(D_COMMA);
 }
 
 static void blockTernary() { // if-else, unless-else
@@ -455,11 +454,12 @@ static void buildClosure(FunctionType type) {
       defineConstant(constant);
     } while (consume(S_COMMA));
   }
+  Token marker = parserCurrent();
   if (tokenIs(K_RETURN)) { // lambda expression shorthand
-    block();
+    block(&marker);
   } else {
     require(K_AS, "Expect 'as' or 'return' after parameters and before function body.");
-    block();
+    block(&marker);
   }
   
   ObjFunction* function = endCompiler();
@@ -591,6 +591,7 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
 static void ternaryStatement(OpCode condition) {
   advance();
   resolveExpression(LVL_BASE);
+  Token errorMarker = parserCurrent();
   require(S_QUESTION, "Expect a '?' after BOOLEAN test condition.");
   beginScope();
   int thenJump = emitJump(condition);
@@ -604,9 +605,13 @@ static void ternaryStatement(OpCode condition) {
   emitByte(OP_POP); // end
 
   if (consume(K_ELSE)) { 
-    block();
+    Token marker = previousToken();
+    block(&marker);
   } else {
-    require(D_COMMA, "Expect ,, to complete a ternary (if/unless) block, or 'else' to continue.");  
+    if (tokenIsNot(D_COMMA)) {
+      errorAt(&errorMarker, "Need a ,, to finish code block.");
+    }
+    consume(D_COMMA);
   }
   patchJump(elseJump);
   endScope();
@@ -671,11 +676,12 @@ static void loopWithCondition(OpCode condition) {
   int loopStart = currentChunk()->count;
   resolveExpression(LVL_BASE);
   require(S_QUESTION, "Expect '?' after condition, to begin conditional loop.");
+  Token marker = previousToken();
 
   int exitJump = emitJump(condition); // false for while, true for until
   beginScope();
   emitByte(OP_POP);
-  block();
+  block(&marker);
   emitLoop(loopStart);
 
   patchJump(exitJump);
@@ -684,9 +690,10 @@ static void loopWithCondition(OpCode condition) {
 }
 
 static void doBlock() {
+  Token marker = parserCurrent();
   advance();
   beginScope();
-  block();
+  block(&marker);
   endScope();
 }
 
