@@ -246,7 +246,7 @@ print test(1, 2);
 ## Function Closures and Global Scope
 Functions only being able to get constants from the global scope or their closure is a design choice to reduce side effects. If a mutable is to be used with a function, it has to be passed in as a parameter or declared within the function's scope.
 ```
-//  ** Mutables are not in global scope **
+//  ** Functions are not aware of mutables outside of their scope **
 //      let #number : 6;
 //      
 //      define increaseNumber() as
@@ -254,8 +254,7 @@ Functions only being able to get constants from the global scope or their closur
 //          print #number;
 //      ,,
 //      increaseNumber(); // won't work
-//
-//  ** Constants are in global scope **
+//  ** They are aware of constants, and can capture constants within a closure **
 
 let number : 6;
 define increaseNumberBy(x) as
