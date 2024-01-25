@@ -159,14 +159,14 @@ print fibonacci(20);
 
 print "--Global Scope";
 //  ** Mutables are not in global scope **
-      let #number : 6;
-      
-      let increaseNumberByFail: use x as
-          #number := #number + x; // function doesn't know what #number is
-          print #number;
-      ,,
-      increaseNumberByFail(7); // won't work
-
+//      let #number : 6;
+//      
+//      let increaseNumberByFail: use x as
+//          #number := #number + x; // function doesn't know what #number is
+//          print #number;
+//      ,,
+//      increaseNumberByFail(7); // won't work
+//
 //  ** Constants are in global scope **
 
 let number : 6;

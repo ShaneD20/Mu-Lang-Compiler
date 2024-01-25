@@ -9,17 +9,7 @@
 #include "memory.h" // Strings
 #include "vm.h"
 
-VM vm; // [one]
-
-//> Native Functions
-static Value clockNative(int argCount, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
-static void showText(Value value) {
-  printValue(value); // value.h
-  printf("\n");
-}
-//^ Native Functions
+VM vm;
 
 static void resetStack() {
   vm.stackTop = vm.stack;
@@ -34,25 +24,22 @@ static void runtimeError(const char* format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-//> Calls and Functions runtime-error-stack
   for (int i = vm.frameCount - 1; i >= 0; i--) {
-    CallFrame* frame = &vm.frames[i];
-//> Closures runtime-error-function
-    ObjFunction* function = frame->closure->function;
-//^ Closures runtime-error-function
+    CallFrame* frame = &vm.frames[i]; // Calls and Functions runtime error stack
+    ObjFunction* function = frame->closure->function;  
+    //^ Closures runtime error function
     size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ", // [minus]
-            function->chunk.lines[instruction]);
+    fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
     if (function->name == NULL) {
       fprintf(stderr, "script\n");
     } else {
       fprintf(stderr, "%s()\n", function->name->chars);
     }
   }
-//^ Calls and Functions runtime-error-stack
   resetStack();
 }
 
+//> Native Functions
 static void defineNative(const char* name, NativeFn function) {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
   push(OBJ_VAL(newNative(function)));
@@ -60,6 +47,14 @@ static void defineNative(const char* name, NativeFn function) {
   pop();
   pop();
 }
+static Value clockNative(int argCount, Value* args) {
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+static void showText(Value value) {
+  printValue(value); // value.h
+  printf("\n");
+}
+//^ Native Functions
 
 void initVM() {
   resetStack();
@@ -83,11 +78,9 @@ void initVM() {
   //defineNative("show", showText);
 }
 
-//> VM Helpers
 void freeVM() {
   freeTable(&vm.globals);
   freeTable(&vm.strings);
-//  freeTable(&vm.mutables); // TODO test for top-level mutables
   vm.initString = NULL;
   freeObjects();
 }
@@ -102,9 +95,7 @@ Value pop() {
 static Value peek(int distance) {
   return vm.stackTop[-1 - distance];
 }
-//^ VM Helpers
 
-// Closures
 static bool call(ObjClosure* closure, int argCount) {
 // Closures check-arity
   if (argCount != closure->function->arity) {
@@ -122,7 +113,6 @@ static bool call(ObjClosure* closure, int argCount) {
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
   frame->slots = vm.stackTop - argCount - 1;
-  // testing free on call. FREE_ARRAY messes up currying...
   return true;
 }
 
@@ -205,25 +195,23 @@ static InterpretResult run() {
 
 #define READ_BYTE() (*frame->ip++)
 
-#define READ_SHORT() \
-    (frame->ip += 2, \
+#define READ_SHORT() (frame->ip += 2, \
     (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 
 #define READ_CONSTANT() \
     (frame->closure->function->chunk.constantPool.values[READ_BYTE()])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
-/*
-  TODO replace BINARY_OP with actual integer type, actual real type
-*/ 
+
+/* TODO replace BINARY_OP with actual integer type, actual real type */ 
 #define BINARY_INT_OP(valueType, op) \
     do { \
       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
         runtimeError("Operands must be numbers."); \
         return INTERPRET_RUNTIME_ERROR; \
       } \
-      long b = AS_NUMBER(pop()); \
-      long a = AS_NUMBER(pop()); \
+      long long b = AS_NUMBER(pop()); \
+      long long a = AS_NUMBER(pop()); \
       push(valueType(a op b)); \
     } while (false)
 
@@ -375,8 +363,7 @@ static InterpretResult run() {
         } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
           APPEND_INTEGER(NUMBER_VAL, +);
         } else {
-          runtimeError(
-              "Operands must be two strings, Or to integers."); // todo test for integers
+          runtimeError("Operands must be two strings, Or to integers.");
           return INTERPRET_RUNTIME_ERROR;
         }
       }
@@ -397,8 +384,7 @@ static InterpretResult run() {
         break;
       }
       case OP_LOOP: {
-        uint16_t offset = READ_SHORT();
-      // Calls and Functions loop
+        uint16_t offset = READ_SHORT(); // Calls and Functions loop
         frame->ip -= offset;
         break;
       }
@@ -413,8 +399,7 @@ static InterpretResult run() {
         if (!callValue(peek(argCount), argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
-        // after call, update the frame
-        frame = &vm.frames[vm.frameCount - 1];
+        frame = &vm.frames[vm.frameCount - 1]; // after call, update the frame
         break;
       }
       case OP_CLOSURE: {

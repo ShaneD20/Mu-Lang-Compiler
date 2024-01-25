@@ -1,4 +1,3 @@
-//> Strings object-h
 #ifndef mu_object_h
 #define mu_object_h
 
@@ -58,7 +57,7 @@ struct ObjString {
   Obj obj;
   int length;
   char* chars;
-  uint32_t hash; // Hash Tables obj-string-hash
+  uint32_t hash;
 };
 
 // Closures
@@ -77,8 +76,6 @@ typedef struct {
 } ObjClosure;
 //^ Closures
 
-
-// functions ...
 ObjClosure* newClosure(ObjFunction* function);
 ObjFunction* newFunction();
 ObjNative* newNative(NativeFn function);
