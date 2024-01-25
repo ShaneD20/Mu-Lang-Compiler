@@ -180,7 +180,7 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) { // Clos
 
 static int resolveUpvalue(Compiler* compiler, Token* name) { // Closures 
   Token test = *name;
-  if (test.lexeme == L_VARIABLE || compiler->enclosing == NULL) {
+  if (test.lexeme == L_MUTABLE || compiler->enclosing == NULL) {
     return -1;
   } else {
     int depth = resolveLocal(compiler->enclosing, name);
@@ -232,7 +232,7 @@ static uint8_t parseVariable(const char* errorMessage) {
   if (tokenIs(L_IDENTIFIER)) {
     require(L_IDENTIFIER, errorMessage);
   } else {      
-    require(L_VARIABLE, errorMessage);
+    require(L_MUTABLE, errorMessage);
   }
   checkLocals();
   if (current->scopeDepth > 0) {
@@ -272,7 +272,7 @@ static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_
 
 static uint8_t argumentList() {
   uint8_t argCount = 0;
-  if (tokenIsNot(S_RIGHT_PARENTHESES)) {
+  if (tokenIsNot(S_RIGHT_ROUND)) {
     do {
       resolveExpression(LVL_BASE);
       if (argCount >= argLimit) {
@@ -281,7 +281,7 @@ static uint8_t argumentList() {
       argCount++;
     } while (consume(S_COMMA));
   }
-  require(S_RIGHT_PARENTHESES, "Expect ')' after arguments.");
+  require(S_RIGHT_ROUND, "Expect ')' after arguments.");
   return argCount;
 }
 
@@ -331,6 +331,12 @@ static void binary(bool canAssign) {
       break;
     case S_MODULO:        emitByte(OP_MODULO);
       break;
+    case S_AMPERSAND:     emitByte(OP_BIT_AND);
+      break;
+    case S_PIPE:          emitByte(OP_BIT_OR);
+      break;
+    case S_RAISE:         emitByte(OP_BIT_XOR);
+      break;
     default: return; // Unreachable.
   }
 }
@@ -342,7 +348,7 @@ static void call(bool unused) {
 
 static void grouping(bool unused) {
   resolveExpression(LVL_BASE);
-  require(S_RIGHT_PARENTHESES, "Expect ')' after expression.");
+  require(S_RIGHT_ROUND, "Expect ')' after expression.");
 }
 
 static void number(bool unused) {
@@ -375,7 +381,7 @@ static void findVariable(Token name, bool canAssign) {
   if (canAssign) {
     Lexeme lexeme = parserCurrent().lexeme;
     switch (lexeme) {
-      case S_COLON : error("Cannot reassign with ':' must use the ':=' operator.");
+      case S_COLON : error("Please declare variables with the 'let' keyword.");
 
       case D_COLON_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         advance();
@@ -414,6 +420,8 @@ static void unary(bool unused) {
     case S_BANG: emitByte(OP_NOT); 
       break;
     case S_MINUS: emitByte(OP_NEGATE); 
+      break;
+    case S_TILDE: emitByte(OP_FLIP_BITS);
       break;
     default: return; // Unreachable.
   }
@@ -487,17 +495,22 @@ static void literal(bool unused) {
 ParseRule rules[] = {
 //                        prefix,  infix, precedence
   [S_DOT]              = {NULL,     call, LVL_CALL}, // call struct properties?
-  [S_LEFT_PARENTHESES] = {grouping, call, LVL_CALL},
+  [S_LEFT_ROUND]       = {grouping, call, LVL_CALL},
   [S_LEFT_CURLY]       = {NULL,    NULL,    LVL_NONE}, // {literal, NULL, LVL_NONE}, 
   [S_LEFT_SQUARE]      = {NULL,    NULL,    LVL_NONE}, // {literal, NULL, LVL_NONE},
 //^ function calls, product type declarations
-  [D_DOT]              = {NULL,     binary, LVL_SUM},
   [S_MINUS]            = {unary,    binary, LVL_SUM},
   [S_PLUS]             = {NULL,     binary, LVL_SUM},
   [S_SLASH]            = {NULL,     binary, LVL_SCALE},
   [S_MODULO]           = {NULL,     binary, LVL_SCALE},
   [S_STAR]             = {NULL,     binary, LVL_SCALE},
-//^ Arithmetic, Concatenation Operators
+//^ Arithmetic Operators
+  [D_DOT]              = {NULL,     binary, LVL_SUM},
+  [S_AMPERSAND]        = {NULL,     binary, LVL_SUM},
+  [S_PIPE]             = {NULL,     binary, LVL_SUM},
+  [S_RAISE]            = {NULL,     binary, LVL_SUM},
+  [S_TILDE]            = {unary,    NULL,   LVL_UNARY},
+//^ Bitwise and Concatenation Operators
   [S_BANG]             = {unary,    NULL,   LVL_UNARY},
   [D_BANG_TILDE]       = {NULL,     binary, LVL_EQUAL},
   [S_EQUAL]            = {NULL,     binary, LVL_EQUAL},
@@ -507,7 +520,7 @@ ParseRule rules[] = {
   [D_LESS_EQUAL]       = {NULL,     binary, LVL_COMPARE},
 //^ Comparison Operators
   [L_IDENTIFIER]       = {variable, NULL,   LVL_NONE},
-  [L_VARIABLE]         = {variable, NULL,   LVL_NONE},
+  [L_MUTABLE]         = {variable, NULL,   LVL_NONE},
   [L_STRING]           = {string,   NULL,   LVL_NONE},
   [L_NUMBER]           = {number,   NULL,   LVL_NONE},
   [K_USE]              = {literal,  NULL,   LVL_NONE},
@@ -531,7 +544,7 @@ ParseRule rules[] = {
   [K_QUIT]         = {NULL, NULL, LVL_NONE},
   [TOKEN_PRINT]    = {NULL, NULL, LVL_NONE},
 //^ Keywords
-  [S_RIGHT_PARENTHESES] = {NULL, NULL, LVL_NONE},
+  [S_RIGHT_ROUND] = {NULL, NULL, LVL_NONE},
   [S_COMMA]        = {NULL, NULL, LVL_NONE},
   [D_COMMA]        = {NULL, NULL, LVL_NONE},
   [S_SEMICOLON]    = {NULL, NULL, LVL_NONE},

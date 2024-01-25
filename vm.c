@@ -50,10 +50,6 @@ static void defineNative(const char* name, NativeFn function) {
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
-static void showText(Value value) {
-  printValue(value); // value.h
-  printf("\n");
-}
 //^ Native Functions
 
 void initVM() {
@@ -75,7 +71,6 @@ void initVM() {
   vm.initString = copyString("init", 4);
 
   defineNative("clock", clockNative); 
-  //defineNative("show", showText);
 }
 
 void freeVM() {
@@ -203,7 +198,17 @@ static InterpretResult run() {
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
-/* TODO replace BINARY_OP with actual integer type, actual real type */ 
+/* TODO replace with actual integer type, actual float type */ 
+#define UNARY_INT_OP(valueType, op) \
+    do { \
+      if (!IS_NUMBER(peek(0))) { \
+        runtimeError("Operand must be a number."); \
+        return INTERPRET_RUNTIME_ERROR; \
+      } \
+      long long value = AS_NUMBER(pop()); \
+      push(valueType(op value)); \
+    } while (false)
+
 #define BINARY_INT_OP(valueType, op) \
     do { \
       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -342,6 +347,14 @@ static InterpretResult run() {
         break;
       case OP_MODULO:   BINARY_INT_OP(NUMBER_VAL, %); 
         break;
+      case OP_BIT_AND:  BINARY_INT_OP(NUMBER_VAL, &);
+        break;
+      case OP_BIT_OR:   BINARY_INT_OP(NUMBER_VAL, |);
+        break;
+      case OP_BIT_XOR:  BINARY_INT_OP(NUMBER_VAL, ^);
+        break;
+      case OP_FLIP_BITS: UNARY_INT_OP(NUMBER_VAL, ~);
+        break;
       case OP_NOT:
         push(BOOL_VAL(isFalsey(pop())));
         break;
@@ -424,8 +437,7 @@ static InterpretResult run() {
         break;
       case OP_RETURN: {
         Value result = pop();
-      
-        closeUpvalues(frame->slots); // Closures
+        closeUpvalues(frame->slots);
         vm.frameCount--;
         if (vm.frameCount == 0) {
           pop();
@@ -444,6 +456,9 @@ static InterpretResult run() {
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef BINARY_OP
+#undef BINARY_INT_OP
+#undef UNARY_INT_OP
+#undef APPEND_INTEGER
 }
 
 InterpretResult interpret(const char* source) {
