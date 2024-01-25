@@ -31,16 +31,20 @@ typedef enum {
   OP_EQUAL,
   OP_GREATER,
   OP_LESS,
-// START A Virtual Machine binary-ops
+// Types of binary-ops
   OP_ADD,
   OP_SUBTRACT,
   OP_MULTIPLY,
   OP_DIVIDE,
   OP_MODULO,
   OP_CONCATENATE,
+  OP_BIT_AND,
+  OP_BIT_OR,
+  OP_BIT_XOR,
 // Types of Values unary-ops
   OP_NOT,
   OP_NEGATE,
+  OP_FLIP_BITS,
 // Global Variables op-print
   OP_PRINT,
 // Jumping operations

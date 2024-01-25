@@ -169,7 +169,7 @@ static Lexeme identifierType() { // tests for keywords
       }
       break;
     case 'q': return checkKeyword(1, 3, "uit", K_QUIT);
-    case '#': return L_VARIABLE;
+    case '#': return L_MUTABLE;
   }
   return L_IDENTIFIER;
 }
@@ -217,14 +217,18 @@ Token scanToken() {
   switch (rune) {
     // single character
     case '#': return identifier();
-    case '(': return makeToken(S_LEFT_PARENTHESES); // TODO would be new line aware
-    case ')': return makeToken(S_RIGHT_PARENTHESES);
+    case '(': return makeToken(S_LEFT_ROUND); // TODO would be new line aware
+    case ')': return makeToken(S_RIGHT_ROUND);
     case '{': return makeToken(S_LEFT_CURLY);   // TODO would be new line aware
     case '}': return makeToken(S_RIGHT_CURLY);
     case '?': return makeToken(S_QUESTION);     // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON);
     case '=': return makeToken(S_EQUAL); 
     case '-': return makeToken(S_MINUS);
+    case '&': return makeToken(S_AMPERSAND);
+    case '|': return makeToken(S_PIPE);
+    case '^': return makeToken(S_RAISE);
+    case '~': return makeToken(S_TILDE);
     // two characters
     case '.': 
       switch(scanner.start[1]) {

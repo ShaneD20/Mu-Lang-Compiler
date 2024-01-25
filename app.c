@@ -7,15 +7,11 @@
 #include "disassemble.h"
 #include "vm.h"
 
-/*
-  For tracking new lines, the scanner would tokenize them, while the compiler would choose to keep or toss (or replace with semicolon)
-
-  Testing stack allocation for mutables, global allocation for constants
-*/
+/* For tracking new lines, the scanner would tokenize them, while the compiler would choose to keep or toss (or replace with semicolon) */
 static void repl() {
   char line[1024];
   for (;;) {
-    printf("\n~``~ ");
+    printf("\n ~``~ ");
 
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
