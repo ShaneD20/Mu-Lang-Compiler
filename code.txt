@@ -1,8 +1,11 @@
 print "===Mu sample start===";
 
-print " --Constant assignment";
-let phrase : "Hello World.";
-print phrase;
+do
+    print " --Constant assignment";
+    let phrase : "Hello World.";
+    print phrase;
+,,
+
 
 // let phrase : "Nice to meet you."; // error cannot reassign constant
 // print phrase;
@@ -149,13 +152,13 @@ let isEven:
 print isEven(3);
 print isEven(58);
 
-let fibonacci: use n as
-    if n < 2 ? return n;
-    ,,
-    return fibonacci(n - 2) + fibonacci(n - 1);
-,,
-
-print fibonacci(20);
+//let fibonacci: use n as       // recursion throws off error reporting for blocks...
+//    if n < 2 ? return n;
+//    ,,
+//    return fibonacci(n - 2) + fibonacci(n - 1);
+//,,
+//
+//print fibonacci(20);
 
 print "--Global Scope";
 //  ** Mutables are not in global scope **
