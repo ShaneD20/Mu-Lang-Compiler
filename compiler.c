@@ -46,8 +46,7 @@ static int emitJump(uint8_t instruction) {
 }
 
 static void patchJump(int offset) {
-  // -2 to adjust for the bytecode for the jump offset itself.
-  int jump = currentChunk()->count - offset - 2;
+  int jump = currentChunk()->count - offset - 2; // -2 to adjust for the bytecode for the jump offset itself.
 
   if (jump > UINT16_MAX) {
     error("Too much code to jump over.");
@@ -112,7 +111,6 @@ static int resolveLocal(Compiler* compiler, Token* token) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
       }
-      // printf("\nlocalCount: %d .", i);
       return i;
     }
   }
@@ -134,9 +132,9 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   Local* local = &current->locals[current->localCount++];
   local->depth = 0;
   local->isCaptured = false;
-// Methods and Initializers slot-zero
+
   if (type != FT_FUNCTION) {
-    local->name.start = "self";
+    local->name.start = "self"; // could probably remove
     local->name.length = 4;
   } else {
     local->name.start = "";
@@ -165,8 +163,7 @@ static ObjFunction* endCompiler() {
 /* END HELPER FUNCTIONS */
 /************************/
 
-// Closures
-static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
+static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) { // Closures
   int upvalueCount = compiler->function->upvalueCount;
 
   for (int i = 0; i < upvalueCount; i++) {
@@ -185,8 +182,7 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
   return compiler->function->upvalueCount++;
 }
 
-// Closures 
-static int resolveUpvalue(Compiler* compiler, Token* name) {
+static int resolveUpvalue(Compiler* compiler, Token* name) { // Closures 
   Token test = *name;
   if (test.lexeme == L_VARIABLE || compiler->enclosing == NULL) {
     return -1;
@@ -217,12 +213,10 @@ static void addLocal(Token name) {
   local->isCaptured = false;
 }
 
-static void declareVariable(bool immutable) {
-  if (immutable && current->scopeDepth == 0) return; 
-  /* 
-    bool immutable forces mutables to be stack allocated
-    obtains desired behavior but may not be long term solution
-  */
+static void checkLocals() {
+  if (current->scopeDepth == 0) {
+    return; 
+  } 
   Token prior = previousToken();
   Token* name = &prior;
 
@@ -231,25 +225,22 @@ static void declareVariable(bool immutable) {
     if (local->depth != -1 && local->depth < current->scopeDepth) { // does it exist in scope?
       break;
     }
-    
     if (identifiersEqual(name, &local->name)) {
       error("Already a variable with this name in this scope.");
     }
   }
-//^ existing-in-scope
   addLocal(*name);
 }
 
 static uint8_t parseVariable(const char* errorMessage) {
-  if (tokenIs(L_VARIABLE)) {
-    require(L_VARIABLE, errorMessage);
-    declareVariable(true); // was false for stack
-  } else {      
+  if (tokenIs(L_IDENTIFIER)) {
     require(L_IDENTIFIER, errorMessage);
-    declareVariable(true);
+  } else {      
+    require(L_VARIABLE, errorMessage);
   }
+  checkLocals();
   if (current->scopeDepth > 0) {
-    return 0; // Local Variables parse-local
+    return 0; // Local Variables
   }
   Token prior = previousToken();
   return identifierConstant(&prior);
@@ -269,16 +260,13 @@ static void defineConstant(uint8_t global) { // Currently assigns constants
   } 
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
-
 /*********************/
 /* BEGIN EXPRESSIONS */
 /*********************/
 static void resolveExpression(Precedence precedence);
 static ParseRule* getRule(Lexeme glyph); 
 
-
 static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
-  //advance(); // TODO get working for /= %= .= (operands are performed backwards)
   advance();
   emitBytes(byte1, target);
   resolveExpression(LVL_BASE); // gathers everything to the right of operator.
@@ -291,7 +279,6 @@ static uint8_t argumentList() {
   if (tokenIsNot(S_RIGHT_PARENTHESES)) {
     do {
       resolveExpression(LVL_BASE);
-
       if (argCount >= argLimit) {
         error("Can't have more than 255 arguments.");
       }
@@ -316,9 +303,7 @@ static void orJump(bool unused) {
   patchJump(endJump);
 }
 
-static void structure(bool canAssign) {
-
-}
+static void structure(bool canAssign) {} // TODO implement
 
 static void binary(bool canAssign) {
   Lexeme operator = previousToken().lexeme;
@@ -380,7 +365,7 @@ static void findVariable(Token name, bool canAssign) {
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
-  } else if (name.lexeme == L_IDENTIFIER && (arg = resolveUpvalue(current, &name)) != -1) {
+  } else if (name.lexeme == L_IDENTIFIER && (arg = resolveUpvalue(current, &name)) != -1) { // has to be a constant to be upvalued
     getOp = OP_GET_UPVALUE;
     setOp = OP_SET_UPVALUE;
   } else if (current->type != FT_SCRIPT && name.lexeme != L_IDENTIFIER) {
@@ -421,7 +406,7 @@ static void findVariable(Token name, bool canAssign) {
   return emitBytes(getOp, (uint8_t)arg);
 }
 
-static void variable(bool canAssign) { // would really like to clear this confusion, but it's needed.
+static void variable(bool canAssign) {
   findVariable(previousToken(), canAssign); 
 }
 
@@ -437,11 +422,12 @@ static void unary(bool unused) {
     default: return; // Unreachable.
   }
 }
-
-// Where the expression / statement delineation blurs
+/************************
+  EXPRESSION STATEMENTS
+************************/
 static void compileTokens();
 
-static void block() { // wrapped in begin/end scope else/while/until
+static void block() { // TODO
   while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
     compileTokens();
   }
@@ -459,7 +445,6 @@ static void buildClosure(FunctionType type) {
   initCompiler(&compiler, type);
   beginScope(); // no end scope
 
-  // require(S_DOT, "Expect '.' to start parameter list.");
   if (tokenIsNot(K_AS) || tokenIsNot(K_RETURN)) {
     do {
       current->function->arity++;
@@ -470,7 +455,7 @@ static void buildClosure(FunctionType type) {
       defineConstant(constant);
     } while (consume(S_COMMA));
   }
-  if (tokenIs(K_RETURN)) {
+  if (tokenIs(K_RETURN)) { // lambda expression shorthand
     block();
   } else {
     require(K_AS, "Expect 'as' or 'return' after parameters and before function body.");
@@ -500,73 +485,71 @@ static void literal(bool unused) {
 }
 
 ParseRule rules[] = {
-//                         prefix, infix, precedence
-// Calls and FunctiLVL
-  [S_DOT]               = {NULL,     call, LVL_CALL}, // call struct properties?
-  [S_LEFT_PARENTHESES]  = {grouping, call,   LVL_CALL},
-  [S_RIGHT_PARENTHESES] = {NULL,     NULL,   LVL_NONE},
-// Sructures (Product Types, Arrays)
-  [S_LEFT_CURLY]   = {literal, NULL, LVL_NONE}, 
-  [S_RIGHT_CURLY]  = {NULL, NULL, LVL_NONE},
-  [S_LEFT_SQUARE]  = {NULL, NULL, LVL_NONE},
-  [S_RIGHT_SQUARE] = {NULL, NULL, LVL_NONE},
-// Delimiters, Guards, and Terminators
+//                        prefix,  infix, precedence
+  [S_DOT]              = {NULL,     call, LVL_CALL}, // call struct properties?
+  [S_LEFT_PARENTHESES] = {grouping, call, LVL_CALL},
+  [S_LEFT_CURLY]       = {NULL,    NULL,    LVL_NONE}, // {literal, NULL, LVL_NONE}, 
+  [S_LEFT_SQUARE]      = {NULL,    NULL,    LVL_NONE}, // {literal, NULL, LVL_NONE},
+//^ function calls, product type declarations
+  [D_DOT]              = {NULL,     binary, LVL_SUM},
+  [S_MINUS]            = {unary,    binary, LVL_SUM},
+  [S_PLUS]             = {NULL,     binary, LVL_SUM},
+  [S_SLASH]            = {NULL,     binary, LVL_SCALE},
+  [S_MODULO]           = {NULL,     binary, LVL_SCALE},
+  [S_STAR]             = {NULL,     binary, LVL_SCALE},
+//^ Arithmetic, Concatenation Operators
+  [S_BANG]             = {unary,    NULL,   LVL_UNARY},
+  [D_BANG_TILDE]       = {NULL,     binary, LVL_EQUAL},
+  [S_EQUAL]            = {NULL,     binary, LVL_EQUAL},
+  [S_GREATER]          = {NULL,     binary, LVL_COMPARE},
+  [D_GREATER_EQUAL]    = {NULL,     binary, LVL_COMPARE},
+  [S_LESS]             = {NULL,     binary, LVL_COMPARE},
+  [D_LESS_EQUAL]       = {NULL,     binary, LVL_COMPARE},
+//^ Comparison Operators
+  [L_IDENTIFIER]       = {variable, NULL,   LVL_NONE},
+  [L_VARIABLE]         = {variable, NULL,   LVL_NONE},
+  [L_STRING]           = {string,   NULL,   LVL_NONE},
+  [L_NUMBER]           = {number,   NULL,   LVL_NONE},
+  [K_USE]              = {literal,  NULL,   LVL_NONE},
+  [K_FALSE]            = {literal,  NULL,   LVL_NONE},
+  [K_NULL]             = {literal,  NULL,   LVL_NONE},
+  [K_TRUE]             = {literal,  NULL,   LVL_NONE},
+//^ Literals
+  [K_OR]               = {NULL,     orJump,   LVL_OR},
+  [K_AND]              = {NULL,     andJump, LVL_AND},
+  [K_LET]          = {NULL, NULL, LVL_NONE},
+  [K_DEFINE]       = {NULL, NULL, LVL_NONE},
+  [K_ELSE]         = {NULL, NULL, LVL_NONE},
+  [K_IS]           = {NULL, NULL, LVL_NONE},
+  [K_AS]           = {NULL, NULL, LVL_NONE},
+  [K_IF]           = {NULL, NULL, LVL_NONE},
+  [K_UNLESS]       = {NULL, NULL, LVL_NONE},
+  [K_WHEN]         = {NULL, NULL, LVL_NONE},
+  [K_RETURN]       = {NULL, NULL, LVL_NONE},
+  [K_UNTIL]        = {NULL, NULL, LVL_NONE},
+  [K_WHILE]        = {NULL, NULL, LVL_NONE},
+  [K_QUIT]         = {NULL, NULL, LVL_NONE},
+  [TOKEN_PRINT]    = {NULL, NULL, LVL_NONE},
+//^ Keywords
+  [S_RIGHT_PARENTHESES] = {NULL, NULL, LVL_NONE},
   [S_COMMA]        = {NULL, NULL, LVL_NONE},
   [D_COMMA]        = {NULL, NULL, LVL_NONE},
   [S_SEMICOLON]    = {NULL, NULL, LVL_NONE},
   [S_QUESTION]     = {NULL, NULL, LVL_NONE},
+  [S_RIGHT_CURLY]  = {NULL, NULL, LVL_NONE},
+  [S_RIGHT_SQUARE] = {NULL, NULL, LVL_NONE},
+  [END_OF_FILE]    = {NULL, NULL, LVL_NONE},
+  [LANGUAGE_ERROR] = {NULL, NULL, LVL_NONE},
   //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
-// Assignment Operators
+//^ Delimiters, Guards, and Terminators
   [S_COLON]        = {NULL, NULL, LVL_NONE},
   [D_COLON_EQUAL]  = {NULL, NULL, LVL_NONE},
   [D_PLUS_EQUAL]   = {NULL, NULL, LVL_NONE},
   [D_STAR_EQUAL]   = {NULL, NULL, LVL_NONE},
   [D_DOT_EQUAL]    = {NULL, NULL, LVL_NONE},
-  //[D_MODULO_EQUAL] = {NULL, NULL, LVL_NONE},
-  //[D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
-// Arithmetic, Concatenation Operators
-  [D_DOT]         = {NULL,     binary, LVL_SUM}, // can add method call, maybe
-  [S_MINUS]       = {unary,    binary, LVL_SUM},
-  [S_PLUS]        = {NULL,     binary, LVL_SUM},
-  [S_SLASH]       = {NULL,     binary, LVL_SCALE},
-  [S_MODULO]      = {NULL,     binary, LVL_SCALE},
-  [S_STAR]        = {NULL,     binary, LVL_SCALE},
-// Equality
-  [S_BANG]          = {unary,    NULL,   LVL_UNARY},
-  [D_BANG_TILDE]    = {NULL,     binary, LVL_EQUAL},
-  [S_EQUAL]         = {NULL,     binary, LVL_EQUAL},
-// Comparisn
-  [S_GREATER]       = {NULL,     binary, LVL_COMPARE},
-  [D_GREATER_EQUAL] = {NULL,     binary, LVL_COMPARE},
-  [S_LESS]          = {NULL,     binary, LVL_COMPARE},
-  [D_LESS_EQUAL]    = {NULL,     binary, LVL_COMPARE},
-// Literals: Constants, Variables, Strings, Numbers (doubles)
-  [L_IDENTIFIER]    = {variable,  NULL,   LVL_NONE},
-  [L_VARIABLE]      = {variable,  NULL,   LVL_NONE},
-  [L_STRING]        = {string,    NULL,   LVL_NONE},
-  [L_NUMBER]        = {number,    NULL,   LVL_NONE},
-//  KEYWORDS
-  [TOKEN_PRINT]     = {NULL,     NULL,   LVL_NONE},
-  [K_USE]           = {literal,  NULL,   LVL_NONE},
-  [K_FALSE]         = {literal,  NULL,   LVL_NONE},
-  [K_NULL]          = {literal,  NULL,   LVL_NONE},
-  [K_TRUE]          = {literal,  NULL,   LVL_NONE},
-  [K_OR]            = {NULL,     orJump,   LVL_OR},
-  [K_AND]           = {NULL,     andJump, LVL_AND},
-  [K_LET]           = {NULL,     NULL,   LVL_NONE},
-  [K_DEFINE]        = {NULL,     NULL,   LVL_NONE},
-  [K_ELSE]          = {NULL,     NULL,   LVL_NONE},
-  [K_IS]            = {NULL,     NULL,   LVL_NONE},
-  [K_AS]            = {NULL,     NULL,   LVL_NONE},
-  [K_IF]            = {NULL,     NULL,   LVL_NONE},
-  [K_UNLESS]        = {NULL,     NULL,   LVL_NONE},
-  [K_WHEN]          = {NULL,     NULL,   LVL_NONE},
-  [K_RETURN]        = {NULL,     NULL,   LVL_NONE},
-  [K_UNTIL]         = {NULL,     NULL,   LVL_NONE},
-  [K_WHILE]         = {NULL,     NULL,   LVL_NONE},
-  [K_QUIT]          = {NULL,     NULL,   LVL_NONE},
-  [LANGUAGE_ERROR]  = {NULL,     NULL,   LVL_NONE},
-  [END_OF_FILE]     = {NULL,     NULL,   LVL_NONE},
+  [D_MODULO_EQUAL] = {NULL, NULL, LVL_NONE},
+  [D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
+//^ Assignment Operators (handled by unary variable)
 };
 static ParseRule* getRule(Lexeme type) {
   return &rules[type];
@@ -601,27 +584,11 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
   }
 }
 
-/**********************/
-/* FINISH EXPRESSIONS */
-/**********************/
+/****************************************
+  FINISH EXPRESSIONS & START STATEMENTS  
+****************************************/
 
-static void handleMutable() { 
-  uint8_t local = parseVariable("Expect variable name."); 
-
-  if (consume(S_COLON)) { // extra weight for an aesthetic
-    resolveExpression(LVL_BASE);
-  } else {
-    emitByte(OP_NIL);
-  }
-  if (previousIsNot(D_COMMA)) {
-    require(S_SEMICOLON, "Expect ':=' expression ';' to create a variable declaration.");
-  }
-// TESTING stack allocation for mutables
-  current->locals[current->localCount - 1].depth = current->scopeDepth; // need to be set at scope 0
-  emitBytes(OP_SET_LOCAL, local);
-}
-
-static void ternaryStatement(OpCode condition) { // unless is jump if true, if jump if false
+static void ternaryStatement(OpCode condition) {
   advance();
   resolveExpression(LVL_BASE);
   require(S_QUESTION, "Expect a '?' after BOOLEAN test condition.");
@@ -653,7 +620,6 @@ static void whenStatement() {
   beginScope();
 
   while (tokenIs(K_IS)) {
-    // parser.current = token;
     setCurrent(token);
     resolveExpression(LVL_BASE);
     require(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
@@ -666,7 +632,7 @@ static void whenStatement() {
     require(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
     patchJump(thenJump); 
   }
-  emitByte(OP_QUIT_END); // only statement that has this, might add to while and until
+  emitByte(OP_QUIT_END); // TODO only statement that has this, might add to while and until, add 'quit' keyword
   endScope();
   require(D_COMMA, "Expect ,, to complete a when block.");
 }
@@ -687,13 +653,13 @@ static void returnStatement() {
   }
 
   if (consume(S_SEMICOLON)) {  
-    emitReturn(); // no expression
+    emitReturn();
   } else {
     if (current->type == FT_INITIALIZER) {   // Methods and Initializers
       error("Can't return a value from an initializer.");
     }
     resolveExpression(LVL_BASE);
-    if (previousIsNot(D_COMMA)) {   // testing
+    if (previousIsNot(D_COMMA)) { 
       require(S_SEMICOLON, "Expect ';' after return value.");
     }
     emitByte(OP_RETURN); // TODO am I missing an OP_POP ?
@@ -726,11 +692,6 @@ static void doBlock() {
 
 static void variableDeclaration() {
   advance();
-  // if (tokenIs(L_VARIABLE)) {
-  //   handleMutable();
-  //   return;
-  // } 
-
   uint8_t global = parseVariable("Expect variable name.");
 
   if (consume(S_COLON)) {
@@ -744,15 +705,18 @@ static void variableDeclaration() {
   defineConstant(global);
 }
 
-static void compileExpression() { // TODO write optionals for ')', '}', ']',
+/*****************
+  END STATEMENTS
+*****************/
+
+static void compileExpression() {
   resolveExpression(LVL_BASE);
-  require(S_SEMICOLON, "Expect ';' after expression.");
+  require(S_SEMICOLON, "Expect ';' after expression."); // TODO write optionals for ')', '}', ']',
   emitByte(OP_POP); // get the value
 }
 
 static void synchronize() {
   stopPanic();
-  //parser.panicMode = false;
   Lexeme currentLexeme = parserCurrent().lexeme;
 
   while (currentLexeme != END_OF_FILE) {
@@ -770,7 +734,7 @@ static void synchronize() {
       case TOKEN_PRINT:
       case K_RETURN:
         return;
-      default: ; // either way, it's in the while loop
+      default: ;
     }
     advance();
   }
@@ -800,17 +764,15 @@ ObjFunction* compile(const char* source) {
   Compiler compiler; 
   initCompiler(&compiler, FT_SCRIPT); 
 
-  parserError(false);
-  //parser.panicMode = false;
-  stopPanic();
+  parserError(false); // set no error 
+  stopPanic();        // set no panic
 
   advance();
   while (!consume(END_OF_FILE)) {
     compileTokens();
   }
 
-  // it all ends as one script function
-  ObjFunction* function = endCompiler();
+  ObjFunction* function = endCompiler(); // it all ends as one script function
   return hasError() ? NULL : function;
 }
 // Garbage Collection 

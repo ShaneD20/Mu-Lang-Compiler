@@ -7,8 +7,6 @@
 
 Parser parser;
 
-/* HELPER FUNCTIONS */
-
 Token previousToken() {
     return parser.previous;
 }
@@ -51,7 +49,7 @@ void errorAt(Token* token, const char* message) {
   exit(1);
 }
 
-void error(const char* message) { // BOTH don't pass in a token when called
+void error(const char* message) {
   errorAt(&parser.previous, message);
 }
 void errorAtCurrent(const char* message) {
@@ -86,7 +84,7 @@ bool consume(Lexeme glyph) {
   return parser.previous.lexeme == glyph;
 }
 
-void require(Lexeme test, const char* message) { // kind of doing the same thing
+void require(Lexeme test, const char* message) {
   if (parser.current.lexeme == test) {
     advance();
   } else error(message);

@@ -1,4 +1,3 @@
-//> Chunks of Bytecode memory-c
 #include <stdlib.h>
 #include "compiler.h" // Garbage Collection memory-include-compiler
 #include "memory.h"
@@ -213,7 +212,6 @@ void collectGarbage() { // GC
 //^ log-collected-amount
 #endif
 }
-
 
 void freeObjects() {  // strings as well
   Obj* object = vm.objects;

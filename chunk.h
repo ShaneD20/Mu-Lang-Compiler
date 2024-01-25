@@ -37,8 +37,7 @@ typedef enum {
   OP_MULTIPLY,
   OP_DIVIDE,
   OP_MODULO,
-  OP_CONCATENATE, // TODO implement
-// MU_CONCATENATE,
+  OP_CONCATENATE,
 // Types of Values unary-ops
   OP_NOT,
   OP_NEGATE,
@@ -64,7 +63,7 @@ typedef struct {
   int capacity;
   uint8_t* code;
   int* lines;
-  ValueArray constantPool; // constant pool
+  ValueArray constantPool;
 } Chunk;
 
 void initChunk(Chunk* chunk);

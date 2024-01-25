@@ -19,22 +19,19 @@ arguments   → EXPRESSION ( "," EXPRESSION )
             ;
 parameters  → IDENTIFIER ( "," IDENTIFIER )*
             ;
-function    → IDENTIFIER '(' PARAMETERS* ') 'as' block
+function    → PARAMETERS* 'as'? block
             ;
 
 program     → declaration* EOF ;
 
-declaration → closure
+declaration → constant
             | variable
-            | constant
             | statement
             ;
 
-closure     → 'define' function ',,'
+constant    → 'let'  IDENTIFIER ':'  EXPRESSION ';'
             ;
 variable    → 'let' #IDENTIFIER ':=' EXPRESSION ';'
-            ;
-constant    → 'let'  IDENTIFIER ':'  EXPRESSION ';'
             ;
 
 Statements  → expression-statement
@@ -75,7 +72,8 @@ expression  → assignment
 assignment  → #IDENTIFIER ( ':=' | '+=' | '*=' | '/=' | '%=' ) EXPRESSION
             | logic_or
             ;
-
+closure     → 'use' function ',,'
+            ;
 logic_or    → logic_and ( "or" logic_and )*
             ;
 logic_and   → equality ( "and" equality )*

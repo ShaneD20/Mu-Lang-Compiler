@@ -99,7 +99,7 @@ static Lexeme checkKeyword(int start, int length, const char* rest, Lexeme lexem
       memcmp(scanner.start + start, rest, length) == 0) {
     return lexeme;
   }
-  return L_IDENTIFIER; // TODO create constant, mutable path
+  return L_IDENTIFIER;
 }
 
 static Lexeme identifierType() { // tests for keywords
@@ -200,11 +200,9 @@ static Token string() {
   }
   if (isAtEnd()) return errorToken("Unterminated string.");
 
-  // The closing quote.
-  advance();
+  advance(); // The closing quote.
   return makeToken(L_STRING);
 }
-//^ Token Helpers
 
 Token scanToken() {
   skipWhitespace();
