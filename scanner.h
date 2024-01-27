@@ -37,9 +37,23 @@ typedef enum {
   LANGUAGE_ERROR, END_OF_FILE
 } Lexeme;
 
+// TODO experimental compiler type-checking
+typedef enum {
+  VT_NUMBER,
+  VT_STRING,
+  VT_INDEX_COLLECTION,
+  VT_KEYED_COLLECTION,
+  VT_NAME,
+  VT_GRAMMAR,
+} VariableType; 
+//^ TODO find a better name 
+
 typedef struct {
+  VariableType type;
   Lexeme lexeme;
-  const char* start;
+  const char* start; 
+  /* add a compiler table to store, tail name on initialization */
+  /* stores equivalent VariableType */
   int length;
   int line;
 } Token;

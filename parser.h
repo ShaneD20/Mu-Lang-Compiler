@@ -10,6 +10,8 @@
 typedef struct {
   Token current;
   Token previous;
+  Token caboose;// added for type assignment let id : 6;
+  Token tail;   // added for type assignment let id : 6;
   bool hasError;
   bool panicMode;
 } Parser;
@@ -38,6 +40,8 @@ typedef struct {
 
 Token previousToken();
 Token parserCurrent();
+Token* parserTailAddress();
+Token* parserCurrentAddress();
 void setCurrent(Token token);
 void parserError(bool hasError);
 bool hasError();

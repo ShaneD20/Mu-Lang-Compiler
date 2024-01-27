@@ -431,12 +431,12 @@ static void unary(bool unused) {
 ************************/
 static void compileTokens();
 
-static void block(Token* errorMarker) { // TODO
+static void block(Token* marker) { // TODO
   while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
     compileTokens();
   }
   if (tokenIsNot(D_COMMA)) {
-    errorAt(errorMarker, "Need a ,, to finish code block.");
+    errorAt(marker, "Need a ,, to finish code block.");
   }
   consume(D_COMMA);
 }
@@ -445,6 +445,24 @@ static void blockTernary() { // if-else, unless-else
   while (tokenIsNot(D_COMMA) && tokenIsNot(K_ELSE) && tokenIsNot(END_OF_FILE)) {
     compileTokens();
   }
+}
+
+static void buildStructure() {    // TODO
+  Token marker = previousToken();
+  if (tokenIsNot(S_RIGHT_CURLY) && tokenIsNot(END_OF_FILE)) {
+    do {
+      current->function->arity++;
+      if (current->function->arity > argLimit) {
+        errorAtCurrent("Can't have more than 255 fields.");
+      }
+      uint8_t constant = parseVariable("Expect field name.");
+      defineConstant(constant);
+    } while (consume(S_COMMA));
+  }
+  if (tokenIsNot(S_RIGHT_CURLY)) {
+    errorAt(&marker, "Need a } to finish structure definition.");
+  }
+  consume(S_RIGHT_CURLY);
 }
 
 static void buildClosure(FunctionType type) {
@@ -470,7 +488,7 @@ static void buildClosure(FunctionType type) {
     block(&marker);
   }
   
-  ObjFunction* function = endCompiler();
+  ObjFunction* function = endCompiler(); // could use for redo ...
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // Closures emit-closure
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -488,6 +506,8 @@ static void literal(bool unused) {
       break;
     case K_USE:  buildClosure(FT_FUNCTION);
       break;
+    case S_LEFT_CURLY: buildStructure();
+      break;
     default: return; // Unreachable.
   }
 }
@@ -496,8 +516,8 @@ ParseRule rules[] = {
 //                        prefix,  infix, precedence
   [S_DOT]              = {NULL,     call, LVL_CALL}, // call struct properties?
   [S_LEFT_ROUND]       = {grouping, call, LVL_CALL},
-  [S_LEFT_CURLY]       = {NULL,    NULL,    LVL_NONE}, // {literal, NULL, LVL_NONE}, 
-  [S_LEFT_SQUARE]      = {NULL,    NULL,    LVL_NONE}, // {literal, NULL, LVL_NONE},
+  [S_LEFT_CURLY]       = {literal, NULL,  LVL_NONE}, // {literal, NULL, LVL_NONE}, 
+  [S_LEFT_SQUARE]      = {NULL,    NULL,  LVL_NONE}, // {literal, NULL, LVL_NONE},
 //^ function calls, product type declarations
   [S_MINUS]            = {unary,    binary, LVL_SUM},
   [S_PLUS]             = {NULL,     binary, LVL_SUM},

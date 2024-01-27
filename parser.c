@@ -8,10 +8,13 @@
 Parser parser;
 
 Token previousToken() {
-    return parser.previous;
+  return parser.previous;
 }
 Token parserCurrent() {
-    return parser.current;
+  return parser.current;
+}
+Token* parserTailAddress() {
+  return &parser.tail;
 }
 void setCurrent(Token token) {
     parser.current = token;
@@ -57,6 +60,8 @@ void errorAtCurrent(const char* message) {
 }
 
 void advance() {
+  parser.tail = parser.caboose;
+  parser.caboose = parser.previous;
   parser.previous = parser.current;
   parser.current = scanToken();
 
