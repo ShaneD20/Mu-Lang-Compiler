@@ -4,6 +4,7 @@
 * For single line comments, Mu uses ‘//‘.
 * Mu is designed to look closer to human writing, as such the colon ':' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
 * For example the 'let' keyword is used to declare a variable, and is written 'let' identifier ':' value ';'.
+* The question mark '?' is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
 * Semicolons ';' are used to notate the end of a statement or expression, similar to C inspired languages.
 * The double-comma ',,' is used to notate the ending of a block of code. Blocks of code contain multiple statements or expressions.
 * Certain keywords [ while, until, if, unless, when, use ] always have an associated block of code.
@@ -113,10 +114,6 @@ print #textString;
 // 100
 // “Meoow, meow.”
 ```
-## The ,, operator and ?
-In programming languages it's beneficial to express the end of a block of code. In Mu ',,' is used to express the ending of a code block. 
-The ? operator is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
-
 ## Logical Control Flow
 Mu has ternary statements “if-else”, “unless-else”. Based on a condition they act as a guard clause for one or two outcomes. Note that else-if chaining is not possible in Mu. If a context is needed where one of several statements is true, Mu has a “when” statement. Shown further below. 
 
