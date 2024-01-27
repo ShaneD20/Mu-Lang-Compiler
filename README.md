@@ -61,7 +61,7 @@ Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '
 
 ```
 ## Bitwise Operators
-Mu uses standard operators for bitwise and, or, xor, and not. ( &, |, ^, ~ ). In the future Mu will support bit shifting left or right, but the implemtation is still being thought out.
+Mu uses standard operators for bitwise and, or, xor, and not. ( &, |, ^, ~ ). In the future Mu will support bit shifting left or right, but the implementation is still being thought out.
 ```
 print 60 & 13;
 
