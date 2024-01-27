@@ -1,8 +1,10 @@
 # Mμ Programming Language
 [Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md)
-## Comments and Variable Declarations
-For single line comments, Mu uses ‘//‘. 
-There are two ways to declare a variable: constants (which are immutable) and mutables. Both are declared with the ‘let’ keyword and are initialized with the ‘:’ character. Mutables can be reassigned with ‘:=‘ and Identifiers for mutables must begin with "#", such as "#value" or "#name". 
+## Colons, Comments, and Variable Declarations
+* Mu is designed to look closer to human writing, as such the colon is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
+* For example the 'let' keyword is used to declare a variable. There are two types of variables to declare: constants (which are immutable) and mutables. Both are initialized with the value or expression after the a ‘:’ character.
+* Mutables can be reassigned with the ‘:=‘ operator and Identifiers for mutables must begin with "#", such as "#value" or "#name".
+* For single line comments, Mu uses ‘//‘. 
 
 ```
 let phrase : “Hello World”;   // constant
