@@ -21,7 +21,7 @@ let #number : 0;             // mutable
  
 ```
 ## Arithmetic and Concatenation
-* For arithmetic operators Mu uses (** +, -, /, * **), for concatenation ( **..** ) is used.
+* For arithmetic operators Mu uses **( +, -, /, * )** and for concatenation ( **..** ) is used.
 * Note: concatenation works with strings and strings or numbers and numbers.
 * Lastly, if one of the operands for number concatenation is negative, the runtime errors.
 ```
