@@ -143,15 +143,7 @@ static Lexeme identifierType() { // tests for keywords
       }
       break;
     case 'l': return checkKeyword(1, 2, "et", K_LET);
-    case 'n': 
-      if (scanner.current - scanner.start > 1 && scanner.start[1] == 'u') {
-        switch(scanner.start[2]) {
-          case 'l' : return checkKeyword(3, 1, "l", K_NULL);
-          // case 'm' : return checkKeyword(3, 3, "ber", K_NUMBER);
-        }
-      }
-      break;
-      //return checkKeyword(1, 3, "ull", K_NULL); // because JSON uses 'null'
+    case 'n': return checkKeyword(1, 3, "ull", K_NULL); // because JSON uses 'null'
     case 'o': return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT); // TODO replace with native function
     case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
@@ -204,7 +196,7 @@ static Token number() {
 
     while (isDigit(peek())) advance();
   }
-  return makeToken(L_NUMBER, VT_NUMBER);
+  return makeToken(L_NUMBER, VT_MATH);
 }
 
 static Token string() {
@@ -221,7 +213,7 @@ static Token string() {
 Token scanToken() {
   skipWhitespace();
   scanner.start = scanner.current;
-  if (isAtEnd()) return makeToken(END_OF_FILE, VT_GRAMMAR);
+  if (isAtEnd()) return makeToken(END_OF_FILE, VT_VOID);
 
   // check for constants
   char rune = advance();
@@ -231,47 +223,47 @@ Token scanToken() {
   switch (rune) {
     // single character
     case '#': return identifier();
-    case '(': return makeToken(S_LEFT_ROUND, VT_GRAMMAR); // TODO would be new line aware
-    case ')': return makeToken(S_RIGHT_ROUND, VT_GRAMMAR);
-    case '{': return makeToken(S_LEFT_CURLY, VT_GRAMMAR);   // TODO would be new line aware
-    case '}': return makeToken(S_RIGHT_CURLY, VT_GRAMMAR);
-    case '?': return makeToken(S_QUESTION, VT_GRAMMAR);     // TODO would be new line aware
-    case ';': return makeToken(S_SEMICOLON, VT_GRAMMAR);
-    case '=': return makeToken(S_EQUAL, VT_GRAMMAR); 
-    case '-': return makeToken(S_MINUS, VT_GRAMMAR);
-    case '&': return makeToken(S_AMPERSAND, VT_GRAMMAR);
-    case '|': return makeToken(S_PIPE, VT_GRAMMAR);
-    case '^': return makeToken(S_RAISE, VT_GRAMMAR);
-    case '~': return makeToken(S_TILDE, VT_GRAMMAR);
+    case '(': return makeToken(S_LEFT_ROUND, VT_VOID); // TODO would be new line aware
+    case ')': return makeToken(S_RIGHT_ROUND, VT_VOID);
+    case '{': return makeToken(S_LEFT_CURLY, VT_VOID);   // TODO would be new line aware
+    case '}': return makeToken(S_RIGHT_CURLY, VT_VOID);
+    case '?': return makeToken(S_QUESTION, VT_VOID);     // TODO would be new line aware
+    case ';': return makeToken(S_SEMICOLON, VT_VOID);
+    case '=': return makeToken(S_EQUAL, VT_VOID); 
+    case '-': return makeToken(S_MINUS, VT_VOID);
+    case '&': return makeToken(S_AMPERSAND, VT_VOID);
+    case '|': return makeToken(S_PIPE, VT_VOID);
+    case '^': return makeToken(S_RAISE, VT_VOID);
+    case '~': return makeToken(S_TILDE, VT_VOID);
     // two characters
     case '.': 
       switch(scanner.start[1]) {
         case '=': advance();
-          return  makeToken(D_DOT_EQUAL, VT_GRAMMAR);
+          return  makeToken(D_DOT_EQUAL, VT_VOID);
         case '.': advance();
-          return makeToken(D_DOT, VT_GRAMMAR);
+          return makeToken(D_DOT, VT_VOID);
         default: 
-          return makeToken(S_DOT, VT_GRAMMAR);
+          return makeToken(S_DOT, VT_VOID);
       }
       break;
     case ',': 
-      return makeToken(match(',') ? D_COMMA : S_COMMA, VT_GRAMMAR);
+      return makeToken(match(',') ? D_COMMA : S_COMMA, VT_VOID);
     case '%': 
-      return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO, VT_GRAMMAR);
+      return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO, VT_VOID);
     case '+': 
-      return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS, VT_GRAMMAR);
+      return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS, VT_VOID);
     case '/': 
-      return makeToken(match('=') ? D_SLASH_EQUAL : S_SLASH, VT_GRAMMAR);
+      return makeToken(match('=') ? D_SLASH_EQUAL : S_SLASH, VT_VOID);
     case '*': 
-      return makeToken(match('=') ? D_STAR_EQUAL : S_STAR, VT_GRAMMAR);
+      return makeToken(match('=') ? D_STAR_EQUAL : S_STAR, VT_VOID);
     case ':': 
-      return makeToken(match('=') ? D_COLON_EQUAL: S_COLON, VT_GRAMMAR);
+      return makeToken(match('=') ? D_COLON_EQUAL: S_COLON, VT_VOID);
     case '<':
-      return makeToken(match('=') ? D_LESS_EQUAL : S_LESS, VT_GRAMMAR);
+      return makeToken(match('=') ? D_LESS_EQUAL : S_LESS, VT_VOID);
     case '>':
-      return makeToken(match('=') ? D_GREATER_EQUAL : S_GREATER, VT_GRAMMAR);
+      return makeToken(match('=') ? D_GREATER_EQUAL : S_GREATER, VT_VOID);
     case '!':
-      return makeToken(match('~') ? D_BANG_TILDE : S_BANG, VT_GRAMMAR);
+      return makeToken(match('~') ? D_BANG_TILDE : S_BANG, VT_VOID);
     case '"': return string();
   }
   return errorToken("Unexpected character.");

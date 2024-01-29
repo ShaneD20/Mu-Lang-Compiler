@@ -7,12 +7,13 @@
 #include "memory.h" // Garbage Collection compiler-include-memory
 #include "scanner.h"
 #include "parser.h"
+#include "table.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
 #endif
 
-const int argLimit = 255;
+#define ARG_LIMIT 255
 Compiler* current = NULL;
 
 static Chunk* currentChunk() {
@@ -125,6 +126,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler;
+  initTable(&current->identifierTypes); // TODO use table to static type checking
   if (type != FT_SCRIPT) {
     current->function->name = copyString(previousToken().start, previousToken().length);
   }
@@ -256,9 +258,8 @@ static void defineConstant(uint8_t global) { // Currently assigns constants
   } 
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
-/*******************************************
-  END HELPER FUNCTIONS & BEGIN EXPRESSIONS 
-********************************************/
+/*******************END HELPER FUNCTIONS & BEGIN EXPRESSIONS*******************/
+
 static void resolveExpression(Precedence precedence);
 static ParseRule* getRule(Lexeme glyph); 
 
@@ -275,7 +276,7 @@ static uint8_t argumentList() {
   if (tokenIsNot(S_RIGHT_ROUND)) {
     do {
       resolveExpression(LVL_BASE);
-      if (argCount >= argLimit) {
+      if (argCount >= ARG_LIMIT) {
         error("Can't have more than 255 arguments.");
       }
       argCount++;
@@ -379,7 +380,7 @@ static void findVariable(Token name, bool canAssign) {
   }
 
   if (canAssign) {
-    Lexeme lexeme = parserCurrent().lexeme;
+    Lexeme lexeme = currentToken().lexeme;
     switch (lexeme) {
       case S_COLON : error("Please declare variables with the 'let' keyword.");
 
@@ -411,24 +412,8 @@ static void findVariable(Token name, bool canAssign) {
 static void variable(bool canAssign) {
   findVariable(previousToken(), canAssign); 
 }
+/************************ EXPRESSION STATEMENTS ************************/
 
-static void unary(bool unused) {
-  Lexeme operator = previousToken().lexeme; // hold onto the operator, resolve the next expression, then emit
-
-  resolveExpression(LVL_UNARY);
-  switch (operator) {
-    case S_BANG: emitByte(OP_NOT); 
-      break;
-    case S_MINUS: emitByte(OP_NEGATE); 
-      break;
-    case S_TILDE: emitByte(OP_FLIP_BITS);
-      break;
-    default: return; // Unreachable.
-  }
-}
-/************************
-  EXPRESSION STATEMENTS
-************************/
 static void compileTokens();
 
 static void block(Token* marker) { // TODO
@@ -452,7 +437,7 @@ static void buildStructure() {    // TODO
   if (tokenIsNot(S_RIGHT_CURLY) && tokenIsNot(END_OF_FILE)) {
     do {
       current->function->arity++;
-      if (current->function->arity > argLimit) {
+      if (current->function->arity > ARG_LIMIT) {
         errorAtCurrent("Can't have more than 255 fields.");
       }
       uint8_t constant = parseVariable("Expect field name.");
@@ -473,14 +458,14 @@ static void buildClosure(FunctionType type) {
   if (tokenIsNot(K_AS) || tokenIsNot(K_RETURN)) {
     do {
       current->function->arity++;
-      if (current->function->arity > argLimit) {
+      if (current->function->arity > ARG_LIMIT) {
         errorAtCurrent("Can't have more than 255 parameters.");
       }
       uint8_t constant = parseVariable("Expect parameter name.");
       defineConstant(constant);
     } while (consume(S_COMMA));
   }
-  Token marker = parserCurrent();
+  Token marker = currentToken();
   if (tokenIs(K_RETURN)) { // lambda expression shorthand
     block(&marker);
   } else {
@@ -496,6 +481,34 @@ static void buildClosure(FunctionType type) {
   }
 }
 
+static void buildReturn(bool unused) {
+  if (current->type == FT_SCRIPT || current->type == FT_INITIALIZER) {
+    error("Can't return from top-level code, or within an initializer."); 
+  }
+
+  if (currentToken().lexeme == S_SEMICOLON) {  
+    emitReturn();
+  } else {
+    resolveExpression(LVL_BASE);
+    emitByte(OP_RETURN);
+  }
+}
+
+static void unary(bool unused) {
+  Lexeme operator = previousToken().lexeme; // hold onto the operator, resolve the next expression, then emit
+  resolveExpression(LVL_UNARY);
+
+  switch (operator) {
+    case S_BANG: emitByte(OP_NOT); 
+      break;
+    case S_MINUS: emitByte(OP_NEGATE); 
+      break;
+    case S_TILDE: emitByte(OP_FLIP_BITS);
+      break;
+    default: return; // Unreachable.
+  }
+}
+
 static void literal(bool unused) {
   switch (previousToken().lexeme) {
     case K_FALSE: emitByte(OP_FALSE); 
@@ -503,6 +516,8 @@ static void literal(bool unused) {
     case K_NULL:  emitByte(OP_NIL); 
       break;
     case K_TRUE:  emitByte(OP_TRUE); 
+      break;
+    case K_QUIT:  emitByte(OP_QUIT);
       break;
     case K_USE:  buildClosure(FT_FUNCTION);
       break;
@@ -516,8 +531,8 @@ ParseRule rules[] = {
 //                        prefix,  infix, precedence
   [S_DOT]              = {NULL,     call, LVL_CALL}, // call struct properties?
   [S_LEFT_ROUND]       = {grouping, call, LVL_CALL},
-  [S_LEFT_CURLY]       = {literal, NULL,  LVL_NONE}, // {literal, NULL, LVL_NONE}, 
-  [S_LEFT_SQUARE]      = {NULL,    NULL,  LVL_NONE}, // {literal, NULL, LVL_NONE},
+  [S_LEFT_CURLY]       = {literal,  NULL, LVL_NONE}, // {literal, NULL, LVL_NONE}, 
+  [S_LEFT_SQUARE]      = {NULL,     NULL, LVL_NONE}, // {literal, NULL, LVL_NONE},
 //^ function calls, product type declarations
   [S_MINUS]            = {unary,    binary, LVL_SUM},
   [S_PLUS]             = {NULL,     binary, LVL_SUM},
@@ -539,17 +554,19 @@ ParseRule rules[] = {
   [S_LESS]             = {NULL,     binary, LVL_COMPARE},
   [D_LESS_EQUAL]       = {NULL,     binary, LVL_COMPARE},
 //^ Comparison Operators
-  [L_IDENTIFIER]       = {variable, NULL,   LVL_NONE},
-  [L_MUTABLE]         = {variable, NULL,   LVL_NONE},
-  [L_STRING]           = {string,   NULL,   LVL_NONE},
-  [L_NUMBER]           = {number,   NULL,   LVL_NONE},
-  [K_USE]              = {literal,  NULL,   LVL_NONE},
-  [K_FALSE]            = {literal,  NULL,   LVL_NONE},
-  [K_NULL]             = {literal,  NULL,   LVL_NONE},
-  [K_TRUE]             = {literal,  NULL,   LVL_NONE},
-//^ Literals
-  [K_OR]               = {NULL,     orJump,   LVL_OR},
+  [K_OR]               = {NULL,     orJump,  LVL_OR},
   [K_AND]              = {NULL,     andJump, LVL_AND},
+  [L_IDENTIFIER]       = {variable, NULL,    LVL_NONE},
+  [L_MUTABLE]          = {variable, NULL,    LVL_NONE},
+  [L_STRING]           = {string,   NULL,    LVL_NONE},
+  [L_NUMBER]           = {number,   NULL,    LVL_NONE},
+  [K_FALSE]            = {literal,  NULL,    LVL_NONE},
+  [K_NULL]             = {literal,  NULL,    LVL_NONE},
+  [K_TRUE]             = {literal,  NULL,    LVL_NONE},
+  [K_USE]              = {literal,  NULL,    LVL_NONE},
+  [K_QUIT]             = {literal,  NULL,    LVL_NONE},
+  [K_RETURN]           = {buildReturn, NULL, LVL_NONE}, // TODO finishing moving to a literal expression from statement
+//^ Expression Tokens
   [K_LET]          = {NULL, NULL, LVL_NONE},
   [K_DEFINE]       = {NULL, NULL, LVL_NONE},
   [K_ELSE]         = {NULL, NULL, LVL_NONE},
@@ -558,24 +575,22 @@ ParseRule rules[] = {
   [K_IF]           = {NULL, NULL, LVL_NONE},
   [K_UNLESS]       = {NULL, NULL, LVL_NONE},
   [K_WHEN]         = {NULL, NULL, LVL_NONE},
-  [K_RETURN]       = {NULL, NULL, LVL_NONE},
   [K_UNTIL]        = {NULL, NULL, LVL_NONE},
   [K_WHILE]        = {NULL, NULL, LVL_NONE},
-  [K_QUIT]         = {NULL, NULL, LVL_NONE},
   [TOKEN_PRINT]    = {NULL, NULL, LVL_NONE},
 //^ Keywords
-  [S_RIGHT_ROUND] = {NULL, NULL, LVL_NONE},
+  [S_COLON]        = {NULL, NULL, LVL_NONE},
   [S_COMMA]        = {NULL, NULL, LVL_NONE},
   [D_COMMA]        = {NULL, NULL, LVL_NONE},
-  [S_SEMICOLON]    = {NULL, NULL, LVL_NONE},
   [S_QUESTION]     = {NULL, NULL, LVL_NONE},
+  [S_SEMICOLON]    = {NULL, NULL, LVL_NONE},
+  [S_RIGHT_ROUND]  = {NULL, NULL, LVL_NONE},
   [S_RIGHT_CURLY]  = {NULL, NULL, LVL_NONE},
   [S_RIGHT_SQUARE] = {NULL, NULL, LVL_NONE},
   [END_OF_FILE]    = {NULL, NULL, LVL_NONE},
   [LANGUAGE_ERROR] = {NULL, NULL, LVL_NONE},
   //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
 //^ Delimiters, Guards, and Terminators
-  [S_COLON]        = {NULL, NULL, LVL_NONE},
   [D_COLON_EQUAL]  = {NULL, NULL, LVL_NONE},
   [D_PLUS_EQUAL]   = {NULL, NULL, LVL_NONE},
   [D_STAR_EQUAL]   = {NULL, NULL, LVL_NONE},
@@ -596,7 +611,6 @@ static void resolvePrefix(Precedence hasPrecedence) {
   }
   callPrefix(hasPrecedence);
 }
-
 static void resolveInfix(Precedence hasPrecedence) {
     advance();
     ParseFn callInfix = getRule(previousToken().lexeme)->infix;
@@ -608,7 +622,7 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
   bool hasPrecedence = (level <= LVL_BASE);
   resolvePrefix(hasPrecedence);
 
-  while (level <= getRule(parserCurrent().lexeme)->precedence) {
+  while (level <= getRule(currentToken().lexeme)->precedence) {
     resolveInfix(hasPrecedence);
   }
 
@@ -617,21 +631,18 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
   }
 }
 
-/****************************************
-  FINISH EXPRESSIONS & START STATEMENTS  
-****************************************/
+/************************ FINISH EXPRESSIONS & START STATEMENTS ************************/
 
 static void ternaryStatement(OpCode condition) {
   advance();
   resolveExpression(LVL_BASE);
-  Token errorMarker = parserCurrent();
+  Token errorMarker = currentToken();
   require(S_QUESTION, "Expect a '?' after BOOLEAN test condition.");
   beginScope();
   int thenJump = emitJump(condition);
 
   emitByte(OP_POP); // then
   blockTernary();
-
   int elseJump = emitJump(OP_JUMP); 
   patchJump(thenJump);
 
@@ -652,7 +663,7 @@ static void ternaryStatement(OpCode condition) {
 
 static void whenStatement() { 
   advance();
-  Token token = parserCurrent(); // hold the value to evaluate all expressions
+  Token token = currentToken(); // hold the value to evaluate all expressions
   advance();
   require(S_COLON, "Expect ':' to start a when block. ('when' expression ':')");
   beginScope();
@@ -684,26 +695,6 @@ static void printStatement() {   // TODO remove
   emitByte(OP_PRINT);
 }
 
-static void returnStatement() {
-  advance();
-  if (current->type == FT_SCRIPT) {
-    error("Can't return from top-level code."); 
-  }
-
-  if (consume(S_SEMICOLON)) {  
-    emitReturn();
-  } else {
-    if (current->type == FT_INITIALIZER) {   // Methods and Initializers
-      error("Can't return a value from an initializer.");
-    }
-    resolveExpression(LVL_BASE);
-    if (previousIsNot(D_COMMA)) { 
-      require(S_SEMICOLON, "Expect ';' after return value.");
-    }
-    emitByte(OP_RETURN); // TODO am I missing an OP_POP ?
-  }
-}
-
 static void loopWithCondition(OpCode condition) {
   advance();
   int loopStart = currentChunk()->count;
@@ -719,18 +710,19 @@ static void loopWithCondition(OpCode condition) {
 
   patchJump(exitJump);
   emitByte(OP_POP);
+  emitByte(OP_QUIT_END);
   endScope();
 }
 
 static void doBlock() {
-  Token marker = parserCurrent();
+  Token marker = currentToken();
   advance();
   beginScope();
   block(&marker);
   endScope();
 }
 
-static void variableDeclaration() {
+static void declaration() {
   advance();
   uint8_t global = parseVariable("Expect variable name.");
 
@@ -745,57 +737,27 @@ static void variableDeclaration() {
   defineConstant(global);
 }
 
-/*****************
-  END STATEMENTS
-*****************/
-
-static void compileExpression() {
-  resolveExpression(LVL_BASE);
-  require(S_SEMICOLON, "Expect ';' after expression."); // TODO write optionals for ')', '}', ']',
-  emitByte(OP_POP); // get the value
-}
-
-static void synchronize() {
-  stopPanic();
-  Lexeme currentLexeme = parserCurrent().lexeme;
-
-  while (currentLexeme != END_OF_FILE) {
-    if (currentLexeme == S_SEMICOLON) {
-      return;
-    } 
-    switch (currentLexeme) {
-      case K_LET:
-      case K_IF:
-      case K_UNLESS:
-      case K_WHEN:
-      case K_UNTIL:
-      case K_WHILE:
-      case K_QUIT:
-      case TOKEN_PRINT:
-      case K_RETURN:
-        return;
-      default: ;
-    }
-    advance();
-  }
-}
+/***************** END STATEMENTS *****************/
 
 static void compileTokens() { 
-  switch (parserCurrent().lexeme) {
-    case K_LET:       return variableDeclaration();
-    case K_RETURN:    return returnStatement();
+  switch (currentToken().lexeme) {
     case TOKEN_PRINT: return printStatement();
+    case K_LET:       return declaration();
     case K_WHEN:      return whenStatement();
     case K_IF:        return ternaryStatement(OP_JUMP_IF_FALSE);
     case K_UNLESS:    return ternaryStatement(OP_JUMP_IF_TRUE);
     case K_WHILE:     return loopWithCondition(OP_JUMP_IF_FALSE);
     case K_UNTIL:     return loopWithCondition(OP_JUMP_IF_TRUE);
-    case K_DO:        return doBlock();  
-    default:          compileExpression();
+    case K_DO:        return doBlock();
+    default:          {
+      resolveExpression(LVL_BASE);
+      if (previousToken().lexeme != D_COMMA) {  // TODO maybe write optionals for ')', '}', ']'
+        require(S_SEMICOLON, "Expect ';' after expression."); 
+      }
+      emitByte(OP_POP); // get the value
+    }
   }
-  if (panic()) {
-    synchronize();
-  }
+  if (panic()) synchronize();
 }
 
 ObjFunction* compile(const char* source) {
@@ -803,7 +765,6 @@ ObjFunction* compile(const char* source) {
 
   Compiler compiler; 
   initCompiler(&compiler, FT_SCRIPT); 
-
   parserError(false); // set no error 
   stopPanic();        // set no panic
 

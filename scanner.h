@@ -21,30 +21,28 @@ typedef enum {
    // L_ARRAY,     // TODO implement array
   
   // Keywords
-  K_AND, K_AS, K_IF, K_UNLESS, K_ELSE, // 5
-  K_WHEN, K_IS, K_OR, K_RETURN, K_USE, // 10
+  K_AND, K_AS, K_IF, K_UNLESS, K_ELSE,       //  5
+  K_WHEN, K_IS, K_OR, K_RETURN, K_USE,       // 10
   K_WHILE, K_TRUE, K_UNTIL, K_FALSE, K_NULL, // 15
-  K_LET,
-  // currently not used
-  K_DEFINE, K_DO, 
-  // may be removed in future
-  TOKEN_PRINT, 
+  K_LET, K_QUIT,
+  // currently experimental
+  K_DEFINE, K_DO, TOKEN_PRINT, 
   // need to implement
   K_LIKE, // pattern matching
   K_TO,
-  K_QUIT,
   // NEW_LINE, // TODO test
   LANGUAGE_ERROR, END_OF_FILE
 } Lexeme;
 
 // TODO experimental compiler type-checking
 typedef enum {
-  VT_NUMBER,
-  VT_STRING,
+  VT_FUNCTION,
   VT_INDEX_COLLECTION,
   VT_KEYED_COLLECTION,
+  VT_MATH,
   VT_NAME,
-  VT_GRAMMAR,
+  VT_TEXT,
+  VT_VOID,
 } VariableType; 
 //^ TODO find a better name 
 

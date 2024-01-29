@@ -16,24 +16,19 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
-  CallFrame frames[FRAMES_MAX];
-  int frameCount;
-//^ Array Calls and Functions
-  Value stack[STACK_MAX];
-  Value* stackTop;
-//^ VM Stack
-  Table globals; // Constants
-  Table strings; // Strings
-//^ VM Tables
+  CallFrame frames[FRAMES_MAX]; // Array Calls and Functions
+  int frameCount;               // Array Calls and Functions
+  Value stack[STACK_MAX]; // VM Stack
+  Value* stackTop;        // VM Stack
+  Table globals;
+  Table strings;
   ObjString* initString; // Methods and Initializers
   ObjUpvalue* openUpvalues; // Closures 
-
 //> Garbage Collection fields
   size_t bytesAllocated;
   size_t nextGC;
 // Strings Objects Root
   Obj* objects;
-// Gray Stack
   int grayCount;
   int grayCapacity;
   Obj** grayStack;
