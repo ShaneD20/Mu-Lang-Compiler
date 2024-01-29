@@ -264,7 +264,7 @@ Functions only being able to get constants from the global scope or their closur
 //  ** They are aware of constants, and can capture constants within a closure **
 
 let number : 6;
-define increaseNumberBy(x) as
+let increaseNumberBy(x) as
     return number + x;
 ,,
 
