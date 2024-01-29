@@ -11,7 +11,7 @@
 
 ## Variable Declarations and Comments
 * There are two types of variables to declare: constants (which are immutable) and mutables. Both are initialized with the value or expression after the a ‘**:**’ character.
-* Mutables can be reassigned with the ‘**:=**‘ operator and Identifiers for mutables must begin with "**#**", such as "**#value**" or "**#name**".
+* Mutables can be reassigned with the ‘**:=**‘ operator and Identifiers for mutables must begin with "**#**", such as **#value** or **#name**.
 
 ```
 let phrase : “Hello World”;   // constant
@@ -21,7 +21,7 @@ let #number : 0;             // mutable
  
 ```
 ## Arithmetic and Concatenation
-* For arithmetic operators Mu uses ('+', '-', '/', '*'), for concatenation '..' is used.
+* For arithmetic operators Mu uses **( +, -, /, * )**, for concatenation '**..**' is used.
 * Note: concatenation works with strings and strings or numbers and numbers.
 * Lastly, if one of the operands for number concatenation is negative, the runtime errors.
 ```
@@ -49,7 +49,7 @@ print number;
 // 21
 ```
 ## Logical Operators
-Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '<=', '>=') for logical operators. '!' is the character for 'logical not'.
+Mu uses the keywords (** and, or **) and the characters (** =, <, >, !~, <=, >= **) for logical operators. '**!**' is the character for 'logical not'.
 ```
 1 and 2;   3 or 5;
 
@@ -61,7 +61,7 @@ Mu uses the keywords ('and' and 'or') and the characters ('=', '<', '>', '!~', '
 
 ```
 ## Bitwise Operators
-Mu uses standard operators for bitwise and, or, xor, and not. ( &, |, ^, ~ ). In the future Mu will support bit shifting left or right, but the implementation is still being thought out.
+Mu uses standard operators for bitwise and, or, xor, and not. (** &, |, ^, ~ **). In the future Mu will support bit shifting left or right, but the implementation is still being thought out.
 ```
 print 60 & 13;
 
@@ -79,7 +79,7 @@ print ~60;
 ```
 
 ## Mutable Assignment Operators
-Mutables have short-hand operators to perform mutations. They are similar to other programming languages: sum assignment (+=), product assignment (*=), quotient assignment (/=), concatenation assignment (.=), and modulus assignment (%=).
+Mutables have short-hand operators to perform mutations. They are similar to other programming languages: sum assignment **(+=)**, product assignment **(*=)**, quotient assignment **(/=)**, concatenation assignment **(.=)**, and modulus assignment **(%=)**.
 ```
 let #value : 34;
 let #textString : “Meoow, ”;
@@ -115,7 +115,8 @@ print #textString;
 // “Meoow, meow.”
 ```
 ## Logical Control Flow
-Mu has ternary statements “if-else”, “unless-else”. Based on a condition they act as a guard clause for one or two outcomes. Note that else-if chaining is not possible in Mu. If a context is needed where one of several statements is true, Mu has a “when” statement. Shown further below. 
+Mu has ternary statements **if-else**, **unless-else**. Based on a condition they act as a guard clause for one or two outcomes. Both **if** and **unless** can guard a single block of conditional code. 
+Note that else-if chaining is not possible in Mu. If a context is needed where one of several statements is true, Mu has a “when” statement. Shown further below. 
 
 ```
 if 0 > 10 ?
