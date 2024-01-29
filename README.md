@@ -3,15 +3,15 @@
 ## Comments, Colons, Question Marks, ';' and ',,'
 * For single line comments, Mu uses ‘**//**‘.
 * Mu is designed to look closer to human writing, as such the colon '**:**' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
-* For example the 'let' keyword is used to declare a variable, and is written 'let' identifier ':' value ';'.
-* The question mark '?' is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
-* Semicolons ';' are used to notate the end of a statement or expression, similar to C inspired languages.
-* The double-comma ',,' is used to notate the ending of a block of code. Blocks of code contain multiple statements or expressions.
-* Certain keywords [ while, until, if, unless, when, use ] always have an associated block of code.
+* For example the 'let' keyword is used to declare a variable, and is written '**let**' identifier '**:**' value '**;**'.
+* The question mark '**?**' is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
+* Semicolons '**;**' are used to notate the end of a statement or expression, similar to most C inspired languages.
+* The double-comma '**,,**' is used to notate the ending of a block of code. Blocks of code contain multiple statements or expressions.
+* Certain keywords [ **while**, **until**, **if**, **unless**, **when**, **use** ] always have an associated block of code.
 
 ## Variable Declarations and Comments
-* There are two types of variables to declare: constants (which are immutable) and mutables. Both are initialized with the value or expression after the a ‘:’ character.
-* Mutables can be reassigned with the ‘:=‘ operator and Identifiers for mutables must begin with "#", such as "#value" or "#name".
+* There are two types of variables to declare: constants (which are immutable) and mutables. Both are initialized with the value or expression after the a ‘**:**’ character.
+* Mutables can be reassigned with the ‘**:=**‘ operator and Identifiers for mutables must begin with "**#**", such as "**#value**" or "**#name**".
 
 ```
 let phrase : “Hello World”;   // constant
