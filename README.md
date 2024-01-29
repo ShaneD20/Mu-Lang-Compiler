@@ -1,8 +1,8 @@
 # Mμ Programming Language
 [Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md)
 ## Comments, Colons, Question Marks, ';' and ',,'
-* For single line comments, Mu uses ‘//‘.
-* Mu is designed to look closer to human writing, as such the colon ':' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
+* For single line comments, Mu uses ‘**//**‘.
+* Mu is designed to look closer to human writing, as such the colon '**:**' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
 * For example the 'let' keyword is used to declare a variable, and is written 'let' identifier ':' value ';'.
 * The question mark '?' is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
 * Semicolons ';' are used to notate the end of a statement or expression, similar to C inspired languages.
