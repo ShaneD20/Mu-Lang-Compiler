@@ -256,11 +256,11 @@ Functions only being able to get constants from the global scope or their closur
 //  ** Functions are not aware of mutables outside of their scope **
 //      let #number : 6;
 //      
-//      define increaseNumber() as
-//          #number := #number + 1; // function doesn't know what #number is
+//      let increaseNumber: use input as
+//          #number := #number + input; // function doesn't know what #number is
 //          print #number;
 //      ,,
-//      increaseNumber(); // won't work
+//      increaseNumber(5); // won't work
 //  ** They are aware of constants, and can capture constants within a closure **
 
 let number : 6;
