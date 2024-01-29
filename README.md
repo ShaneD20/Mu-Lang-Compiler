@@ -1,16 +1,16 @@
 # Mμ Programming Language
 [Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md)
 ## Comments, Colons, Question Marks, ';' and ',,'
-* For single line comments, Mu uses ‘**//**‘.
+* For single line comments, Mu uses ( **//** ).
 * Mu is designed to look closer to human writing, as such the colon '**:**' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
-* For example the 'let' keyword is used to declare a variable, and is written '**let**' identifier '**:**' value '**;**'.
+* For example the 'let' keyword is used to declare a variable, and is written '**let**' identifier ( **:** ) value ( **;** ).
 * The question mark '**?**' is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
-* Semicolons '**;**' are used to notate the end of a statement or expression, similar to most C inspired languages.
+* Semicolons ( **;** ) are used to notate the end of a statement or expression, similar to most C inspired languages.
 * The double-comma '**,,**' is used to notate the ending of a block of code. Blocks of code contain multiple statements or expressions.
-* Certain keywords [ **while**, **until**, **if**, **unless**, **when**, **use** ] always have an associated block of code.
+* Certain keywords ( **while**, **until**, **if**, **unless**, **when**, **use** ) always have an associated block of code.
 
 ## Variable Declarations and Comments
-* There are two types of variables to declare: constants (which are immutable) and mutables. Both are initialized with the value or expression after the a ‘**:**’ character.
+* There are two types of variables to declare: constants (which are immutable) and mutables. Both are initialized with the value or expression after the a ( **:** ) character.
 * Mutables can be reassigned with the ‘**:=**‘ operator and Identifiers for mutables must begin with "**#**", such as **#value** or **#name**.
 
 ```
@@ -21,7 +21,7 @@ let #number : 0;             // mutable
  
 ```
 ## Arithmetic and Concatenation
-* For arithmetic operators Mu uses **( +, -, /, * )**, for concatenation '**..**' is used.
+* For arithmetic operators Mu uses (** +, -, /, * **), for concatenation ( **..** ) is used.
 * Note: concatenation works with strings and strings or numbers and numbers.
 * Lastly, if one of the operands for number concatenation is negative, the runtime errors.
 ```
@@ -49,7 +49,7 @@ print number;
 // 21
 ```
 ## Logical Operators
-Mu uses the keywords (** and, or **) and the characters (** =, <, >, !~, <=, >= **) for logical operators. '**!**' is the character for 'logical not'.
+Mu uses the keywords (** and, or **) and the characters (** =, <, >, !~, <=, >=, ! **) for logical operators. 
 ```
 1 and 2;   3 or 5;
 
@@ -151,7 +151,7 @@ if (0 > -5) ?
 // "it is five"
 // "yes, zero is greater than negative five"
 ```
-The "when" statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any conditional operator (= > < !~) etc. Lastly, the "when" statement is break-by-default.
+The **when** statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any relational pattern ( =, >, <, !~, etc. ). Lastly, the **when** statement is break-by-default.
 ```
 let value : 1;
 
@@ -168,7 +168,7 @@ when value:
 ```
 // “it’s one”
 ```
-Loops are controlled by 'while' and 'until'. While is the standard loop that will break when the condition is false. Until is the same operations except the loop will break if true. This is to allow programmers to think with the booleans they have available and not worry about inverting. A programmer is free to write "until queue.isEmpty()" or "until stack.size() > 100". 
+Loops are controlled by **while** or **until** statements. **While** is the standard loop that will break when the condition is false. **Until** is the same operations except the loop will break if true. This is to allow programmers to think with the booleans they have available and not worry about inverting. A programmer is free to write "until queue.isEmpty()" or "until stack.size() > 100". 
 ```
 let #count : 1;
 
@@ -191,8 +191,8 @@ until #count > 100 ?
 // 1 3 9 27 81
 ```
 ## Functions
-Mu represents functions with "use" expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression. 
-  Functions can access constants from the global scope or within their closure, but they cannot access mutables outside of their scope.
+Mu represents functions with ( **use** ) expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression. **Use** expressions must have at least one input parameter.
+Functions can access constants from the global scope or within their closure, but they cannot access mutables outside of their scope.
 Function parameters can be constant or immutable, a function can be passed in a constant and have a mutable copy of the value.
 ```
 let fibonacci: use n as
