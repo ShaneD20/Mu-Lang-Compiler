@@ -207,7 +207,7 @@ print #iteration;
 ```
 // 0 1 2 3 4
 // 1 2 4 8 16 32
-// Error: Undefined variable '#i'.
+// Error: Undefined variable '#iteration'.
 ```
 (Not in alpha version 0.0.1) you can scope two variables to a loop. However, they cannot be aliased with 'is'. This is to make writing two-pointer situations more consistent. 
 ```
