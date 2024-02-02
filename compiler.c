@@ -703,7 +703,9 @@ static void scopeVariable() {
   uint8_t global = parseVariable("Expect variable name.");
   require(S_COLON, "Need ':' to create a loop scoped variable.");
   resolveExpression(LVL_BASE);
-  require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
+  if (tokenIsNot(S_COMMA)) {
+    require(S_SEMICOLON, "Expect ';' to finish loop variable declarations.");
+  }
   defineConstant(global);
 }
 
