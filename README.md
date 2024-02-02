@@ -192,9 +192,9 @@ until #count > 100 ?
 ```
 (Not in alpha version 0.0.1) you can scope variables to loops in Mu. By adding a comma after **while** or **until** you can add a single declaration. The variable can be referred to as 'is' in the loop condition, or by its name.
 ```
-while, #i : 0; is < 5 ?
-    print #i;
-    #i += 1;
+while, #iteration : 0; is < 5 ?
+    print #iteration;
+    #iteration += 1;
 ,,
 
 until, #u : 1; is > 35 ?
@@ -202,7 +202,7 @@ until, #u : 1; is > 35 ?
     #u *= 2;
 ,,
 
-print #i;
+print #iteration;
 ```
 ```
 // 0 1 2 3 4
