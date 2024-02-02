@@ -13,3 +13,7 @@ Learning how to code is an investment and learning how to write a compiler or in
 I was encouraged to pursue this project by my friends. I had some ideas on what could make a better programming language, but I don't have much experience outside of Java or JS (two languages). I was recommended "Seven Languages in Seven Weeks" by Bruce Tate.
 
 I got to see my first taste of Ruby. I immediately saw the **unless** keyword and I loved the concept. It's why Mu has (if, unless) and (while, until), if programming languages are supporting (and, or) the same should apply to conditional statements and loops. Allowing the language to feel more human, and allowing the programmer to think more in the moment.
+
+## First Mu Projects
+#1 [Dan Baker's Mu Test](https://github.com/djacu/mulang-test)
+

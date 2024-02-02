@@ -8,8 +8,10 @@
 #include "scanner.h"
 
 typedef struct {
-  Token current;
+  Token head;
   Token previous;
+  Token caboose;// added for type assignment let id : 6;
+  Token tail;   // added for type assignment let id : 6;
   bool hasError;
   bool panicMode;
 } Parser;
@@ -37,7 +39,9 @@ typedef struct {
 } ParseRule;
 
 Token previousToken();
-Token parserCurrent();
+Token currentToken();
+Token parserCaboose();
+Token parserTail();
 void setCurrent(Token token);
 void parserError(bool hasError);
 bool hasError();
@@ -52,5 +56,6 @@ bool tokenIsNot(Lexeme test);
 bool previousIsNot(Lexeme test);
 bool consume(Lexeme glyph); // maybe rename
 void require(Lexeme test, const char* message);
+void synchronize();
 
 #endif

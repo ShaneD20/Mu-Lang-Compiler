@@ -4,6 +4,7 @@
 #include "object.h" // Strings compiler-include-object
 #include "vm.h"
 #include "scanner.h"
+#include "table.h"
 
 typedef struct {
   Token name;
@@ -31,6 +32,7 @@ typedef struct Compiler {
   int localCount;
   Upvalue upvalues[UINT8_COUNT]; // Closures upvalues array
   int scopeDepth;
+  Table identifierTypes;
 } Compiler;
 
 typedef struct ClassCompiler {

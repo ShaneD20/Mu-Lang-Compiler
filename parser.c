@@ -7,14 +7,24 @@
 
 Parser parser;
 
-Token previousToken() {
-    return parser.previous;
+void initParser() {
+
 }
-Token parserCurrent() {
-    return parser.current;
+
+Token previousToken() {
+  return parser.previous;
+}
+Token currentToken() {
+  return parser.head;
+}
+Token parserCaboose() {
+  return parser.caboose;
+}
+Token parserTail() {
+  return parser.tail;
 }
 void setCurrent(Token token) {
-    parser.current = token;
+    parser.head = token;
 }
 void parserError(bool hasError) {
     parser.hasError = hasError;
@@ -53,27 +63,29 @@ void error(const char* message) {
   errorAt(&parser.previous, message);
 }
 void errorAtCurrent(const char* message) {
-  errorAt(&parser.current, message);
+  errorAt(&parser.head, message);
 }
 
 void advance() {
-  parser.previous = parser.current;
-  parser.current = scanToken();
+  parser.tail = parser.caboose;
+  parser.caboose = parser.previous;
+  parser.previous = parser.head;
+  parser.head = scanToken();
 
-  if (parser.current.lexeme == LANGUAGE_ERROR) {
-    Token token = parser.current;
+  if (parser.head.lexeme == LANGUAGE_ERROR) {
+    Token token = parser.head;
     do {
-      parser.current = scanToken();
-    } while (parser.current.lexeme != LANGUAGE_ERROR);
+      parser.head = scanToken();
+    } while (parser.head.lexeme != LANGUAGE_ERROR);
     error(token.start); 
   }
 }
 
 bool tokenIs(Lexeme test) {        
-  return parser.current.lexeme == test;
+  return parser.head.lexeme == test;
 }
 bool tokenIsNot(Lexeme test) {
-  return parser.current.lexeme != test;
+  return parser.head.lexeme != test;
 }
 bool previousIsNot(Lexeme test) {
   return parser.previous.lexeme != test;
@@ -85,7 +97,33 @@ bool consume(Lexeme glyph) {
 }
 
 void require(Lexeme test, const char* message) {
-  if (parser.current.lexeme == test) {
+  if (parser.head.lexeme == test) {
     advance();
   } else error(message);
+}
+
+void synchronize() {
+  stopPanic();
+  Lexeme currentLexeme = currentToken().lexeme;
+
+  while (currentLexeme != END_OF_FILE) {
+    if (currentLexeme == S_SEMICOLON) {
+      return;
+    } 
+    switch (currentLexeme) {
+      case K_LET:
+      case K_IF:
+      case K_UNLESS:
+      case K_WHEN:
+      case K_UNTIL:
+      case K_WHILE:
+      case K_QUIT:
+      case K_USE:
+      case TOKEN_PRINT:
+      case K_RETURN:
+        return;
+      default: ;
+    }
+    advance();
+  }
 }

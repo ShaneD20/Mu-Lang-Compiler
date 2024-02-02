@@ -237,6 +237,10 @@ static InterpretResult run() {
         runtimeError("Operands must be numbers."); \
         return INTERPRET_RUNTIME_ERROR; \
       } \
+      if (AS_NUMBER(peek(0)) < 0 || AS_NUMBER(peek(1)) < 0) { \
+        runtimeError("Appending operands cannot be less than zero"); \
+        return INTERPRET_RUNTIME_ERROR; \
+      } \
       long long right = AS_NUMBER(pop()); \
       long long left = AS_NUMBER(pop()); \
       long long scale = 1; \

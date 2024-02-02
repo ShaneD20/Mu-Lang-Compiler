@@ -41,17 +41,23 @@ static char peekNext() {
   return scanner.current[1];
 }
 
+static char peekTwoAhead() {
+  if (isAtEnd()) return '\0'; 
+  return scanner.current[2];
+}
+
 static bool match(char expected) {
   if (isAtEnd()) return false;
   if (*scanner.current != expected) return false;
-  scanner.current++; // TODO would implement something similar for meaningful new lines
+  scanner.current++; // TODO would NEED to implement something similar for meaningful new lines
   return true;
 }
 //^ Scanner Helpers
 
 //> Token Helpers
-static Token makeToken(Lexeme lexeme) {
+static Token makeToken(Lexeme lexeme, VariableType type) {
   Token token;
+  token.type = type;
   token.lexeme = lexeme;
   token.start = scanner.start;
   token.length = (int)(scanner.current - scanner.start);
@@ -116,7 +122,6 @@ static Lexeme identifierType() { // tests for keywords
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
           case 'e' : return checkKeyword(2, 4, "fine", K_DEFINE);
-          case 'o' : return checkKeyword(2, 0, "", K_DO);
         }
       }
       break;
@@ -179,7 +184,7 @@ static Token identifier() {
     advance();
   }
   while (isAlpha(peek()) || isDigit(peek())) advance();
-  return makeToken(identifierType());
+  return makeToken(identifierType(), VT_NAME);
 }
 
 static Token number() {
@@ -190,7 +195,7 @@ static Token number() {
 
     while (isDigit(peek())) advance();
   }
-  return makeToken(L_NUMBER);
+  return makeToken(L_NUMBER, VT_MATH);
 }
 
 static Token string() {
@@ -201,13 +206,13 @@ static Token string() {
   if (isAtEnd()) return errorToken("Unterminated string.");
 
   advance(); // The closing quote.
-  return makeToken(L_STRING);
+  return makeToken(L_STRING, VT_INDEX_COLLECTION); // TODO may need to add string type instead
 }
 
 Token scanToken() {
   skipWhitespace();
   scanner.start = scanner.current;
-  if (isAtEnd()) return makeToken(END_OF_FILE);
+  if (isAtEnd()) return makeToken(END_OF_FILE, VT_VOID);
 
   // check for constants
   char rune = advance();
@@ -217,47 +222,53 @@ Token scanToken() {
   switch (rune) {
     // single character
     case '#': return identifier();
-    case '(': return makeToken(S_LEFT_ROUND); // TODO would be new line aware
-    case ')': return makeToken(S_RIGHT_ROUND);
-    case '{': return makeToken(S_LEFT_CURLY);   // TODO would be new line aware
-    case '}': return makeToken(S_RIGHT_CURLY);
-    case '?': return makeToken(S_QUESTION);     // TODO would be new line aware
-    case ';': return makeToken(S_SEMICOLON);
-    case '=': return makeToken(S_EQUAL); 
-    case '-': return makeToken(S_MINUS);
-    case '&': return makeToken(S_AMPERSAND);
-    case '|': return makeToken(S_PIPE);
-    case '^': return makeToken(S_RAISE);
-    case '~': return makeToken(S_TILDE);
+    case '(': return makeToken(SL_ROUND, VT_VOID); // TODO would be new line aware
+    case ')': return makeToken(SR_ROUND, VT_VOID);
+    case '{': return makeToken(SL_CURLY, VT_VOID);   // TODO would be new line aware
+    case '}': return makeToken(SR_CURLY, VT_VOID);
+    case '?': return makeToken(S_QUESTION, VT_VOID);     // TODO would be new line aware
+    case ';': return makeToken(S_SEMICOLON, VT_VOID);
+    case '=': return makeToken(S_EQUAL, VT_VOID); 
+    case '-': return makeToken(S_MINUS, VT_VOID);
+    case '&': return makeToken(S_AMPERSAND, VT_VOID);
+    case '|': return makeToken(S_PIPE, VT_VOID);
+    case '^': return makeToken(S_RAISE, VT_VOID);
+    case '~': return makeToken(S_TILDE, VT_VOID);
     // two characters
-    case '.': 
-      switch(scanner.start[1]) {
+    case '.': switch(scanner.start[1]) {
         case '=': advance();
-          return  makeToken(D_DOT_EQUAL);
+          return  makeToken(D_DOT_EQUAL, VT_VOID);
         case '.': advance();
-          return makeToken(D_DOT);
+          return makeToken(D_DOT, VT_VOID);
         default: 
-          return makeToken(S_DOT);
+          return makeToken(S_DOT, VT_VOID);
+      } 
+      break;
+    case '*': switch(scanner.start[1]) {
+        case '=': advance();
+          return makeToken(D_STAR_EQUAL, VT_VOID);
+        case '(': advance();
+          return makeToken(D_STAR_L_ROUND, VT_VOID);
+        default:
+          return makeToken(S_STAR, VT_VOID);
       }
       break;
     case ',': 
-      return makeToken(match(',') ? D_COMMA : S_COMMA);
+      return makeToken(match(',') ? D_COMMA : S_COMMA, VT_VOID);
     case '%': 
-      return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO);
+      return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO, VT_VOID);
     case '+': 
-      return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS);
+      return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS, VT_VOID);
     case '/': 
-      return makeToken(match('=') ? D_SLASH_EQUAL : S_SLASH);
-    case '*': 
-      return makeToken(match('=') ? D_STAR_EQUAL : S_STAR);
+      return makeToken(match('=') ? D_SLASH_EQUAL : S_SLASH, VT_VOID);
     case ':': 
-      return makeToken(match('=') ? D_COLON_EQUAL: S_COLON);
+      return makeToken(match('=') ? D_COLON_EQUAL: S_COLON, VT_VOID);
     case '<':
-      return makeToken(match('=') ? D_LESS_EQUAL : S_LESS);
+      return makeToken(match('=') ? D_LESS_EQUAL : S_LESS, VT_VOID);
     case '>':
-      return makeToken(match('=') ? D_GREATER_EQUAL : S_GREATER);
+      return makeToken(match('=') ? D_GREATER_EQUAL : S_GREATER, VT_VOID);
     case '!':
-      return makeToken(match('~') ? D_BANG_TILDE : S_BANG);
+      return makeToken(match('~') ? D_BANG_TILDE : S_BANG, VT_VOID);
     case '"': return string();
   }
   return errorToken("Unexpected character.");

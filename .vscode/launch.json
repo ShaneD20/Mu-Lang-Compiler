@@ -6,8 +6,8 @@
       "type": "lldb",
       "request": "launch",
       "args": [],
-      "cwd": "/Users/palmerc/proj/cLang/mu-compiler",
-      "program": "/Users/palmerc/proj/cLang/mu-compiler/build/Debug/outDebug"
+      "cwd": "/Users/palmerc/Documents/aaa/mu-compiler",
+      "program": "/Users/palmerc/Documents/aaa/mu-compiler/build/Debug/outDebug"
     }
   ]
 }
