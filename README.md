@@ -190,6 +190,25 @@ until #count > 100 ?
 // 1 2 4 8 16 32 64
 // 1 3 9 27 81
 ```
+(Not in alpha version 0.0.1) you can scope variables to loops in Mu. By adding a comma after **while** or **until** you can add a single declaration.
+```
+while, #i : 0; is < 5 ?
+    print #i;
+    #i += 1;
+,,
+
+until, #u : 1; is > 35 ?
+    print #u;
+    #u *= 2;
+,,
+
+print #i;
+```
+```
+// 0 1 2 3 4
+// 1 2 4 8 16 32
+// Error: Undefined variable '#i'.
+```
 ## Functions
 Mu represents functions with ( **use** ) expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression. **Use** expressions must have at least one input parameter.
 Functions can access constants from the global scope or within their closure, but they cannot access mutables outside of their scope.
