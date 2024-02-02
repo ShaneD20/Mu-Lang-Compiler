@@ -699,6 +699,14 @@ static void whenStatement() {
   require(D_COMMA, "Expect ,, to complete a when block.");
 }
 
+static void scopeVariable() {
+  uint8_t global = parseVariable("Expect variable name.");
+  require(S_COLON, "Need ':' to create a loop scoped variable.");
+  resolveExpression(LVL_BASE);
+  require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
+  defineConstant(global);
+}
+
 static void loopWithCondition(OpCode condition) {
   advance();
   beginScope();
@@ -706,19 +714,17 @@ static void loopWithCondition(OpCode condition) {
   Token token = currentToken(); 
   if (consume(S_COMMA)) {
     token = currentToken();
-    uint8_t global = parseVariable("Expect variable name.");
-
-    require(S_COLON, "Need ':' to create a loop scoped variable.");
-    resolveExpression(LVL_BASE);
-    require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
-    defineConstant(global);
-  } // scoped variable
+    scopeVariable();
+  }
 
   int loopStart = currentChunk()->count;
 
   if (currentToken().lexeme == K_IS) {
     setCurrent(token);
-  } // scoped variable
+  } else if (consume(S_COMMA)) {
+    scopeVariable();
+    loopStart = currentChunk()->count;
+  } // nice to have for two pointer technique
 
   resolveExpression(LVL_BASE);
   require(S_QUESTION, "Expect '?' after condition, to begin conditional loop.");
