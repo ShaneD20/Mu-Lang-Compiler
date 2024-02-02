@@ -211,7 +211,7 @@ print #iteration;
 ```
 (Not in alpha version 0.0.1) you can scope two variables to a loop. However, they cannot be aliased with 'is'. This is to make writing two-pointer situations more consistent. 
 ```
-until, #left : 4;, #right : 20; 
+until, #left : 4, #right : 20; 
     #left >= #right ?
 
     print #right + #left;
@@ -219,7 +219,7 @@ until, #left : 4;, #right : 20;
     #left += 1;
 ,,
 
-while, #index : 0;, arraySize : 10;
+while, #index : 0, arraySize : 10;
     #index < arraySize ?
     print #index;
     #index += 1;
