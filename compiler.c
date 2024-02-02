@@ -273,7 +273,7 @@ static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_
 
 static uint8_t argumentList() {
   uint8_t argCount = 0;
-  if (tokenIsNot(S_RIGHT_ROUND)) {
+  if (tokenIsNot(SR_ROUND)) {
     do {
       resolveExpression(LVL_BASE);
       if (argCount >= ARG_LIMIT) {
@@ -282,7 +282,7 @@ static uint8_t argumentList() {
       argCount++;
     } while (consume(S_COMMA));
   }
-  require(S_RIGHT_ROUND, "Expect ')' after arguments.");
+  require(SR_ROUND, "Expect ')' after arguments.");
   return argCount;
 }
 
@@ -349,7 +349,7 @@ static void call(bool unused) {
 
 static void grouping(bool unused) {
   resolveExpression(LVL_BASE);
-  require(S_RIGHT_ROUND, "Expect ')' after expression.");
+  require(SR_ROUND, "Expect ')' after expression.");
 }
 
 static void number(bool unused) {
@@ -432,22 +432,11 @@ static void blockTernary() { // if-else, unless-else
   }
 }
 
-static void buildStructure() {    // TODO
+static void buildBlock() {
   Token marker = previousToken();
-  if (tokenIsNot(S_RIGHT_CURLY) && tokenIsNot(END_OF_FILE)) {
-    do {
-      current->function->arity++;
-      if (current->function->arity > ARG_LIMIT) {
-        errorAtCurrent("Can't have more than 255 fields.");
-      }
-      uint8_t constant = parseVariable("Expect field name.");
-      defineConstant(constant);
-    } while (consume(S_COMMA));
-  }
-  if (tokenIsNot(S_RIGHT_CURLY)) {
-    errorAt(&marker, "Need a } to finish structure definition.");
-  }
-  consume(S_RIGHT_CURLY);
+  beginScope();
+  block(&marker);
+  endScope();
 }
 
 static void buildClosure(FunctionType type) {
@@ -494,6 +483,14 @@ static void buildReturn(bool unused) {
   }
 }
 
+static void printExpression() {   // TODO remove
+  resolveExpression(LVL_BASE);
+  if (previousIsNot(D_COMMA)) {
+    require(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
+  }
+  emitByte(OP_PRINT);
+}
+
 static void unary(bool unused) {
   Lexeme operator = previousToken().lexeme; // hold onto the operator, resolve the next expression, then emit
   resolveExpression(LVL_UNARY);
@@ -521,7 +518,7 @@ static void literal(bool unused) {
       break;
     case K_USE:  buildClosure(FT_FUNCTION);
       break;
-    case S_LEFT_CURLY: buildStructure();
+    case D_STAR_L_ROUND: buildBlock();
       break;
     default: return; // Unreachable.
   }
@@ -530,9 +527,9 @@ static void literal(bool unused) {
 ParseRule rules[] = {
 //                        prefix,  infix, precedence
   [S_DOT]              = {NULL,     call, LVL_CALL}, // call struct properties?
-  [S_LEFT_ROUND]       = {grouping, call, LVL_CALL},
-  [S_LEFT_CURLY]       = {literal,  NULL, LVL_NONE}, // {literal, NULL, LVL_NONE}, 
-  [S_LEFT_SQUARE]      = {NULL,     NULL, LVL_NONE}, // {literal, NULL, LVL_NONE},
+  [SL_ROUND]           = {grouping, call, LVL_CALL},
+  [SL_CURLY]           = {structure,  NULL, LVL_NONE}, // {literal, NULL, LVL_NONE}, 
+  [SL_SQUARE]          = {NULL,     NULL, LVL_NONE}, // {literal, NULL, LVL_NONE},
 //^ function calls, product type declarations
   [S_MINUS]            = {unary,    binary, LVL_SUM},
   [S_PLUS]             = {NULL,     binary, LVL_SUM},
@@ -565,7 +562,9 @@ ParseRule rules[] = {
   [K_TRUE]             = {literal,  NULL,    LVL_NONE},
   [K_USE]              = {literal,  NULL,    LVL_NONE},
   [K_QUIT]             = {literal,  NULL,    LVL_NONE},
-  [K_RETURN]           = {buildReturn, NULL, LVL_NONE}, // TODO finishing moving to a literal expression from statement
+  [D_STAR_L_ROUND]     = {literal,  NULL,    LVL_NONE},
+  [K_RETURN]           = {buildReturn, NULL, LVL_NONE}, 
+//  [TOKEN_PRINT]        = {literal, NULL, LVL_NONE},     // TODO remove after implementing function
 //^ Expression Tokens
   [K_LET]          = {NULL, NULL, LVL_NONE},
   [K_DEFINE]       = {NULL, NULL, LVL_NONE},
@@ -577,16 +576,15 @@ ParseRule rules[] = {
   [K_WHEN]         = {NULL, NULL, LVL_NONE},
   [K_UNTIL]        = {NULL, NULL, LVL_NONE},
   [K_WHILE]        = {NULL, NULL, LVL_NONE},
-  [TOKEN_PRINT]    = {NULL, NULL, LVL_NONE},
 //^ Keywords
   [S_COLON]        = {NULL, NULL, LVL_NONE},
   [S_COMMA]        = {NULL, NULL, LVL_NONE},
   [D_COMMA]        = {NULL, NULL, LVL_NONE},
   [S_QUESTION]     = {NULL, NULL, LVL_NONE},
   [S_SEMICOLON]    = {NULL, NULL, LVL_NONE},
-  [S_RIGHT_ROUND]  = {NULL, NULL, LVL_NONE},
-  [S_RIGHT_CURLY]  = {NULL, NULL, LVL_NONE},
-  [S_RIGHT_SQUARE] = {NULL, NULL, LVL_NONE},
+  [SR_ROUND]       = {NULL, NULL, LVL_NONE},
+  [SR_CURLY]       = {NULL, NULL, LVL_NONE},
+  [SR_SQUARE]      = {NULL, NULL, LVL_NONE},
   [END_OF_FILE]    = {NULL, NULL, LVL_NONE},
   [LANGUAGE_ERROR] = {NULL, NULL, LVL_NONE},
   //[NEW_LINE]        = {NULL,     NULL,   PREC_NONE},
@@ -597,7 +595,7 @@ ParseRule rules[] = {
   [D_DOT_EQUAL]    = {NULL, NULL, LVL_NONE},
   [D_MODULO_EQUAL] = {NULL, NULL, LVL_NONE},
   [D_SLASH_EQUAL]  = {NULL, NULL, LVL_NONE},
-//^ Assignment Operators (handled by unary variable)
+//^ Assignment Operators (handled by prefix variable)
 };
 static ParseRule* getRule(Lexeme type) {
   return &rules[type];
@@ -632,6 +630,21 @@ static void resolveExpression(Precedence level) {   // TODO rename handleExpress
 }
 
 /************************ FINISH EXPRESSIONS & START STATEMENTS ************************/
+
+static void declaration() {
+  advance();
+  uint8_t global = parseVariable("Expect variable name.");
+
+  if (consume(S_COLON)) {
+    resolveExpression(LVL_BASE);
+  } else {
+    error("Need to initialize constants. ('let' identifier : expression ';')");
+  }
+  if (previousIsNot(D_COMMA)) { // TODO testing single comma for objects
+    require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
+  }
+  defineConstant(global);
+}
 
 static void ternaryStatement(OpCode condition) {
   advance();
@@ -686,24 +699,32 @@ static void whenStatement() {
   require(D_COMMA, "Expect ,, to complete a when block.");
 }
 
-static void printStatement() {   // TODO remove
-  advance();
-  resolveExpression(LVL_BASE);
-  if (previousIsNot(D_COMMA)) {
-    require(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
-  }
-  emitByte(OP_PRINT);
-}
-
 static void loopWithCondition(OpCode condition) {
   advance();
+  beginScope();
+
+  Token token = currentToken(); 
+  if (consume(S_COMMA)) {
+    token = currentToken();
+    uint8_t global = parseVariable("Expect variable name.");
+
+    require(S_COLON, "Need ':' to create a loop scoped variable.");
+    resolveExpression(LVL_BASE);
+    require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
+    defineConstant(global);
+  } // scoped variable
+
   int loopStart = currentChunk()->count;
+
+  if (currentToken().lexeme == K_IS) {
+    setCurrent(token);
+  } // scoped variable
+
   resolveExpression(LVL_BASE);
   require(S_QUESTION, "Expect '?' after condition, to begin conditional loop.");
   Token marker = previousToken();
 
   int exitJump = emitJump(condition); // false for while, true for until
-  beginScope();
   emitByte(OP_POP);
   block(&marker);
   emitLoop(loopStart);
@@ -714,42 +735,19 @@ static void loopWithCondition(OpCode condition) {
   endScope();
 }
 
-static void doBlock() {
-  Token marker = currentToken();
-  advance();
-  beginScope();
-  block(&marker);
-  endScope();
-}
-
-static void declaration() {
-  advance();
-  uint8_t global = parseVariable("Expect variable name.");
-
-  if (consume(S_COLON)) {
-    resolveExpression(LVL_BASE);
-  } else {
-    error("Need to initialize constants. ('let' identifier : expression ';')");
-  }
-  if (previousIsNot(D_COMMA)) { // testing single comma for objects
-    require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
-  }
-  defineConstant(global);
-}
-
 /***************** END STATEMENTS *****************/
 
 static void compileTokens() { 
   switch (currentToken().lexeme) {
-    case TOKEN_PRINT: return printStatement();
-    case K_LET:       return declaration();
-    case K_WHEN:      return whenStatement();
-    case K_IF:        return ternaryStatement(OP_JUMP_IF_FALSE);
-    case K_UNLESS:    return ternaryStatement(OP_JUMP_IF_TRUE);
-    case K_WHILE:     return loopWithCondition(OP_JUMP_IF_FALSE);
-    case K_UNTIL:     return loopWithCondition(OP_JUMP_IF_TRUE);
-    case K_DO:        return doBlock();
-    default:          {
+     case TOKEN_PRINT: advance();   // TODO replace with function
+        return printExpression();
+    case K_LET:     return declaration();
+    case K_WHEN:    return whenStatement();
+    case K_IF:      return ternaryStatement(OP_JUMP_IF_FALSE);
+    case K_UNLESS:  return ternaryStatement(OP_JUMP_IF_TRUE);
+    case K_WHILE:   return loopWithCondition(OP_JUMP_IF_FALSE);
+    case K_UNTIL:   return loopWithCondition(OP_JUMP_IF_TRUE);
+    default:        {
       resolveExpression(LVL_BASE);
       if (previousToken().lexeme != D_COMMA) {  // TODO maybe write optionals for ')', '}', ']'
         require(S_SEMICOLON, "Expect ';' after expression."); 

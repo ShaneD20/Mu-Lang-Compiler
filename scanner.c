@@ -122,7 +122,6 @@ static Lexeme identifierType() { // tests for keywords
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
           case 'e' : return checkKeyword(2, 4, "fine", K_DEFINE);
-          case 'o' : return checkKeyword(2, 0, "", K_DO);
         }
       }
       break;
@@ -223,10 +222,10 @@ Token scanToken() {
   switch (rune) {
     // single character
     case '#': return identifier();
-    case '(': return makeToken(S_LEFT_ROUND, VT_VOID); // TODO would be new line aware
-    case ')': return makeToken(S_RIGHT_ROUND, VT_VOID);
-    case '{': return makeToken(S_LEFT_CURLY, VT_VOID);   // TODO would be new line aware
-    case '}': return makeToken(S_RIGHT_CURLY, VT_VOID);
+    case '(': return makeToken(SL_ROUND, VT_VOID); // TODO would be new line aware
+    case ')': return makeToken(SR_ROUND, VT_VOID);
+    case '{': return makeToken(SL_CURLY, VT_VOID);   // TODO would be new line aware
+    case '}': return makeToken(SR_CURLY, VT_VOID);
     case '?': return makeToken(S_QUESTION, VT_VOID);     // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON, VT_VOID);
     case '=': return makeToken(S_EQUAL, VT_VOID); 
@@ -236,14 +235,22 @@ Token scanToken() {
     case '^': return makeToken(S_RAISE, VT_VOID);
     case '~': return makeToken(S_TILDE, VT_VOID);
     // two characters
-    case '.': 
-      switch(scanner.start[1]) {
+    case '.': switch(scanner.start[1]) {
         case '=': advance();
           return  makeToken(D_DOT_EQUAL, VT_VOID);
         case '.': advance();
           return makeToken(D_DOT, VT_VOID);
         default: 
           return makeToken(S_DOT, VT_VOID);
+      } 
+      break;
+    case '*': switch(scanner.start[1]) {
+        case '=': advance();
+          return makeToken(D_STAR_EQUAL, VT_VOID);
+        case '(': advance();
+          return makeToken(D_STAR_L_ROUND, VT_VOID);
+        default:
+          return makeToken(S_STAR, VT_VOID);
       }
       break;
     case ',': 
@@ -254,8 +261,6 @@ Token scanToken() {
       return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS, VT_VOID);
     case '/': 
       return makeToken(match('=') ? D_SLASH_EQUAL : S_SLASH, VT_VOID);
-    case '*': 
-      return makeToken(match('=') ? D_STAR_EQUAL : S_STAR, VT_VOID);
     case ':': 
       return makeToken(match('=') ? D_COLON_EQUAL: S_COLON, VT_VOID);
     case '<':

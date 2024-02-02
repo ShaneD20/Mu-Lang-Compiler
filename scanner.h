@@ -6,16 +6,16 @@ typedef enum {
   S_PLUS, S_MINUS, S_SLASH, S_STAR,         // + - / *
   S_QUESTION, S_EQUAL, S_GREATER, S_LESS,   // ? = > <
   S_COMMA, S_DOT, S_SEMICOLON, S_COLON,     // , . ; :
-  S_LEFT_ROUND, S_RIGHT_ROUND,              // ( )
-  S_LEFT_CURLY, S_RIGHT_CURLY, S_MODULO,    // { } %
-  S_LEFT_SQUARE, S_RIGHT_SQUARE, S_BANG,    // [ ] !
+  SL_ROUND, SL_CURLY, SL_SQUARE, S_BANG,    // ( { [ !
+  SR_ROUND, SR_CURLY, SR_SQUARE, S_MODULO,  // ) } ] %
   S_AMPERSAND, S_PIPE, S_RAISE, S_TILDE,    // & | ^ ~
+
   // Two character tokens
   D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,     // ,, !~ :=
-  D_GREATER_EQUAL, D_LESS_EQUAL, D_DOT,     // >= <= ..
+  D_GREATER_EQUAL, D_MODULO_EQUAL, D_DOT,   // >= %= ..
   D_PLUS_EQUAL, D_STAR_EQUAL, D_DOT_EQUAL,  // += *= .=
-  D_MODULO_EQUAL, D_SLASH_EQUAL,            // %= /= 
-  //D_DIAMOND, // <>
+  D_LESS_EQUAL, D_SLASH_EQUAL, D_STAR_L_ROUND,  // <= /= *( 
+
   // Literals
   L_IDENTIFIER, L_MUTABLE, L_STRING, L_NUMBER, 
    // L_ARRAY,     // TODO implement array
@@ -26,10 +26,8 @@ typedef enum {
   K_WHILE, K_TRUE, K_UNTIL, K_FALSE, K_NULL, // 15
   K_LET, K_QUIT,
   // currently experimental
-  K_DEFINE, K_DO, TOKEN_PRINT, 
-  // need to implement
-  K_LIKE, // pattern matching
-  K_TO,
+  K_DEFINE, TOKEN_PRINT, 
+  K_LIKE, K_TO,
   // NEW_LINE, // TODO test
   LANGUAGE_ERROR, END_OF_FILE
 } Lexeme;
