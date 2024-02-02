@@ -190,7 +190,7 @@ until #count > 100 ?
 // 1 2 4 8 16 32 64
 // 1 3 9 27 81
 ```
-(Not in alpha version 0.0.1) you can scope variables to loops in Mu. By adding a comma after **while** or **until** you can add a single declaration.
+(Not in alpha version 0.0.1) you can scope variables to loops in Mu. By adding a comma after **while** or **until** you can add a single declaration. The variable can be referred to as 'is' in the loop condition, or by its name.
 ```
 while, #i : 0; is < 5 ?
     print #i;
@@ -208,6 +208,22 @@ print #i;
 // 0 1 2 3 4
 // 1 2 4 8 16 32
 // Error: Undefined variable '#i'.
+```
+(Not in alpha version 0.0.1) you can scope two variables to a loop. However, they cannot be aliased with 'is'. This is to make writing two-pointer situations more consistent. 
+```
+until, #left : 4;, #right : 20; 
+    #left >= #right ?
+
+    print #right + #left;
+    #right += -1;
+    #left += 1;
+,,
+
+while, #index : 0;, arraySize : 10;
+    #index < arraySize ?
+    print #index;
+    #index += 1;
+,,
 ```
 ## Functions
 Mu represents functions with ( **use** ) expressions. The are anonymous and first-class. Following the grammars 'use' parameters* 'as' expression. The 'as' keyword can be omitted if the function simply returns an expression. **Use** expressions must have at least one input parameter.
