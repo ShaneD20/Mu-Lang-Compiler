@@ -1,7 +1,7 @@
 # Mμ Programming Language
 [Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md) 
 ##
-Learn about how to write in Mu : [Tutorial] (https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/tutorial.md)
+Learn about how to write in Mu : [Tutorial](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/tutorial.md)
 
 ## Goals
 Mu is designed with the intention of revisiting what it would mean to have a "human readable" programming language that is also a "joy to type".
