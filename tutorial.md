@@ -228,7 +228,7 @@ Mu represents functions with ( **use** ) expressions. The are anonymous and firs
 Functions can access constants from the global scope or within their closure, but they cannot access mutables outside of their scope.
 Function parameters can be constant or immutable, a function can be passed in a constant and have a mutable copy of the value.
 ```
-let fibonacci: use n as
+let fibonacci: use n .
     if n < 2 ? return n;
     ,,
     return fibonacci(n - 2) + fibonacci(n - 1);
@@ -237,22 +237,22 @@ let fibonacci: use n as
 print fibonacci(20);
 
 let addTogether:
-    use x, y return x + y;
+    use x, y . return x + y;
 ,,
 print addTogether(22, 55);
 
 let multiplyBoth:
-    use x, y return x * y;
+    use x, y . return x * y;
 ,,
 print multiplyBoth(10, 99);
 
 let divideByTen:
-    use x return x / 10;
+    use x . return x / 10;
 ,,
 print divideByTen(39);
 
 let isEven: 
-    use x return 0 = x % 2;
+    use x . return 0 = x % 2;
 ,,
 
 print isEven(3);
@@ -260,8 +260,8 @@ print isEven(58);
 ```
 An example of function currying.
 ```
-let defineAdd: 
-    use x return use y as
+let defineAdd: use x .
+    return use y .
         print x + y;
         return x + y;
     ,,
@@ -275,7 +275,7 @@ add5plus(2);   // 7
 ```
 An example with mutable Function Parameters
 ```
-let test : use x, #y as
+let test : use x, #y .
     #y *= #y;
     return x + #y;
 ,,
@@ -290,7 +290,7 @@ Functions only being able to get constants from the global scope or their closur
 //  ** Functions are not aware of mutables outside of their scope **
 //      let #number : 6;
 //      
-//      let increaseNumber: use input as
+//      let increaseNumber: use input .
 //          #number := #number + input; // function doesn't know what #number is
 //          print #number;
 //      ,,
@@ -299,7 +299,7 @@ Functions only being able to get constants from the global scope or their closur
 
 let number : 6;
 let increaseNumberBy:
-    use x return number + x;
+    use x . return number + x;
 ,,
 
 print increaseNumberBy(3);  // 9
@@ -310,7 +310,7 @@ print increaseNumberBy(-1); // 5
 
 let magicNumber : 12;
 
-let triplePlusValue : use y as
+let triplePlusValue : use y .
   let #z : y;
   #z *= 3;
   return #z + magicNumber; 
