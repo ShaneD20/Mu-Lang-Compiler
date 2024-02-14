@@ -1,5 +1,6 @@
 # Mμ Programming Language
-[Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md) \n
+[Acknowledgements](https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/thank_you.md) 
+##
 Learn about how to write in Mu : [Tutorial] (https://github.com/CpalmerD20/Mu-Lang-Compiler/blob/main/tutorial.md)
 
 ## Goals
