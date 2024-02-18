@@ -15,20 +15,31 @@ typedef enum {
   D_GREATER_EQUAL, D_MODULO_EQUAL, D_DOT,   // >= %= ..
   D_PLUS_EQUAL, D_STAR_EQUAL, D_DOT_EQUAL,  // += *= .=
   D_LESS_EQUAL, D_SLASH_EQUAL, D_STAR_L_ROUND,  // <= /= *( 
+  D_STAR_R_ROUND,
 
   // Literals
   L_IDENTIFIER, L_MUTABLE, L_STRING, L_NUMBER, 
-   // L_ARRAY,     // TODO implement array
+  // L_ARRAY,     // TODO implement array
   
   // Keywords
-  K_AND, K_AS, K_IF, K_UNLESS, K_ELSE,       //  5
-  K_WHEN, K_IS, K_OR, K_RETURN, K_USE,       // 10
-  K_WHILE, K_TRUE, K_UNTIL, K_FALSE, K_NULL, // 15
-  K_LET, K_QUIT,
+  K_AND, K_AS, 
+  K_ELSE,       
+  K_FALSE, 
+  // K_FROM,
+  // K_GIVE,
+  // K_HAS,
+  K_IF, K_IS,
+  K_NULL,
+  K_OR,
+  K_QUIT,
+  K_RETURN,
+  K_TRUE, 
+  K_WHEN, K_WHILE, 
+  K_UNLESS, K_UNTIL, K_USE,   // 16 active     
   // currently experimental
-  K_DEFINE, TOKEN_PRINT, 
-  K_LIKE, K_TO,
-  // NEW_LINE, // TODO test
+  K_DEFINE, TOKEN_PRINT, K_NOT,
+  K_TO, K_LIKE,
+  // NEW_LINE,
   LANGUAGE_ERROR, END_OF_FILE
 } Lexeme;
 

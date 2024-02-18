@@ -81,6 +81,10 @@ void advance() {
   }
 }
 
+void shorten() {
+  parser.previous = parser.caboose;
+}
+
 bool tokenIs(Lexeme test) {        
   return parser.head.lexeme == test;
 }
@@ -111,7 +115,7 @@ void synchronize() {
       return;
     } 
     switch (currentLexeme) {
-      case K_LET:
+      case K_AS:
       case K_IF:
       case K_UNLESS:
       case K_WHEN:

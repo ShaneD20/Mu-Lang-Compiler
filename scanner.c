@@ -141,8 +141,15 @@ static Lexeme identifierType() { // tests for keywords
         }
       }
       break;
-    case 'l': return checkKeyword(1, 2, "et", K_LET);
-    case 'n': return checkKeyword(1, 3, "ull", K_NULL); // because JSON uses 'null'
+    case 'l': return checkKeyword(1, 3, "ike", K_LIKE);
+    case 'n': 
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 'o': return checkKeyword(2, 1, "t", K_NOT);
+          case 'u': return checkKeyword(2, 2, "ll", K_NULL);
+        }
+      }
+      break;
     case 'o': return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT); // TODO replace with native function
     case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
@@ -223,9 +230,10 @@ Token scanToken() {
     // single character
     case '#': return identifier();
     case '(': return makeToken(SL_ROUND, VT_VOID); // TODO would be new line aware
-    case ')': return makeToken(SR_ROUND, VT_VOID);
-    case '{': return makeToken(SL_CURLY, VT_VOID);   // TODO would be new line aware
+    case '{': return makeToken(SL_CURLY, VT_KEYED_COLLECTION);   // TODO would be new line aware
     case '}': return makeToken(SR_CURLY, VT_VOID);
+    case '[': return makeToken(SL_SQUARE, VT_INDEX_COLLECTION);
+    case ']': return makeToken(SR_SQUARE, VT_VOID);
     case '?': return makeToken(S_QUESTION, VT_VOID);     // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON, VT_VOID);
     case '=': return makeToken(S_EQUAL, VT_VOID); 
@@ -253,6 +261,8 @@ Token scanToken() {
           return makeToken(S_STAR, VT_VOID);
       }
       break;
+    case ')': 
+      return makeToken(match('*') ? D_STAR_R_ROUND : SR_ROUND, VT_VOID);
     case ',': 
       return makeToken(match(',') ? D_COMMA : S_COMMA, VT_VOID);
     case '%': 

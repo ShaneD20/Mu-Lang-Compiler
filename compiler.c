@@ -22,7 +22,7 @@ static Chunk* currentChunk() {
 
 static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, previousToken().line);
-}
+} // TODO figure out why ! = segfaults
 
 static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte1);
@@ -353,12 +353,14 @@ static void grouping(bool unused) {
 }
 
 static void number(bool unused) {
+  //if (tokenIs(S_BANG)) { errorAtCurrent("Cannot follow a number with a '!'");} 
+    // prevents segfault
   double value = strtod(previousToken().start, NULL);
-  emitConstant(NUMBER_VAL(value)); // already prints
+  emitConstant(NUMBER_VAL(value)); 
 }
 
 static void string(bool unused) {
-  emitConstant(OBJ_VAL(copyString(previousToken().start + 1, previousToken().length - 2))); // already prints
+  emitConstant(OBJ_VAL(copyString(previousToken().start + 1, previousToken().length - 2)));
 }
 
 static void findVariable(Token name, bool canAssign) { 
@@ -416,7 +418,7 @@ static void variable(bool canAssign) {
 
 static void compileTokens();
 
-static void block(Token* marker) { // TODO
+static void block(Token *marker) { // TODO
   while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
     compileTokens();
   }
@@ -426,17 +428,28 @@ static void block(Token* marker) { // TODO
   consume(D_COMMA);
 }
 
+static void anonymous(Token *marker) {
+  while (tokenIsNot(D_STAR_R_ROUND) && tokenIsNot(END_OF_FILE)) {
+    compileTokens();
+  }
+  if (tokenIsNot(D_STAR_R_ROUND)) {
+    errorAt(marker, "Need a )* to finish an anonymous code block.");
+  }
+  consume(D_STAR_R_ROUND);
+}
+
 static void blockTernary() { // if-else, unless-else
   while (tokenIsNot(D_COMMA) && tokenIsNot(K_ELSE) && tokenIsNot(END_OF_FILE)) {
     compileTokens();
   }
 }
 
-static void buildBlock() {
+static void buildAnonymous() {
   Token marker = previousToken();
   beginScope();
-  block(&marker);
+  anonymous(&marker);
   endScope();
+  // TODO add inserted semicolon
 }
 
 static void buildClosure(FunctionType type) {
@@ -444,7 +457,7 @@ static void buildClosure(FunctionType type) {
   initCompiler(&compiler, type);
   beginScope(); // no end scope
 
-  if (tokenIsNot(K_AS) || tokenIsNot(K_RETURN)) {
+  if (tokenIsNot(S_DOT)) { // || not K_RETURN was enforcing parameters
     do {
       current->function->arity++;
       if (current->function->arity > ARG_LIMIT) {
@@ -454,13 +467,10 @@ static void buildClosure(FunctionType type) {
       defineConstant(constant);
     } while (consume(S_COMMA));
   }
+
   Token marker = currentToken();
-  if (tokenIs(K_RETURN)) { // lambda expression shorthand
-    block(&marker);
-  } else {
-    require(K_AS, "Expect 'as' or 'return' after parameters and before function body.");
-    block(&marker);
-  }
+  require(S_DOT, "Need a . to notate a function expression, seperate paratemeter from function body.");
+  block(&marker);
   
   ObjFunction* function = endCompiler(); // could use for redo ...
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // Closures emit-closure
@@ -493,10 +503,11 @@ static void printExpression() {   // TODO remove
 
 static void unary(bool unused) {
   Lexeme operator = previousToken().lexeme; // hold onto the operator, resolve the next expression, then emit
-  resolveExpression(LVL_UNARY);
+  resolveExpression(LVL_UNARY); // TODO part of the issue with ! = ..?
 
   switch (operator) {
-    case S_BANG: emitByte(OP_NOT); 
+    case S_BANG: 
+      emitByte(OP_NOT); 
       break;
     case S_MINUS: emitByte(OP_NEGATE); 
       break;
@@ -518,7 +529,7 @@ static void literal(bool unused) {
       break;
     case K_USE:  buildClosure(FT_FUNCTION);
       break;
-    case D_STAR_L_ROUND: buildBlock();
+    case D_STAR_L_ROUND: buildAnonymous();
       break;
     default: return; // Unreachable.
   }
@@ -564,13 +575,12 @@ ParseRule rules[] = {
   [K_QUIT]             = {literal,  NULL,    LVL_NONE},
   [D_STAR_L_ROUND]     = {literal,  NULL,    LVL_NONE},
   [K_RETURN]           = {buildReturn, NULL, LVL_NONE}, 
-//  [TOKEN_PRINT]        = {literal, NULL, LVL_NONE},     // TODO remove after implementing function
+  [TOKEN_PRINT]        = {NULL, NULL, LVL_NONE},     // TODO remove after implementing function
 //^ Expression Tokens
-  [K_LET]          = {NULL, NULL, LVL_NONE},
+  [K_AS]           = {NULL, NULL, LVL_NONE},
   [K_DEFINE]       = {NULL, NULL, LVL_NONE},
   [K_ELSE]         = {NULL, NULL, LVL_NONE},
   [K_IS]           = {NULL, NULL, LVL_NONE},
-  [K_AS]           = {NULL, NULL, LVL_NONE},
   [K_IF]           = {NULL, NULL, LVL_NONE},
   [K_UNLESS]       = {NULL, NULL, LVL_NONE},
   [K_WHEN]         = {NULL, NULL, LVL_NONE},
@@ -749,7 +759,7 @@ static void compileTokens() {
   switch (currentToken().lexeme) {
      case TOKEN_PRINT: advance();   // TODO replace with function
         return printExpression();
-    case K_LET:     return declaration();
+    case K_AS:      return declaration();
     case K_WHEN:    return whenStatement();
     case K_IF:      return ternaryStatement(OP_JUMP_IF_FALSE);
     case K_UNLESS:  return ternaryStatement(OP_JUMP_IF_TRUE);
