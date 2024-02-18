@@ -310,9 +310,7 @@ print increaseNumberBy(-1); // 5
 
 as magicNumber : 12;
 
-as triplePlusValue : use y .
-
-  as #z : y;
+as triplePlusValue : use #z .
   #z *= 3;
   return #z + magicNumber; 
 ,,
