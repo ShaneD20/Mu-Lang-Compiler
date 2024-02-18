@@ -12,10 +12,10 @@
 * Mutables can be reassigned with the **( := )** operator and Identifiers for mutables must begin with **( # )**, such as **#value** or **#name**.
 
 ```
-let phrase : “Hello World”;   // constant
+as phrase : “Hello World”;  // constant
 
-let #number : 0;             // mutable
-#number  := 1;               // reassignment operator
+as #number : 0;             // mutable
+#number  := 1;              // reassignment operator
  
 ```
 ## Arithmetic and Concatenation
@@ -24,22 +24,22 @@ let #number : 0;             // mutable
 * Lastly, if one of the operands for number concatenation is negative, the runtime errors.
 ```
 // addition
-let sum : 3 + 8;
+as sum : 3 + 8;
 
 // subtraction
-let net : proft - cost;
+as net : proft - cost;
 
 // multiplication
-let product : x * y;
+as product : x * y;
 
 // division
-let quotient : x / y;
+as quotient : x / y;
 
 // concatenation
-let phrase : "Hello" .. " " .. "World";
+as phrase : "Hello" .. " " .. "World";
 print phrase;
 
-let number : 2 .. 1;
+as number : 2 .. 1;
 print number;
 ```
 ```
@@ -79,8 +79,8 @@ print ~60;
 ## Mutable Assignment Operators
 Mutables have short-hand operators to perform mutations. They are similar to other programming languages: sum assignment **(+=)**, product assignment **(*=)**, quotient assignment **(/=)**, concatenation assignment **(.=)**, and modulus assignment **(%=)**.
 ```
-let #value : 34;
-let #textString : “Meoow, ”;
+as #value : 34;
+as #textString : “Meoow, ”;
 
 // assign the sum of one plus the value
 #value += 1; 	 
@@ -124,7 +124,7 @@ else
 ,,
 
 
-let x: 5;
+as x: 5;
 unless x = 4 ?
     print "good"; 
 else    
@@ -151,7 +151,7 @@ if (0 > -5) ?
 ```
 The **when** statement is similar to switch in C-like languages: it allows for multiple branching outcomes. A key difference is that the when statement can check for any relational pattern ( =, >, <, !~, etc. ). Lastly, the **when** statement is break-by-default.
 ```
-let value : 1;
+as value : 1;
 
 when value:
     is = 0 ? print "it's zero";
@@ -168,7 +168,7 @@ when value:
 ```
 Loops are controlled by **while** or **until** statements. **While** is the standard loop that will break when the condition is false. **Until** is the same operations except the loop will break if true. This is to allow programmers to think with the booleans they have available and not worry about inverting. A programmer is free to write "until queue.isEmpty()" or "until stack.size() > 100". 
 ```
-let #count : 1;
+as #count : 1;
 
 while #count < 100 ?
     print #count;
@@ -228,7 +228,7 @@ Mu represents functions with ( **use** ) expressions. The are anonymous and firs
 Functions can access constants from the global scope or within their closure, but they cannot access mutables outside of their scope.
 Function parameters can be constant or immutable, a function can be passed in a constant and have a mutable copy of the value.
 ```
-let fibonacci: use n as
+as fibonacci: use n .
     if n < 2 ? return n;
     ,,
     return fibonacci(n - 2) + fibonacci(n - 1);
@@ -236,23 +236,23 @@ let fibonacci: use n as
 
 print fibonacci(20);
 
-let addTogether:
-    use x, y return x + y;
+as addTogether:
+    use x, y . return x + y;
 ,,
 print addTogether(22, 55);
 
-let multiplyBoth:
-    use x, y return x * y;
+as multiplyBoth:
+    use x, y . return x * y;
 ,,
 print multiplyBoth(10, 99);
 
-let divideByTen:
-    use x return x / 10;
+as divideByTen:
+    use x . return x / 10;
 ,,
 print divideByTen(39);
 
-let isEven: 
-    use x return 0 = x % 2;
+as isEven: 
+    use x . return 0 = x % 2;
 ,,
 
 print isEven(3);
@@ -260,14 +260,14 @@ print isEven(58);
 ```
 An example of function currying.
 ```
-let defineAdd: 
-    use x return use y as
+as defineAdd: use x .
+    return use y .
         print x + y;
         return x + y;
     ,,
 ,,
 
-let add5plus : defineAdd(5); 
+as add5plus : defineAdd(5); 
 
 add5plus(3);   // 8
 add5plus(1);   // 6
@@ -275,7 +275,7 @@ add5plus(2);   // 7
 ```
 An example with mutable Function Parameters
 ```
-let test : use x, #y as
+as test : use x, #y .
     #y *= #y;
     return x + #y;
 ,,
@@ -288,18 +288,18 @@ print test(1, 2);
 Functions only being able to get constants from the global scope or their closure is a design choice to reduce side effects. If a mutable is to be used with a function, it has to be passed in as a parameter or declared within the function's scope.
 ```
 //  ** Functions are not aware of mutables outside of their scope **
-//      let #number : 6;
+//      as #number : 6;
 //      
-//      let increaseNumber: use input as
+//      as increaseNumber: use input .
 //          #number := #number + input; // function doesn't know what #number is
 //          print #number;
 //      ,,
 //      increaseNumber(5); // won't work
 //  ** They are aware of constants, and can capture constants within a closure **
 
-let number : 6;
-let increaseNumberBy:
-    use x return number + x;
+as number : 6;
+as increaseNumberBy:
+    use x . return number + x;
 ,,
 
 print increaseNumberBy(3);  // 9
@@ -308,10 +308,11 @@ print increaseNumberBy(1);  // 7
 print increaseNumberBy(0);  // 6
 print increaseNumberBy(-1); // 5
 
-let magicNumber : 12;
+as magicNumber : 12;
 
-let triplePlusValue : use y as
-  let #z : y;
+as triplePlusValue : use y .
+
+  as #z : y;
   #z *= 3;
   return #z + magicNumber; 
 ,,
