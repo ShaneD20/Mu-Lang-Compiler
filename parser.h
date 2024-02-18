@@ -51,6 +51,7 @@ void errorAt(Token* token, const char* message);
 void error(const char* message);
 void errorAtCurrent(const char* message);
 void advance();
+void shorten(); // EXPERIMENTAL
 bool tokenIs(Lexeme test);
 bool tokenIsNot(Lexeme test);
 bool previousIsNot(Lexeme test);

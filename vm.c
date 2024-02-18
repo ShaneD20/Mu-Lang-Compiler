@@ -380,7 +380,7 @@ static InterpretResult run() {
         } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
           APPEND_INTEGER(NUMBER_VAL, +);
         } else {
-          runtimeError("Operands must be two strings, Or to integers.");
+          runtimeError("Operands must be two strings, Or two integers.");
           return INTERPRET_RUNTIME_ERROR;
         }
       }
