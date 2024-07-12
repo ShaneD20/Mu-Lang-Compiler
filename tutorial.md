@@ -261,7 +261,7 @@ print isEven(58);
 An example of function currying.
 ```
 as defineAdd: 
-    use x return use y .
+    use x . return use y .
         print x + y;
         return x + y;
     ,,
@@ -310,8 +310,7 @@ print increaseNumberBy(-1); // 5
 
 as magicNumber : 12;
 
-as triplePlusValue : use y as
-  as #z : y;
+as triplePlusValue : use #z .
   #z *= 3;
   return #z + magicNumber; 
 ,,
