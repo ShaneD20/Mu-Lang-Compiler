@@ -1,10 +1,10 @@
 ## Comments, Colons, Question Marks, ';' and ',,'
 * For single line comments, Mu uses **( // )**.
 * Mu is designed to look closer to human writing, as such the colon '**:**' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
-* For example the 'let' keyword is used to declare a variable, and is written **( let )** identifier **( : )** value **( ; )**.
-* The question mark **( ? )** is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
+* For example the 'as' keyword is used to declare a variable, and is written **( as )** identifier **( : )** value **( ; )**.
+* Question mark **( ? )** is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
 * Semicolons **( ; )** are used to notate the end of a statement or expression, similar to most C inspired languages.
-* The double-comma **( ,, )** is used to notate the ending of a block of code. Blocks of code contain multiple statements or expressions.
+* The double-comma **( ,, )** is used to notate the ending of a block of code. Blocks of code may contain multiple statements or expressions.
 * Certain keywords **( while, until, if, unless, when, use )** always have an associated block of code.
 
 ## Variable Declarations and Comments
@@ -51,7 +51,7 @@ Mu uses the keywords **( and, or )** and the characters **( =, <, >, !~, <=, >=,
 ```
 1 and 2;   3 or 5;
 
-3 = 3;     1 !~ 2;
+3 = 3;     1 !~ 2; // not equivalent
 3 > 5;    -7 >= 2;
 5 < 9;     3 <= 7;	    
 
@@ -260,8 +260,8 @@ print isEven(58);
 ```
 An example of function currying.
 ```
-as defineAdd: use x .
-    return use y .
+as defineAdd: 
+    use x . return use y .
         print x + y;
         return x + y;
     ,,
