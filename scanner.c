@@ -14,13 +14,14 @@ void initScanner(const char* source) {
 }
 //> Scanner Helpers
 static bool isAlpha(char c) {
-  return (c >= 'a' && c <= 'z') ||
-         (c >= 'A' && c <= 'Z') ||
-          c == '_';
+  return (c >= 'a' && c <= 'z') 
+      || (c >= 'A' && c <= 'Z') 
+      ||  c == '_';
 }
 
 static bool isDigit(char c) {
-  return c >= '0' && c <= '9';
+  return c >= '0' 
+      && c <= '9';
 }
 
 static bool isAtEnd() {
@@ -101,8 +102,8 @@ static void skipWhitespace() {
 }
 
 static Lexeme checkKeyword(int start, int length, const char* rest, Lexeme lexeme) {
-  if (scanner.current - scanner.start == start + length &&
-      memcmp(scanner.start + start, rest, length) == 0) {
+  if (scanner.current - scanner.start == start + length 
+    && memcmp(scanner.start + start, rest, length) == 0) {
     return lexeme;
   }
   return L_IDENTIFIER;

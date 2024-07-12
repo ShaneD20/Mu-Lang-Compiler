@@ -57,23 +57,34 @@ static void runFile(const char* path) {
   InterpretResult result = interpret(source);
   free(source); // [owner]
 
-  if (result == INTERPRET_COMPILE_ERROR) exit(65);
-  if (result == INTERPRET_RUNTIME_ERROR) exit(70);
+  switch (result) {
+    case INTERPRET_COMPILE_ERROR: exit(65);
+      break;
+    case INTERPRET_RUNTIME_ERROR: exit(70);
+      break;
+    case INTERPRET_OK: // NO OP
+      break;
+  }
 }
 
 int main(int argc, const char* argv[]) {
   initVM();
   
-  // Scan on Demand args
-  if (argc == 1) {
-    repl();
-  } else if (argc == 2) {
-    runFile(argv[1]);
-  } else {
-    fprintf(stderr, "Usage: clox [path]\n");
-    exit(64);
+  switch (argc) {
+    case 1: repl();
+      break;
+    case 2: runFile(argv[1]);
+      break;
+    default:
+      fprintf(stderr, "Usage: mu-lang [path]\n");
+      exit(64);
   }
-  
   freeVM();
   return 0;
 }
+
+/*
+  lines of code that process a matrix/table as a first class citizen
+  R language features are pretty good
+  first class citizen: data manipulation
+*/

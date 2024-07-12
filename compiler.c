@@ -648,7 +648,7 @@ static void declaration() {
   if (consume(S_COLON)) {
     resolveExpression(LVL_BASE);
   } else {
-    error("Need to initialize constants. ('let' identifier : expression ';')");
+    error("Need to initialize constants. ('as' identifier':' expression ';')");
   }
   if (previousIsNot(D_COMMA)) { // TODO testing single comma for objects
     require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
