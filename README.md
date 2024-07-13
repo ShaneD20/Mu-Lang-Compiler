@@ -8,10 +8,12 @@ Mu is designed with the intention of revisiting what it would mean to have a "hu
 ### (1) Be easy to read, with short time-to-code
 * Keywords must have clear meaning
 * Symbols and operators must have the same meaning given contextual keywords
-* Keywords should be whole (non-noun) words that would not be expected to be names for user-defined variables, functions, or objects
+* Keywords should be whole (non-noun) words that would not be expected to be names for user-defined variables, functions, or objects. To lead be example to incentive developers to use whole words in their naming conventions
 * The language syntax and grammars should be relatively ergonomic
 
 ### (2) Be relatively easy to debug/refactor
+* Consistent syntax that is simple to visually parse
 * Immutable variables are the default
 * Mutables have a writing convention enforced by the compiler to be easy to find and identify
 * Mutables have limited scope and functions are unaware of mutables outside their scope
+* Functions are side effect free, mutables must be scoped to the function or passed in as a parameter
