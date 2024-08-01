@@ -38,10 +38,10 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
-Token previousToken();
 Token currentToken();
-Token parserCaboose();
-Token parserTail();
+Token secondToken();
+Token thirdToken();
+Token fourthToken();
 void setCurrent(Token token);
 void parserError(bool hasError);
 bool hasError();

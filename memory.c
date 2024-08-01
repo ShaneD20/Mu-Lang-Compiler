@@ -11,6 +11,8 @@
 
 #define GC_HEAP_GROW_FACTOR 2 // Garbage Collection heap-grow-factor
 
+// responsible for freeing objects in memory
+
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
   vm.bytesAllocated += newSize - oldSize; // updated bytes allocated
 
@@ -78,6 +80,11 @@ static void blackenObject(Obj* object) {
 //^ log-blacken-object
 
   switch (object->type) {
+    case OBJ_CLASS: {
+      ObjClass* definition = (ObjClass*)object;
+      markObject((Obj*)definition->name);
+      break;
+    }
     case OBJ_CLOSURE: {
       ObjClosure* closure = (ObjClosure*)object;
       markObject((Obj*)closure->function);
@@ -109,6 +116,10 @@ static void freeObject(Obj* object) {
 //^ Garbage Collection log-free-object
 
   switch (object->type) {
+    case OBJ_CLASS: {
+      FREE(ObjClass, object);
+      break;
+    }
     case OBJ_CLOSURE: {
       ObjClosure* closure = (ObjClosure*)object;
       FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);

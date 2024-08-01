@@ -7,49 +7,34 @@
 
 Parser parser;
 
-void initParser() {
+void initParser() {}
 
-}
+// getters
+Token currentToken() { return parser.head; }
+Token secondToken() { return parser.previous; }
+Token thirdToken() { return parser.caboose;}
+Token fourthToken() { return parser.tail; }
+bool hasError() { return parser.hasError; }
+bool panic() { return parser.panicMode; }
 
-Token previousToken() {
-  return parser.previous;
-}
-Token currentToken() {
-  return parser.head;
-}
-Token parserCaboose() {
-  return parser.caboose;
-}
-Token parserTail() {
-  return parser.tail;
-}
-void setCurrent(Token token) {
-    parser.head = token;
-}
+// setters
+void setCurrent(Token token) { parser.head = token; }
+void stopPanic() { parser.panicMode = false; }
+
+// error helpers
 void parserError(bool hasError) {
     parser.hasError = hasError;
 }
-bool hasError() {
-    return parser.hasError;
-}
-bool panic() {
-    return parser.panicMode;
-}
-void stopPanic() {
-    parser.panicMode = false;
-}
 
 void errorAt(Token* token, const char* message) {
-  if (parser.panicMode) {
-    return;
-  } 
+  if (parser.panicMode) { return; }
+
   parser.panicMode = true;
   fprintf(stderr, "\n[line %d] Error\n", token->line);
 
   if (token->lexeme == END_OF_FILE) {
     fprintf(stderr, " at end");
-  } else if (token->lexeme == LANGUAGE_ERROR) { 
-    // Nothing, pass through
+  } else if (token->lexeme == LANGUAGE_ERROR) { /* No procedures, pass through */
   } else {
     fprintf(stderr, " at '%.*s'", token->length, token->start);
   }
@@ -66,6 +51,19 @@ void errorAtCurrent(const char* message) {
   errorAt(&parser.head, message);
 }
 
+// validation
+bool tokenIs(Lexeme test) {        
+  return parser.head.lexeme == test;
+}
+bool tokenIsNot(Lexeme test) {
+  return parser.head.lexeme != test;
+}
+bool previousIsNot(Lexeme test) {
+  return parser.previous.lexeme != test;
+}
+
+// traversal
+
 void advance() {
   parser.tail = parser.caboose;
   parser.caboose = parser.previous;
@@ -79,20 +77,6 @@ void advance() {
     } while (parser.head.lexeme != LANGUAGE_ERROR);
     error(token.start); 
   }
-}
-
-void shorten() {
-  parser.previous = parser.caboose;
-}
-
-bool tokenIs(Lexeme test) {        
-  return parser.head.lexeme == test;
-}
-bool tokenIsNot(Lexeme test) {
-  return parser.head.lexeme != test;
-}
-bool previousIsNot(Lexeme test) {
-  return parser.previous.lexeme != test;
 }
 
 bool consume(Lexeme glyph) {

@@ -16,27 +16,29 @@
 #define ARG_LIMIT 255
 Compiler* current = NULL;
 
-static Chunk* currentChunk() {
-  return &current->function->chunk;
-}
-
-static void emitByte(uint8_t byte) {
-  writeChunk(currentChunk(), byte, previousToken().line);
-} // TODO figure out why ! = segfaults
+// getter
+static Chunk* currentChunk() { return &current->function->chunk; }
+static void beginScope() { current->scopeDepth++; }
+static void emitByte(uint8_t byte) { writeChunk(currentChunk(), byte, secondToken().line); } // TODO figure out why ! = segfaults
 
 static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte1);
   emitByte(byte2);
 }
 
-static void emitLoop(int loopStart) {
-  emitByte(OP_LOOP);
+static void endScope() {
+  current->scopeDepth--;
 
-  int offset = currentChunk()->count - loopStart + 2;
-  if (offset > UINT16_MAX) error("Loop body too large.");
+  while (current->localCount > 0 
+    && current->locals[current->localCount - 1].depth > current->scopeDepth) {
 
-  emitByte((offset >> 8) & 0xff);
-  emitByte(offset & 0xff);
+    if (current->locals[current->localCount - 1].isCaptured) 
+    { emitByte(OP_CLOSE_UPVALUE); } // Closures end-scope
+    else 
+    { emitByte(OP_POP); }
+
+    current->localCount--;
+  }
 }
 
 static int emitJump(uint8_t instruction) {
@@ -49,20 +51,30 @@ static int emitJump(uint8_t instruction) {
 static void patchJump(int offset) {
   int jump = currentChunk()->count - offset - 2; // -2 to adjust for the bytecode for the jump offset itself.
 
-  if (jump > UINT16_MAX) {
-    error("Too much code to jump over.");
-  }
+  if (jump > UINT16_MAX) 
+  { error("Too much code to jump over."); }
+
   currentChunk()->code[offset] = (jump >> 8) & 0xff;
   currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
 static void emitReturn() {
-  if (current->type == FT_INITIALIZER) {
-    emitBytes(OP_GET_LOCAL, 0);
-  } else {
-    emitByte(OP_NIL); // I frequently wonder if false would be prefereable
-  }
+  if (current->type == FT_INITIALIZER) 
+  { emitBytes(OP_GET_LOCAL, 0); } 
+  else 
+  { emitByte(OP_NIL); }
+
   emitByte(OP_RETURN);
+}
+
+static void emitLoop(int loopStart) {
+  emitByte(OP_LOOP);
+
+  int offset = currentChunk()->count - loopStart + 2;
+  if (offset > UINT16_MAX) error("Loop body too large.");
+
+  emitByte((offset >> 8) & 0xff);
+  emitByte(offset & 0xff);
 }
 
 static uint8_t makeConstant(Value value) {
@@ -74,34 +86,12 @@ static uint8_t makeConstant(Value value) {
   return (uint8_t)constant;
 }
 
-static void emitConstant(Value value) {
-  emitBytes(OP_CONSTANT, makeConstant(value));
-}
-
-static void beginScope() {
-  current->scopeDepth++;
-}
-static void endScope() {
-  current->scopeDepth--;
-
-  while (current->localCount > 0 &&
-         current->locals[current->localCount - 1].depth >
-            current->scopeDepth) {
-    if (current->locals[current->localCount - 1].isCaptured) { 
-      emitByte(OP_CLOSE_UPVALUE); // Closures end-scope
-    } else {
-      emitByte(OP_POP);
-    }
-    current->localCount--;
-  }
-}
-
-static uint8_t identifierConstant(Token* token) {
-  return makeConstant(OBJ_VAL(copyString(token->start, token->length)));
-}
+static void emitConstant(Value value) { emitBytes(OP_CONSTANT, makeConstant(value)); }
+static uint8_t identifierConstant(Token* token) { return makeConstant(OBJ_VAL(copyString(token->start, token->length))); }
 
 static bool identifiersEqual(Token* a, Token* b) {
-  if (a->length != b->length) return false;
+  if (a->length != b->length) { return false; }
+
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
@@ -109,9 +99,8 @@ static int resolveLocal(Compiler* compiler, Token* token) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
     Local* local = &compiler->locals[i];
     if (identifiersEqual(token, &local->name)) {
-      if (local->depth == -1) {
-        error("Can't read local variable in its own initializer.");
-      }
+      if (local->depth == -1) { error("Can't read local variable in its own initializer."); }
+
       return i;
     }
   }
@@ -127,16 +116,16 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->function = newFunction();
   current = compiler;
   initTable(&current->identifierTypes); // TODO use table to static type checking
-  if (type != FT_SCRIPT) {
-    current->function->name = copyString(previousToken().start, previousToken().length);
-  }
+
+  if (type != FT_SCRIPT) 
+  { current->function->name = copyString(secondToken().start, secondToken().length); }
 
   Local* local = &current->locals[current->localCount++];
   local->depth = 0;
   local->isCaptured = false;
 
   if (type != FT_FUNCTION) {
-    local->name.start = "self"; // could probably remove
+    local->name.start = "self"; // TODO implement structs with methods
     local->name.length = 4;
   } else {
     local->name.start = "";
@@ -166,9 +155,8 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) { // Clos
 
   for (int i = 0; i < upvalueCount; i++) {
     Upvalue* upvalue = &compiler->upvalues[i];
-    if (upvalue->index == index && upvalue->isLocal == isLocal) {
-      return i;
-    }
+    
+    if (upvalue->index == index && upvalue->isLocal == isLocal) { return i; }
   }
 
   if (upvalueCount == UINT8_COUNT) {
@@ -182,9 +170,9 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) { // Clos
 
 static int resolveUpvalue(Compiler* compiler, Token* name) { // Closures 
   Token test = *name;
-  if (test.lexeme == L_MUTABLE || compiler->enclosing == NULL) {
-    return -1;
-  } else {
+  if (test.lexeme == L_MUTABLE || compiler->enclosing == NULL) 
+  { return -1; } 
+  else {
     int depth = resolveLocal(compiler->enclosing, name);
     if (depth != -1) { // mark-local-captured
       compiler->enclosing->locals[depth].isCaptured = true;
@@ -192,9 +180,8 @@ static int resolveUpvalue(Compiler* compiler, Token* name) { // Closures
     }
   // recursive
     int upvalue = resolveUpvalue(compiler->enclosing, name);
-    if (upvalue != -1) {
-      return addUpvalue(compiler, (uint8_t)upvalue, false);
-    }
+
+    if (upvalue != -1) { return addUpvalue(compiler, (uint8_t)upvalue, false); }
   }
   return -1;
 }
@@ -212,42 +199,38 @@ static void addLocal(Token name) {
 }
 
 static void checkLocals() {
-  if (current->scopeDepth == 0) {
-    return; 
-  } 
-  Token prior = previousToken();
+  if (current->scopeDepth == 0) { return; }
+
+  Token prior = secondToken();
   Token* name = &prior;
 
   for (int i = current->localCount - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
-    if (local->depth != -1 && local->depth < current->scopeDepth) { // does it exist in scope?
-      break;
-    }
-    if (identifiersEqual(name, &local->name)) {
-      error("Already a variable with this name in this scope.");
-    }
+    if (local->depth != -1 && local->depth < current->scopeDepth) 
+    {  break; } // does it exist in scope?
+    if (identifiersEqual(name, &local->name)) 
+    { error("Already a variable with this name in this scope."); }
   }
   addLocal(*name);
 }
 
 static uint8_t parseVariable(const char* errorMessage) {
-  if (tokenIs(L_IDENTIFIER)) {
-    require(L_IDENTIFIER, errorMessage);
-  } else {      
-    require(L_MUTABLE, errorMessage);
-  }
+  if (tokenIs(L_IDENTIFIER)) 
+  { require(L_IDENTIFIER, errorMessage); } 
+  else 
+  { require(L_MUTABLE, errorMessage); }
+  
   checkLocals();
-  if (current->scopeDepth > 0) {
-    return 0; // Local Variables
-  }
-  Token prior = previousToken();
+  if (current->scopeDepth > 0) 
+  { return 0; } // Local Variables
+
+  Token prior = secondToken();
   return identifierConstant(&prior);
 }
 
 static void markInitialized() {
-  if (current->scopeDepth == 0) {
-    return; 
-  }
+  if (current->scopeDepth == 0) 
+  { return; }
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
@@ -303,7 +286,7 @@ static void orJump(bool unused) {
 static void structure(bool canAssign) {} // TODO implement
 
 static void binary(bool canAssign) {
-  Lexeme operator = previousToken().lexeme;
+  Lexeme operator = secondToken().lexeme;
   ParseRule* rule = getRule(operator);    // get the precedence
   resolveExpression((Precedence)(rule->precedence + 1)); // apply the precedence
 
@@ -355,12 +338,12 @@ static void grouping(bool unused) {
 static void number(bool unused) {
   //if (tokenIs(S_BANG)) { errorAtCurrent("Cannot follow a number with a '!'");} 
     // prevents segfault
-  double value = strtod(previousToken().start, NULL);
+  double value = strtod(secondToken().start, NULL);
   emitConstant(NUMBER_VAL(value)); 
 }
 
 static void string(bool unused) {
-  emitConstant(OBJ_VAL(copyString(previousToken().start + 1, previousToken().length - 2)));
+  emitConstant(OBJ_VAL(copyString(secondToken().start + 1, secondToken().length - 2)));
 }
 
 static void findVariable(Token name, bool canAssign) { 
@@ -386,24 +369,30 @@ static void findVariable(Token name, bool canAssign) {
     switch (lexeme) {
       case S_COLON : error("Please declare variables with the 'let' keyword.");
 
-      case D_COLON_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+      case D_COLON_EQUAL : 
+        if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         advance();
         resolveExpression(LVL_BASE);
         return emitBytes(setOp, (uint8_t)arg);
       
-      case D_PLUS_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+      case D_PLUS_EQUAL : 
+        if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
 
-      case D_STAR_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+      case D_STAR_EQUAL : 
+        if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
 
-      case D_SLASH_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+      case D_SLASH_EQUAL : 
+        if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
 
-      case D_MODULO_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+      case D_MODULO_EQUAL : 
+        if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
 
-      case D_DOT_EQUAL : if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
+      case D_DOT_EQUAL : 
+        if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
       default : break;
     }
@@ -412,64 +401,66 @@ static void findVariable(Token name, bool canAssign) {
 }
 
 static void variable(bool canAssign) {
-  findVariable(previousToken(), canAssign); 
+  findVariable(secondToken(), canAssign); 
 }
 /************************ EXPRESSION STATEMENTS ************************/
 
 static void compileTokens();
 
 static void block(Token *marker) { // TODO
-  while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
+  while (tokenIsNot(SR_CURLY) && tokenIsNot(END_OF_FILE)) {
     compileTokens();
   }
-  if (tokenIsNot(D_COMMA)) {
+  if (tokenIsNot(SR_CURLY)) {
     errorAt(marker, "Need a ,, to finish code block.");
   }
-  consume(D_COMMA);
+  consume(SR_CURLY);
 }
 
 static void anonymous(Token *marker) {
-  while (tokenIsNot(D_STAR_R_ROUND) && tokenIsNot(END_OF_FILE)) {
-    compileTokens();
-  }
-  if (tokenIsNot(D_STAR_R_ROUND)) {
-    errorAt(marker, "Need a )* to finish an anonymous code block.");
-  }
+  while (tokenIsNot(D_STAR_R_ROUND) && tokenIsNot(END_OF_FILE)) { compileTokens(); }
+
+  if (tokenIsNot(D_STAR_R_ROUND)) 
+  { errorAt(marker, "Need a )* to finish an anonymous code block."); }
+
   consume(D_STAR_R_ROUND);
 }
 
 static void blockTernary() { // if-else, unless-else
-  while (tokenIsNot(D_COMMA) && tokenIsNot(K_ELSE) && tokenIsNot(END_OF_FILE)) {
-    compileTokens();
-  }
+  while (tokenIsNot(SR_CURLY) 
+    && tokenIsNot(K_ELSE) 
+    && tokenIsNot(END_OF_FILE)) 
+  { compileTokens(); }
 }
 
 static void buildAnonymous() {
-  Token marker = previousToken();
+  Token marker = secondToken();
   beginScope();
   anonymous(&marker);
   endScope();
-  // TODO add inserted semicolon
 }
 
 static void buildClosure(FunctionType type) {
   Compiler compiler;
   initCompiler(&compiler, type);
+  require(SL_ROUND, "Need [ Type '(' paramters ')' ] to begin a function expression.");
   beginScope(); // no end scope
 
-  if (tokenIsNot(S_DOT)) { // || not K_RETURN was enforcing parameters
+  if (tokenIsNot(SR_ROUND)) { // || not K_RETURN was enforcing parameters
     do {
       current->function->arity++;
-      if (current->function->arity > ARG_LIMIT) {
-        errorAtCurrent("Can't have more than 255 parameters.");
-      }
+
+      if (current->function->arity > ARG_LIMIT) 
+      { errorAtCurrent("Can't have more than 255 parameters."); }
+
       uint8_t constant = parseVariable("Expect parameter name.");
       defineConstant(constant);
     } while (consume(S_COMMA));
   }
 
   Token marker = currentToken();
-  require(S_DOT, "Need a . to notate a function expression, seperate paratemeter from function body.");
+  require(SR_ROUND, "Need a '()' to notate a function expression, declare paratemeters from function body.");
+  require(SL_CURLY, "Expect {} to begin function scope");
   block(&marker);
   
   ObjFunction* function = endCompiler(); // could use for redo ...
@@ -480,14 +471,20 @@ static void buildClosure(FunctionType type) {
   }
 }
 
-static void buildReturn(bool unused) {
-  if (current->type == FT_SCRIPT || current->type == FT_INITIALIZER) {
-    error("Can't return from top-level code, or within an initializer."); 
-  }
+static void buildStructure() {
+  emitByte(OP_CLASS);
+  require(SL_CURLY, "Expect { which will be changed later");
 
-  if (currentToken().lexeme == S_SEMICOLON) {  
-    emitReturn();
-  } else {
+  require(SR_CURLY, "Expect } which will be changed later");
+}
+
+static void buildReturn(bool unused) {
+  if (current->type == FT_SCRIPT || current->type == FT_INITIALIZER) 
+  { error("Can't return from top-level code, or within an initializer."); }
+
+  if (currentToken().lexeme == S_SEMICOLON) 
+  {  emitReturn(); } 
+  else {
     resolveExpression(LVL_BASE);
     emitByte(OP_RETURN);
   }
@@ -495,50 +492,66 @@ static void buildReturn(bool unused) {
 
 static void printExpression() {   // TODO remove
   resolveExpression(LVL_BASE);
-  if (previousIsNot(D_COMMA)) {
-    require(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement.");
-  }
+
+  if (previousIsNot(SR_CURLY)) { require(S_SEMICOLON, "Expect: 'print' value ';'. With the ; to close the statement."); }
+
   emitByte(OP_PRINT);
 }
 
 static void unary(bool unused) {
-  Lexeme operator = previousToken().lexeme; // hold onto the operator, resolve the next expression, then emit
+  Lexeme operator = secondToken().lexeme; // hold onto the operator, resolve the next expression, then emit
   resolveExpression(LVL_UNARY); // TODO part of the issue with ! = ..?
 
   switch (operator) {
     case S_BANG: 
       emitByte(OP_NOT); 
       break;
-    case S_MINUS: emitByte(OP_NEGATE); 
+    case S_MINUS: 
+      emitByte(OP_NEGATE); 
       break;
-    case S_TILDE: emitByte(OP_FLIP_BITS);
+    case S_TILDE: 
+      emitByte(OP_FLIP_BITS);
       break;
-    default: return; // Unreachable.
+    default: 
+      return; // Unreachable.
   }
 }
 
 static void literal(bool unused) {
-  switch (previousToken().lexeme) {
-    case K_FALSE: emitByte(OP_FALSE); 
+  switch (secondToken().lexeme) {
+    case K_FALSE:   emitByte(OP_FALSE); 
       break;
-    case K_NULL:  emitByte(OP_NIL); 
+    case K_NULL:    emitByte(OP_NIL); 
       break;
-    case K_TRUE:  emitByte(OP_TRUE); 
+    case K_TRUE:    emitByte(OP_TRUE); 
       break;
-    case K_QUIT:  emitByte(OP_QUIT);
+    case K_QUIT:    emitByte(OP_QUIT);
       break;
-    case K_USE:  buildClosure(FT_FUNCTION);
+    case K_USE:     buildStructure();
       break;
+    case K_VOID:  // TODO assign type
+        buildClosure(FT_FUNCTION);
+        break;
+    case K_TEXT:  // TODO assign type
+        buildClosure(FT_FUNCTION);
+        break;
+    case K_NUMBER:  // TODO assign type
+        buildClosure(FT_FUNCTION);
+        break;
+    case K_TRUTH:  // TODO assign type
+        buildClosure(FT_FUNCTION);
+        break;
     case D_STAR_L_ROUND: buildAnonymous();
       break;
-    default: return; // Unreachable.
+    default: 
+      return; // Unreachable.
   }
 }
 
 ParseRule rules[] = {
 //                        prefix,  infix, precedence
   [S_DOT]              = {NULL,     call, LVL_CALL}, // call struct properties?
-  [SL_ROUND]           = {grouping, call, LVL_CALL},
+  [SL_ROUND]           = {grouping, call, LVL_CALL}, // update call to infer function creation or call
   [SL_CURLY]           = {structure,  NULL, LVL_NONE}, // {literal, NULL, LVL_NONE}, 
   [SL_SQUARE]          = {NULL,     NULL, LVL_NONE}, // {literal, NULL, LVL_NONE},
 //^ function calls, product type declarations
@@ -571,14 +584,17 @@ ParseRule rules[] = {
   [K_FALSE]            = {literal,  NULL,    LVL_NONE},
   [K_NULL]             = {literal,  NULL,    LVL_NONE},
   [K_TRUE]             = {literal,  NULL,    LVL_NONE},
-  [K_USE]              = {literal,  NULL,    LVL_NONE},
+  // [K_MAKE]             = {literal,  NULL,    LVL_NONE},
+  [K_VOID]             = {literal,  NULL,    LVL_NONE},
+  [K_NUMBER]           = {literal,  NULL,    LVL_NONE},
+  [K_TEXT]             = {literal,  NULL,    LVL_NONE},
+  [K_TRUTH]            = {literal,  NULL,    LVL_NONE},
   [K_QUIT]             = {literal,  NULL,    LVL_NONE},
   [D_STAR_L_ROUND]     = {literal,  NULL,    LVL_NONE},
   [K_RETURN]           = {buildReturn, NULL, LVL_NONE}, 
   [TOKEN_PRINT]        = {NULL, NULL, LVL_NONE},     // TODO remove after implementing function
 //^ Expression Tokens
   [K_AS]           = {NULL, NULL, LVL_NONE},
-  [K_DEFINE]       = {NULL, NULL, LVL_NONE},
   [K_ELSE]         = {NULL, NULL, LVL_NONE},
   [K_IS]           = {NULL, NULL, LVL_NONE},
   [K_IF]           = {NULL, NULL, LVL_NONE},
@@ -612,7 +628,7 @@ static ParseRule* getRule(Lexeme type) {
 }
 
 static void resolvePrefix(Precedence hasPrecedence) {
-  ParseFn callPrefix = getRule(previousToken().lexeme)->prefix;
+  ParseFn callPrefix = getRule(secondToken().lexeme)->prefix;
   if (callPrefix == NULL) {
     error("Expect expression.");
     return;
@@ -621,7 +637,7 @@ static void resolvePrefix(Precedence hasPrecedence) {
 }
 static void resolveInfix(Precedence hasPrecedence) {
     advance();
-    ParseFn callInfix = getRule(previousToken().lexeme)->infix;
+    ParseFn callInfix = getRule(secondToken().lexeme)->infix;
     callInfix(hasPrecedence);
 }
 
@@ -650,21 +666,47 @@ static void declaration() {
   } else {
     error("Need to initialize constants. ('as' identifier':' expression ';')");
   }
-  if (previousIsNot(D_COMMA)) { // TODO testing single comma for objects
+  if (previousIsNot(SR_CURLY)) {
     require(S_SEMICOLON, "Expect ':' expression ';' to create a variable declaration.");
   }
   defineConstant(global);
 }
 
-static void ternaryStatement(OpCode condition) {
+static void unlessStatement(OpCode condition) {
   advance();
   resolveExpression(LVL_BASE);
   Token errorMarker = currentToken();
-  require(S_QUESTION, "Expect a '?' after BOOLEAN test condition.");
+  require(SL_CURLY, "Expect a '{' after BOOLEAN test condition.");
   beginScope();
   int thenJump = emitJump(condition);
 
   emitByte(OP_POP); // then
+  // require(SL_CURLY, "Expect {} to begin unless scope");
+  blockTernary();
+  int elseJump = emitJump(OP_JUMP); 
+  patchJump(thenJump);
+
+  emitByte(OP_POP); // end
+
+  if (tokenIs(K_ELSE)) {
+      errorAt(&errorMarker, "Unless block cannot branch with else. Please remove else keyword from block.");
+  }
+
+  patchJump(elseJump);
+  endScope();
+  require(SR_CURLY, "Expect } to end Unless scope");
+}
+
+static void ifStatement(OpCode condition) {
+  advance();
+  resolveExpression(LVL_BASE);
+  Token errorMarker = currentToken();
+  require(SL_CURLY, "Expect a '?' after BOOLEAN test condition.");
+  beginScope();
+  int thenJump = emitJump(condition);
+
+  emitByte(OP_POP); // then
+  // require(SL_CURLY, "Expect {} to begin unless scope");
   blockTernary();
   int elseJump = emitJump(OP_JUMP); 
   patchJump(thenJump);
@@ -672,13 +714,13 @@ static void ternaryStatement(OpCode condition) {
   emitByte(OP_POP); // end
 
   if (consume(K_ELSE)) { 
-    Token marker = previousToken();
+    Token marker = secondToken();
     block(&marker);
   } else {
-    if (tokenIsNot(D_COMMA)) {
-      errorAt(&errorMarker, "Need a ,, to finish code block.");
+    if (tokenIsNot(SR_CURLY)) {
+      errorAt(&errorMarker, "Need a ,, to finish if code block.");
     }
-    consume(D_COMMA);
+    consume(SR_CURLY);
   }
   patchJump(elseJump);
   endScope();
@@ -688,34 +730,35 @@ static void whenStatement() {
   advance();
   Token token = currentToken(); // hold the value to evaluate all expressions
   advance();
-  require(S_COLON, "Expect ':' to start a when block. ('when' expression ':')");
+  require(SL_CURLY, "Expect '{' to start a when block. ('when' expression '{}')");
   beginScope();
 
   while (tokenIs(K_IS)) {
     setCurrent(token);
     resolveExpression(LVL_BASE);
-    require(S_QUESTION, "Expect 'is' comparator operand '?' to test condition.");
+    require(SL_CURLY, "Expect 'is' comparator operand '{' to test condition.");
 
     int thenJump = emitJump(OP_JUMP_IF_FALSE);
-    while (tokenIsNot(D_COMMA) && tokenIsNot(END_OF_FILE)) {
-      compileTokens();
-    }
+
+    while (tokenIsNot(SR_CURLY) && tokenIsNot(END_OF_FILE)) 
+    { compileTokens(); }
+
     emitByte(OP_QUIT);
-    require(D_COMMA, "Expect ,, to complete an 'is' block to finish a 'when' statement.");
+    require(SR_CURLY, "Expect } to complete an 'is' block to finish a 'when' statement.");
     patchJump(thenJump); 
   }
   emitByte(OP_QUIT_END); // TODO only statement that has this, might add to while and until, add 'quit' keyword
   endScope();
-  require(D_COMMA, "Expect ,, to complete a when block.");
+  require(SR_CURLY, "Expect } to complete a when block.");
 }
 
 static void scopeVariable() {
   uint8_t global = parseVariable("Expect variable name.");
   require(S_COLON, "Need ':' to create a loop scoped variable.");
   resolveExpression(LVL_BASE);
-  if (tokenIsNot(S_COMMA)) {
-    require(S_SEMICOLON, "Expect ';' to finish loop variable declarations.");
-  }
+
+  if (tokenIsNot(S_COMMA)) 
+  { require(S_SEMICOLON, "Expect ';' to finish loop variable declarations."); }
   defineConstant(global);
 }
 
@@ -739,11 +782,12 @@ static void loopWithCondition(OpCode condition) {
   } // nice to have for two pointer technique
 
   resolveExpression(LVL_BASE);
-  require(S_QUESTION, "Expect '?' after condition, to begin conditional loop.");
-  Token marker = previousToken();
+  require(SL_CURLY, "Expect '{' after condition, to begin conditional loop.");
+  Token marker = secondToken();
 
   int exitJump = emitJump(condition); // false for while, true for until
   emitByte(OP_POP);
+  // require(SL_CURLY, "Expect {} to enclose loop scope");
   block(&marker);
   emitLoop(loopStart);
 
@@ -761,13 +805,14 @@ static void compileTokens() {
         return printExpression();
     case K_AS:      return declaration();
     case K_WHEN:    return whenStatement();
-    case K_IF:      return ternaryStatement(OP_JUMP_IF_FALSE);
-    case K_UNLESS:  return ternaryStatement(OP_JUMP_IF_TRUE);
+    case K_IF:      return ifStatement(OP_JUMP_IF_FALSE);
+    case K_UNLESS:  return unlessStatement(OP_JUMP_IF_TRUE);
     case K_WHILE:   return loopWithCondition(OP_JUMP_IF_FALSE);
     case K_UNTIL:   return loopWithCondition(OP_JUMP_IF_TRUE);
     default:        {
       resolveExpression(LVL_BASE);
-      if (previousToken().lexeme != D_COMMA) {  // TODO maybe write optionals for ')', '}', ']'
+
+      if (secondToken().lexeme != SR_CURLY) {  // TODO maybe write optionals for ')', '}', ']'
         require(S_SEMICOLON, "Expect ';' after expression."); 
       }
       emitByte(OP_POP); // get the value

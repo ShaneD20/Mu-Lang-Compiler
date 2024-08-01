@@ -8,6 +8,7 @@
 #include "object.h" // Strings
 #include "memory.h" // Strings
 #include "vm.h"
+#include "builtins.h"
 
 VM vm;
 
@@ -47,9 +48,6 @@ static void defineNative(const char* name, NativeFn function) {
   pop();
   pop();
 }
-static Value clockNative(int argCount, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
 //^ Native Functions
 
 void initVM() {
@@ -70,7 +68,9 @@ void initVM() {
   vm.initString = NULL;
   vm.initString = copyString("init", 4);
 
-  defineNative("clock", clockNative); 
+  // defineNative("clock", clockNative); 
+  // defineNative("squareRoot", handleSqrt); 
+  // defineNative("show", handlePrint); 
 }
 
 void freeVM() {
@@ -377,9 +377,9 @@ static InterpretResult run() {
       case OP_CONCATENATE : {
         if (IS_STRING(peek(1)) && IS_STRING(peek(0))) {
           concatenate(); 
-        } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-          APPEND_INTEGER(NUMBER_VAL, +);
-        } else {
+        } 
+       // else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) { APPEND_INTEGER(NUMBER_VAL, +);} 
+          else {
           runtimeError("Operands must be two strings, Or two integers.");
           return INTERPRET_RUNTIME_ERROR;
         }

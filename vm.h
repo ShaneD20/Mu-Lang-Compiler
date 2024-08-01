@@ -11,8 +11,8 @@
 
 typedef struct {
   ObjClosure* closure; // call-frame-closure
-  uint8_t* ip;
-  Value* slots;
+  uint8_t* ip; // pointer to the next executed instruction
+  Value* slots; // pointer to the first stack slot used by this call frame
 } CallFrame;
 
 typedef struct {
