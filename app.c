@@ -7,7 +7,10 @@
 #include "disassemble.h"
 #include "vm.h"
 
-/* For tracking new lines, the scanner would tokenize them, while the compiler would choose to keep or toss (or replace with semicolon) */
+/* 
+  For tracking new lines, the scanner would tokenize them, 
+  while the compiler would choose to keep or toss (or replace with semicolon) 
+*/
 static void repl() {
   char line[1024];
   for (;;) {
@@ -82,9 +85,3 @@ int main(int argc, const char* argv[]) {
   freeVM();
   return 0;
 }
-
-/*
-  lines of code that process a matrix/table as a first class citizen
-  R language features are pretty good
-  first class citizen: data manipulation
-*/

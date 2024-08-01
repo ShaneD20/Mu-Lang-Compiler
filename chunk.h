@@ -6,6 +6,7 @@
 #include "value.h"
 
 typedef enum {
+  OP_CLASS,
   OP_CONSTANT,
 // Types of Values literal-ops
   OP_NIL,

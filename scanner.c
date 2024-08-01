@@ -76,7 +76,7 @@ static Token errorToken(const char* message) {
 }
 
 static void skipWhitespace() {
-  for (;;) {
+  while (!isAtEnd()) {
     char c = peek();
     switch (c) {
       case ' ': 
@@ -90,7 +90,9 @@ static void skipWhitespace() {
         break;
       case '/':
         if (peekNext() == '/') { // comment goes until the end of the line.
-          while (peek() != '\n' && !isAtEnd()) advance();
+          while (peek() != '\n' && !isAtEnd()) {
+            advance();
+          }
         } else {
           return;
         }
@@ -101,10 +103,10 @@ static void skipWhitespace() {
   }
 }
 
-static Lexeme checkKeyword(int start, int length, const char* rest, Lexeme lexeme) {
+static Lexeme checkKeyword(int start, int length, const char* rest, Lexeme keyword) {
   if (scanner.current - scanner.start == start + length 
     && memcmp(scanner.start + start, rest, length) == 0) {
-    return lexeme;
+    return keyword;
   }
   return L_IDENTIFIER;
 }
@@ -142,11 +144,12 @@ static Lexeme identifierType() { // tests for keywords
         }
       }
       break;
-    case 'l': return checkKeyword(1, 3, "ike", K_LIKE);
+    // case 'l': return checkKeyword(1, 3, "ike", K_LIKE); // TODO should be match?
+    // case 'm': return checkKeyword(1, 3, "ake", K_MAKE);
     case 'n': 
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
-          case 'o': return checkKeyword(2, 1, "t", K_NOT);
+          // case 'o': return checkKeyword(2, 1, "t", K_NOT);
           case 'u': return checkKeyword(2, 2, "ll", K_NULL);
         }
       }
@@ -182,6 +185,13 @@ static Lexeme identifierType() { // tests for keywords
       }
       break;
     case 'q': return checkKeyword(1, 3, "uit", K_QUIT);
+    case 'N': return checkKeyword(1, 5, "umber", K_NUMBER);
+    case 'T': // Text or Truth
+      switch(scanner.start[1]) {
+        case 'e': return checkKeyword(2, 2, "xt", K_TEXT); 
+        case 'r': return checkKeyword(2, 3, "uth", K_TRUTH);
+      }
+    case 'V': return checkKeyword(1, 3, "oid", K_VOID);
     case '#': return L_MUTABLE;
   }
   return L_IDENTIFIER;

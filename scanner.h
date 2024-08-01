@@ -22,23 +22,19 @@ typedef enum {
   // L_ARRAY,     // TODO implement array
   
   // Keywords
-  K_AND, K_AS, 
-  K_ELSE,       
-  K_FALSE, 
-  // K_FROM,
-  // K_GIVE,
-  // K_HAS,
-  K_IF, K_IS,
-  K_NULL,
-  K_OR,
-  K_QUIT,
-  K_RETURN,
-  K_TRUE, 
-  K_WHEN, K_WHILE, 
-  K_UNLESS, K_UNTIL, K_USE,   // 16 active     
-  // currently experimental
-  K_DEFINE, TOKEN_PRINT, K_NOT,
-  K_TO, K_LIKE,
+  K_AND, K_AS, K_ELSE, K_FALSE, 
+  K_OR, K_HAS, K_IF, K_TRUE, 
+  K_WHILE, K_UNTIL, K_UNLESS,  
+  // K_FROM, K_GIVE, K_LIKE, 
+
+  K_RETURN, K_QUIT, K_WHEN, K_IS,
+  
+  K_USE,   // 16 active     
+
+  K_DEFINE, TOKEN_PRINT, K_TO, 
+  // primative types
+  K_NULL, K_VOID, K_NUMBER, K_TRUTH, K_TEXT,
+  K_TYPE, K_SELF,
   // NEW_LINE,
   LANGUAGE_ERROR, END_OF_FILE
 } Lexeme;

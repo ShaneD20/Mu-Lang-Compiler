@@ -43,3 +43,9 @@ ObjFunction* compile(const char* source); // Calls and Functions compile-h
 void markCompilerRoots(); // Garbage Collection mark-compiler-roots-h
 
 #endif
+
+/*
+  TODO add a type map with Number, Text, Truth, Void
+
+  when user creates a 'struct', struct name is added to the type map
+*/
