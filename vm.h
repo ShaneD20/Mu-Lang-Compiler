@@ -15,6 +15,13 @@ typedef struct {
   Value* slots; // pointer to the first stack slot used by this call frame
 } CallFrame;
 
+//> TESTING for product types
+// typedef struct {
+//   uint8_t* ip;
+//   Value* slots;
+// } ProductType;
+//^ TESTING
+
 typedef struct {
   CallFrame frames[FRAMES_MAX]; // Array Calls and Functions
   int frameCount;               // Array Calls and Functions

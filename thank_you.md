@@ -1,7 +1,6 @@
 # Acknowledgements
 
-## I would like to give a big thanks to Robert Nystrom. 
-### [Crafting Interpreters](https://craftinginterpreters.com/)
+## I would like to give a big thanks to Robert Nystrom. [Crafting Interpreters](https://craftinginterpreters.com/)
 Before starting this project the majority of my experience with coding had been in Java and JS. I had dabbled in C through some simple, happy-path programming. However, I had no experience with C macros and little experience with the minutiae of pointers. 
 
 There were many segfaults along the way. I bought the book Crafting Interpreters on Kindle, and I very much enjoyed the book. (The majority of the code is based on what's provided for a Lox compiler.) Programming can be a dry subject matter and all of the anecdotes and asides were fun to read or think about.
@@ -17,3 +16,4 @@ I got to see my first taste of Ruby. I immediately saw the **unless** keyword an
 
 ## First Mu Projects
 #1 [Dan Baker's Mu Test](https://github.com/djacu/mulang-test)
+

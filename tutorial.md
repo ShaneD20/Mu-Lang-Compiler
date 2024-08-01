@@ -306,6 +306,7 @@ print(increaseNumberBy(-1)); // 5
 
 as magicNumber: 12;
 
+
 as triplePlusValue: Number (#z) {
   #z *= 3;
   return #z + magicNumber; 
