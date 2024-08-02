@@ -2,19 +2,18 @@
 * For single line comments, Mu uses **( // )**.
 * Mu is designed to look closer to human writing, as such the colon '**:**' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
 * For example the 'as' keyword is used to declare a variable, and is written **( as )** identifier **( : )** value **( ; )**.
-* Question mark **( { )** is used to denote a guard-clause protected by a boolean condition. In other programming languages this would be represented with a 'then' keyword.
+* Curly Brackets **{}** are used to for language code blocks. Functions, data structures, and any keyword derived scope. And are compiler enforced for keywords with associated scope.
+* For anonymous scoping \*( and )\* are used to create arbitrary local scoping. 
 * Semicolons **( ; )** are used to notate the end of a statement or expression, similar to most C inspired languages.
-* The double-comma **( } )** is used to notate the ending of a block of code. Blocks of code may contain multiple statements or expressions.
-* Certain keywords **( while, until, if, unless, when, use )** always have an associated block of code.
 
 ## Variable Declarations and Comments
 * There are two types of variables to declare: constants (which are immutable) and mutables. Both are initialized with the value or expression after the a **( : )** character.
 * Mutables can be reassigned with the **( := )** operator and Identifiers for mutables must begin with **( # )**, such as **#value** or **#name**.
 
 ```
-as phrase: “Hello World”;  // constant
+as phrase: “Hello World”;  // constant assignment
 
-as #number: 0;             // mutable
+as #number: 0;             // mutable assignment
 #number := 1;              // reassignment operator
  
 ```
