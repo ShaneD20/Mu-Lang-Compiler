@@ -2,7 +2,7 @@
 * For single line comments, Mu uses **( // )**.
 * Mu is designed to look closer to human writing, as such the colon '**:**' is not an operator. Colons are used with keywords to clarify boundaries, in contexts where the meaning is clearly defined.
 * For example the 'as' keyword is used to declare a variable, and is written **( as )** identifier **( : )** value **( ; )**.
-* Curly Brackets **{}** are used to for language code blocks. Functions, data structures, and any keyword derived scope. And are compiler enforced for keywords with associated scope.
+* Curly Brackets **{}** are used to for language code blocks. Functions, data structures, and any keyword derived scope. These are compiler enforced for keywords with associated scope.
 * For anonymous scoping \*( and )\* are used to create arbitrary local scoping. 
 * Semicolons **( ; )** are used to notate the end of a statement or expression, similar to most C inspired languages.
 
