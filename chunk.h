@@ -12,6 +12,8 @@ typedef enum {
   OP_NIL,
   OP_TRUE,
   OP_FALSE,
+  OP_DONE,
+  OP_FAIL,
 // Global Variables pop-op
   OP_POP,
 // Local Variable operations

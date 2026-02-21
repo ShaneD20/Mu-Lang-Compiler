@@ -19,6 +19,8 @@ typedef struct ObjString ObjString;
 #define TAG_NIL   1 // 01.
 #define TAG_FALSE 2 // 10.
 #define TAG_TRUE  3 // 11.
+#define TAG_FAIL  4
+#define TAG_DONE  5
 
 typedef uint64_t Value;
 
@@ -28,17 +30,22 @@ typedef uint64_t Value;
 #define IS_OBJ(value)   (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
   //^ object pointer is a NaN with set sign bit
 #define IS_BOOL(value)  (((value) | 1) == TRUE_VAL)
+#define IS_EFFECT(value) (((value) | 1)== DONE_VAL)
 #define IS_NIL(value)   ((value) == NIL_VAL)
 
 // as ...
 #define AS_BOOL(value)  ((value) == TRUE_VAL)
+#define AS_EFFECT(value)((value) == DONE_VAL)
 #define AS_OBJ(value)   ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 #define AS_NUMBER(value)valueToNum(value)
 
 // value ...
 #define BOOL_VAL(b)     ((b) ? TRUE_VAL : FALSE_VAL)
+#define EFFECT_VAL(b)   ((b) ? DONE_VAL : FAIL_VAL)
 #define FALSE_VAL       ((Value)(uint64_t)(QNAN | TAG_FALSE))
 #define TRUE_VAL        ((Value)(uint64_t)(QNAN | TAG_TRUE))
+#define FAIL_VAL        ((Value)(uint64_t)(QNAN | TAG_FAIL))
+#define DONE_VAL        ((Value)(uint64_t)(QNAN | TAG_DONE))
 #define NIL_VAL         ((Value)(uint64_t)(QNAN | TAG_NIL))
 #define NUMBER_VAL(num) numToValue(num)
 #define OBJ_VAL(obj) \
@@ -60,8 +67,9 @@ static inline Value numToValue(double number) {
 //< Optimization nan-boxing
 //> Types of Values value-type
 typedef enum {  // TODO when adding more types
-  VAL_BOOL,
   VAL_NIL, // [user-types]
+  VAL_BOOL,
+  VAL_EFFECT,
   VAL_NUMBER,
   VAL_OBJ, //> Strings val-obj
 } ValueType;
@@ -71,6 +79,7 @@ typedef struct {
   ValueType type;
   union {
     bool boolean;
+    bool effect;
     double number;
     Obj* obj; //> Strings union-object
   } as; // [as]
@@ -78,6 +87,7 @@ typedef struct {
 
 // is macros
 #define IS_BOOL(value)    ((value).type == VAL_BOOL)
+#define IS_EFFECT(value)  ((value).type == VAL_EFFECT)
 #define IS_NIL(value)     ((value).type == VAL_NIL)
 #define IS_NUMBER(value)  ((value).type == VAL_NUMBER)
 #define IS_OBJ(value)     ((value).type == VAL_OBJ)
@@ -86,9 +96,11 @@ typedef struct {
 // as macros
 #define AS_OBJ(value)     ((value).as.obj)
 #define AS_BOOL(value)    ((value).as.boolean)
+#define AS_EFFECT(valu)   ((value).as.effect)
 #define AS_NUMBER(value)  ((value).as.number)
 
 #define BOOL_VAL(value)   ((Value){VAL_BOOL, {.boolean = value}})
+#define EFFECT_VAL(value) ((Value){VAL_EFFECT, {.effect = value}})
 #define NIL_VAL           ((Value){VAL_NIL, {.number = 0}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(object)   ((Value){VAL_OBJ, {.obj = (Obj*)object}})

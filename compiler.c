@@ -29,12 +29,12 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
 static void endScope() {
   current->scopeDepth--;
 
-  while (current->localCount > 0 
+  while (current->localCount > 0
     && current->locals[current->localCount - 1].depth > current->scopeDepth) {
 
-    if (current->locals[current->localCount - 1].isCaptured) 
+    if (current->locals[current->localCount - 1].isCaptured)
     { emitByte(OP_CLOSE_UPVALUE); } // Closures end-scope
-    else 
+    else
     { emitByte(OP_POP); }
 
     current->localCount--;
@@ -51,7 +51,7 @@ static int emitJump(uint8_t instruction) {
 static void patchJump(int offset) {
   int jump = currentChunk()->count - offset - 2; // -2 to adjust for the bytecode for the jump offset itself.
 
-  if (jump > UINT16_MAX) 
+  if (jump > UINT16_MAX)
   { error("Too much code to jump over."); }
 
   currentChunk()->code[offset] = (jump >> 8) & 0xff;
@@ -59,9 +59,9 @@ static void patchJump(int offset) {
 }
 
 static void emitReturn() {
-  if (current->type == FT_INITIALIZER) 
-  { emitBytes(OP_GET_LOCAL, 0); } 
-  else 
+  if (current->type == FT_INITIALIZER)
+  { emitBytes(OP_GET_LOCAL, 0); }
+  else
   { emitByte(OP_NIL); }
 
   emitByte(OP_RETURN);
@@ -117,7 +117,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   current = compiler;
   initTable(&current->identifierTypes); // TODO use table to static type checking
 
-  if (type != FT_SCRIPT) 
+  if (type != FT_SCRIPT)
   { current->function->name = copyString(secondToken().start, secondToken().length); }
 
   Local* local = &current->locals[current->localCount++];
@@ -155,7 +155,7 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) { // Clos
 
   for (int i = 0; i < upvalueCount; i++) {
     Upvalue* upvalue = &compiler->upvalues[i];
-    
+
     if (upvalue->index == index && upvalue->isLocal == isLocal) { return i; }
   }
 
@@ -168,10 +168,10 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) { // Clos
   return compiler->function->upvalueCount++;
 }
 
-static int resolveUpvalue(Compiler* compiler, Token* name) { // Closures 
+static int resolveUpvalue(Compiler* compiler, Token* name) { // Closures
   Token test = *name;
-  if (test.lexeme == L_MUTABLE || compiler->enclosing == NULL) 
-  { return -1; } 
+  if (test.lexeme == L_MUTABLE || compiler->enclosing == NULL)
+  { return -1; }
   else {
     int depth = resolveLocal(compiler->enclosing, name);
     if (depth != -1) { // mark-local-captured
@@ -206,22 +206,22 @@ static void checkLocals() {
 
   for (int i = current->localCount - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
-    if (local->depth != -1 && local->depth < current->scopeDepth) 
+    if (local->depth != -1 && local->depth < current->scopeDepth)
     {  break; } // does it exist in scope?
-    if (identifiersEqual(name, &local->name)) 
+    if (identifiersEqual(name, &local->name))
     { error("Already a variable with this name in this scope."); }
   }
   addLocal(*name);
 }
 
 static uint8_t parseVariable(const char* errorMessage) {
-  if (tokenIs(L_IDENTIFIER)) 
-  { require(L_IDENTIFIER, errorMessage); } 
-  else 
+  if (tokenIs(L_IDENTIFIER))
+  { require(L_IDENTIFIER, errorMessage); }
+  else
   { require(L_MUTABLE, errorMessage); }
-  
+
   checkLocals();
-  if (current->scopeDepth > 0) 
+  if (current->scopeDepth > 0)
   { return 0; } // Local Variables
 
   Token prior = secondToken();
@@ -229,7 +229,7 @@ static uint8_t parseVariable(const char* errorMessage) {
 }
 
 static void markInitialized() {
-  if (current->scopeDepth == 0) 
+  if (current->scopeDepth == 0)
   { return; }
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
@@ -238,13 +238,13 @@ static void defineConstant(uint8_t global) { // Currently assigns constants
   if (current->scopeDepth > 0) {
     markInitialized(); // define local
     return;
-  } 
+  }
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 /*******************END HELPER FUNCTIONS & BEGIN EXPRESSIONS*******************/
 
 static void resolveExpression(Precedence precedence);
-static ParseRule* getRule(Lexeme glyph); 
+static ParseRule* getRule(Lexeme glyph);
 
 static void emitCompound(uint8_t operation, uint8_t byte1, uint8_t byte2, uint8_t target) {
   advance();
@@ -291,27 +291,27 @@ static void binary(bool canAssign) {
   resolveExpression((Precedence)(rule->precedence + 1)); // apply the precedence
 
   switch (operator) {
-    case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT); 
+    case D_BANG_TILDE:    emitBytes(OP_EQUAL, OP_NOT);
       break;
-    case S_EQUAL:         emitByte(OP_EQUAL); 
+    case S_EQUAL:         emitByte(OP_EQUAL);
       break;
-    case S_GREATER:       emitByte(OP_GREATER); 
+    case S_GREATER:       emitByte(OP_GREATER);
       break;
-    case D_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); 
+    case D_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT);
       break;
-    case S_LESS:          emitByte(OP_LESS); 
+    case S_LESS:          emitByte(OP_LESS);
       break;
     case D_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT);
       break;
     case D_DOT:           emitByte(OP_CONCATENATE);
       break;
-    case S_PLUS:          emitByte(OP_ADD); 
+    case S_PLUS:          emitByte(OP_ADD);
       break;
-    case S_MINUS:         emitByte(OP_SUBTRACT); 
+    case S_MINUS:         emitByte(OP_SUBTRACT);
       break;
     case S_STAR:          emitByte(OP_MULTIPLY);
       break;
-    case S_SLASH:         emitByte(OP_DIVIDE); 
+    case S_SLASH:         emitByte(OP_DIVIDE);
       break;
     case S_MODULO:        emitByte(OP_MODULO);
       break;
@@ -325,7 +325,7 @@ static void binary(bool canAssign) {
   }
 }
 
-static void call(bool unused) { 
+static void call(bool unused) {
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 }
@@ -336,17 +336,17 @@ static void grouping(bool unused) {
 }
 
 static void number(bool unused) {
-  //if (tokenIs(S_BANG)) { errorAtCurrent("Cannot follow a number with a '!'");} 
+  //if (tokenIs(S_BANG)) { errorAtCurrent("Cannot follow a number with a '!'");}
     // prevents segfault
   double value = strtod(secondToken().start, NULL);
-  emitConstant(NUMBER_VAL(value)); 
+  emitConstant(NUMBER_VAL(value));
 }
 
 static void string(bool unused) {
   emitConstant(OBJ_VAL(copyString(secondToken().start + 1, secondToken().length - 2)));
 }
 
-static void findVariable(Token name, bool canAssign) { 
+static void findVariable(Token name, bool canAssign) {
   uint8_t getOp, setOp;
 
   int arg = resolveLocal(current, &name);
@@ -369,29 +369,29 @@ static void findVariable(Token name, bool canAssign) {
     switch (lexeme) {
       case S_COLON : error("Please declare variables with the 'let' keyword.");
 
-      case D_COLON_EQUAL : 
+      case D_COLON_EQUAL :
         if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         advance();
         resolveExpression(LVL_BASE);
         return emitBytes(setOp, (uint8_t)arg);
-      
-      case D_PLUS_EQUAL : 
+
+      case D_PLUS_EQUAL :
         if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_ADD, getOp, setOp, (uint8_t)arg);
 
-      case D_STAR_EQUAL : 
+      case D_STAR_EQUAL :
         if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_MULTIPLY, getOp, setOp, (uint8_t)arg);
 
-      case D_SLASH_EQUAL : 
+      case D_SLASH_EQUAL :
         if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_DIVIDE, getOp, setOp, (uint8_t)arg);
 
-      case D_MODULO_EQUAL : 
+      case D_MODULO_EQUAL :
         if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_MODULO, getOp, setOp, (uint8_t)arg);
 
-      case D_DOT_EQUAL : 
+      case D_DOT_EQUAL :
         if (name.lexeme == L_IDENTIFIER) error("Only #mutables can be reassigned.");
         return emitCompound(OP_CONCATENATE, getOp, setOp, (uint8_t)arg);
       default : break;
@@ -401,7 +401,7 @@ static void findVariable(Token name, bool canAssign) {
 }
 
 static void variable(bool canAssign) {
-  findVariable(secondToken(), canAssign); 
+  findVariable(secondToken(), canAssign);
 }
 /************************ EXPRESSION STATEMENTS ************************/
 
@@ -420,16 +420,16 @@ static void block(Token *marker) { // TODO
 static void anonymous(Token *marker) {
   while (tokenIsNot(D_STAR_R_ROUND) && tokenIsNot(END_OF_FILE)) { compileTokens(); }
 
-  if (tokenIsNot(D_STAR_R_ROUND)) 
+  if (tokenIsNot(D_STAR_R_ROUND))
   { errorAt(marker, "Need a )* to finish an anonymous code block."); }
 
   consume(D_STAR_R_ROUND);
 }
 
 static void blockTernary() { // if-else, unless-else
-  while (tokenIsNot(SR_CURLY) 
-    && tokenIsNot(K_ELSE) 
-    && tokenIsNot(END_OF_FILE)) 
+  while (tokenIsNot(SR_CURLY)
+    && tokenIsNot(K_ELSE)
+    && tokenIsNot(END_OF_FILE))
   { compileTokens(); }
 }
 
@@ -450,7 +450,7 @@ static void buildClosure(FunctionType type) {
     do {
       current->function->arity++;
 
-      if (current->function->arity > ARG_LIMIT) 
+      if (current->function->arity > ARG_LIMIT)
       { errorAtCurrent("Can't have more than 255 parameters."); }
 
       uint8_t constant = parseVariable("Expect parameter name.");
@@ -462,7 +462,7 @@ static void buildClosure(FunctionType type) {
   require(SR_ROUND, "Need a '()' to notate a function expression, declare paratemeters from function body.");
   require(SL_CURLY, "Expect {} to begin function scope");
   block(&marker);
-  
+
   ObjFunction* function = endCompiler(); // could use for redo ...
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // Closures emit-closure
   for (int i = 0; i < function->upvalueCount; i++) {
@@ -479,11 +479,11 @@ static void buildStructure() {
 }
 
 static void buildReturn(bool unused) {
-  if (current->type == FT_SCRIPT || current->type == FT_INITIALIZER) 
+  if (current->type == FT_SCRIPT || current->type == FT_INITIALIZER)
   { error("Can't return from top-level code, or within an initializer."); }
 
-  if (currentToken().lexeme == S_SEMICOLON) 
-  {  emitReturn(); } 
+  if (currentToken().lexeme == S_SEMICOLON)
+  {  emitReturn(); }
   else {
     resolveExpression(LVL_BASE);
     emitByte(OP_RETURN);
@@ -503,28 +503,32 @@ static void unary(bool unused) {
   resolveExpression(LVL_UNARY); // TODO part of the issue with ! = ..?
 
   switch (operator) {
-    case S_BANG: 
-      emitByte(OP_NOT); 
+    case S_BANG:
+      emitByte(OP_NOT);
       break;
-    case S_MINUS: 
-      emitByte(OP_NEGATE); 
+    case S_MINUS:
+      emitByte(OP_NEGATE);
       break;
-    case S_TILDE: 
+    case S_TILDE:
       emitByte(OP_FLIP_BITS);
       break;
-    default: 
+    default:
       return; // Unreachable.
   }
 }
 
 static void literal(bool unused) {
   switch (secondToken().lexeme) {
-    case K_FALSE:   emitByte(OP_FALSE); 
+    case K_FALSE:   emitByte(OP_FALSE);
       break;
-    case K_NULL:    emitByte(OP_NIL); 
+    case K_NULL:    emitByte(OP_NIL);
       break;
-    case K_TRUE:    emitByte(OP_TRUE); 
+    case K_TRUE:    emitByte(OP_TRUE);
       break;
+    case K_DONE:    emitByte(OP_DONE);
+        break;
+    case K_FAIL:    emitByte(OP_FAIL);
+        break;
     case K_QUIT:    emitByte(OP_QUIT);
       break;
     case K_USE:     buildStructure();
@@ -543,7 +547,7 @@ static void literal(bool unused) {
         break;
     case D_STAR_L_ROUND: buildAnonymous();
       break;
-    default: 
+    default:
       return; // Unreachable.
   }
 }
@@ -552,7 +556,7 @@ ParseRule rules[] = {
 //                        prefix,  infix, precedence
   [S_DOT]              = {NULL,     call, LVL_CALL}, // call struct properties?
   [SL_ROUND]           = {grouping, call, LVL_CALL}, // update call to infer function creation or call
-  [SL_CURLY]           = {structure,  NULL, LVL_NONE}, // {literal, NULL, LVL_NONE}, 
+  [SL_CURLY]           = {structure,  NULL, LVL_NONE}, // {literal, NULL, LVL_NONE},
   [SL_SQUARE]          = {NULL,     NULL, LVL_NONE}, // {literal, NULL, LVL_NONE},
 //^ function calls, product type declarations
   [S_MINUS]            = {unary,    binary, LVL_SUM},
@@ -582,8 +586,10 @@ ParseRule rules[] = {
   [L_STRING]           = {string,   NULL,    LVL_NONE},
   [L_NUMBER]           = {number,   NULL,    LVL_NONE},
   [K_FALSE]            = {literal,  NULL,    LVL_NONE},
+  [K_FAIL]             = {literal,  NULL,    LVL_NONE},
   [K_NULL]             = {literal,  NULL,    LVL_NONE},
   [K_TRUE]             = {literal,  NULL,    LVL_NONE},
+  [K_DONE]             = {literal,  NULL,    LVL_NONE},
   // [K_MAKE]             = {literal,  NULL,    LVL_NONE},
   [K_VOID]             = {literal,  NULL,    LVL_NONE},
   [K_NUMBER]           = {literal,  NULL,    LVL_NONE},
@@ -591,7 +597,7 @@ ParseRule rules[] = {
   [K_TRUTH]            = {literal,  NULL,    LVL_NONE},
   [K_QUIT]             = {literal,  NULL,    LVL_NONE},
   [D_STAR_L_ROUND]     = {literal,  NULL,    LVL_NONE},
-  [K_RETURN]           = {buildReturn, NULL, LVL_NONE}, 
+  [K_RETURN]           = {buildReturn, NULL, LVL_NONE},
   [TOKEN_PRINT]        = {NULL, NULL, LVL_NONE},     // TODO remove after implementing function
 //^ Expression Tokens
   [K_AS]           = {NULL, NULL, LVL_NONE},
@@ -683,7 +689,7 @@ static void unlessStatement(OpCode condition) {
   emitByte(OP_POP); // then
   // require(SL_CURLY, "Expect {} to begin unless scope");
   blockTernary();
-  int elseJump = emitJump(OP_JUMP); 
+  int elseJump = emitJump(OP_JUMP);
   patchJump(thenJump);
 
   emitByte(OP_POP); // end
@@ -708,12 +714,12 @@ static void ifStatement(OpCode condition) {
   emitByte(OP_POP); // then
   // require(SL_CURLY, "Expect {} to begin unless scope");
   blockTernary();
-  int elseJump = emitJump(OP_JUMP); 
+  int elseJump = emitJump(OP_JUMP);
   patchJump(thenJump);
 
   emitByte(OP_POP); // end
 
-  if (consume(K_ELSE)) { 
+  if (consume(K_ELSE)) {
     Token marker = secondToken();
     block(&marker);
   } else {
@@ -726,7 +732,7 @@ static void ifStatement(OpCode condition) {
   endScope();
 }
 
-static void whenStatement() { 
+static void whenStatement() {
   advance();
   Token token = currentToken(); // hold the value to evaluate all expressions
   advance();
@@ -740,12 +746,12 @@ static void whenStatement() {
 
     int thenJump = emitJump(OP_JUMP_IF_FALSE);
 
-    while (tokenIsNot(SR_CURLY) && tokenIsNot(END_OF_FILE)) 
+    while (tokenIsNot(SR_CURLY) && tokenIsNot(END_OF_FILE))
     { compileTokens(); }
 
     emitByte(OP_QUIT);
     require(SR_CURLY, "Expect } to complete an 'is' block to finish a 'when' statement.");
-    patchJump(thenJump); 
+    patchJump(thenJump);
   }
   emitByte(OP_QUIT_END); // TODO only statement that has this, might add to while and until, add 'quit' keyword
   endScope();
@@ -757,7 +763,7 @@ static void scopeVariable() {
   require(S_COLON, "Need ':' to create a loop scoped variable.");
   resolveExpression(LVL_BASE);
 
-  if (tokenIsNot(S_COMMA)) 
+  if (tokenIsNot(S_COMMA))
   { require(S_SEMICOLON, "Expect ';' to finish loop variable declarations."); }
   defineConstant(global);
 }
@@ -766,7 +772,7 @@ static void loopWithCondition(OpCode condition) {
   advance();
   beginScope();
 
-  Token token = currentToken(); 
+  Token token = currentToken();
   if (consume(S_COMMA)) {
     token = currentToken();
     scopeVariable();
@@ -799,7 +805,7 @@ static void loopWithCondition(OpCode condition) {
 
 /***************** END STATEMENTS *****************/
 
-static void compileTokens() { 
+static void compileTokens() {
   switch (currentToken().lexeme) {
      case TOKEN_PRINT: advance();   // TODO replace with function
         return printExpression();
@@ -813,7 +819,7 @@ static void compileTokens() {
       resolveExpression(LVL_BASE);
 
       if (secondToken().lexeme != SR_CURLY) {  // TODO maybe write optionals for ')', '}', ']'
-        require(S_SEMICOLON, "Expect ';' after expression."); 
+        require(S_SEMICOLON, "Expect ';' after expression.");
       }
       emitByte(OP_POP); // get the value
     }
@@ -824,9 +830,9 @@ static void compileTokens() {
 ObjFunction* compile(const char* source) {
   initScanner(source);
 
-  Compiler compiler; 
-  initCompiler(&compiler, FT_SCRIPT); 
-  parserError(false); // set no error 
+  Compiler compiler;
+  initCompiler(&compiler, FT_SCRIPT);
+  parserError(false); // set no error
   stopPanic();        // set no panic
 
   advance();
@@ -837,7 +843,7 @@ ObjFunction* compile(const char* source) {
   ObjFunction* function = endCompiler(); // it all ends as one script function
   return hasError() ? NULL : function;
 }
-// Garbage Collection 
+// Garbage Collection
 void markCompilerRoots() {
   Compiler* compiler = current;
   while (compiler != NULL) {

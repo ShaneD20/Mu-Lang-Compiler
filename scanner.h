@@ -1,7 +1,7 @@
 #ifndef mu_scanner_h
 #define mu_scanner_h
 
-typedef enum { 
+typedef enum {
   // Single character tokens
   S_PLUS, S_MINUS, S_SLASH, S_STAR,         // + - / *
   S_QUESTION, S_EQUAL, S_GREATER, S_LESS,   // ? = > <
@@ -14,24 +14,25 @@ typedef enum {
   D_COMMA, D_BANG_TILDE, D_COLON_EQUAL,     // ,, !~ :=
   D_GREATER_EQUAL, D_MODULO_EQUAL, D_DOT,   // >= %= ..
   D_PLUS_EQUAL, D_STAR_EQUAL, D_DOT_EQUAL,  // += *= .=
-  D_LESS_EQUAL, D_SLASH_EQUAL, D_STAR_L_ROUND,  // <= /= *( 
+  D_LESS_EQUAL, D_SLASH_EQUAL, D_STAR_L_ROUND,  // <= /= *(
   D_STAR_R_ROUND,
 
   // Literals
-  L_IDENTIFIER, L_MUTABLE, L_STRING, L_NUMBER, 
+  L_IDENTIFIER, L_MUTABLE, L_STRING, L_NUMBER,
   // L_ARRAY,     // TODO implement array
-  
+
   // Keywords
-  K_AND, K_AS, K_ELSE, K_FALSE, 
-  K_OR, K_HAS, K_IF, K_TRUE, 
-  K_WHILE, K_UNTIL, K_UNLESS,  
-  // K_FROM, K_GIVE, K_LIKE, 
+  K_AND, K_AS, K_ELSE, K_FALSE,
+  K_DONE, K_FAIL,
+  K_OR, K_HAS, K_IF, K_TRUE,
+  K_WHILE, K_UNTIL, K_UNLESS,
+  // K_FROM, K_GIVE, K_LIKE,
 
   K_RETURN, K_QUIT, K_WHEN, K_IS,
-  
-  K_USE,   // 16 active     
 
-  K_DEFINE, TOKEN_PRINT, K_TO, 
+  K_USE,   // 16 active
+
+  K_DEFINE, TOKEN_PRINT, K_TO,
   // primative types
   K_NULL, K_VOID, K_NUMBER, K_TRUTH, K_TEXT,
   K_TYPE, K_SELF,
@@ -48,13 +49,13 @@ typedef enum {
   VT_NAME,
   VT_TEXT,
   VT_VOID,
-} VariableType; 
-//^ TODO find a better name 
+} VariableType;
+//^ TODO find a better name
 
 typedef struct {
   VariableType type;
   Lexeme lexeme;
-  const char* start; 
+  const char* start;
   /* add a compiler table to store, tail name on initialization */
   /* stores equivalent VariableType */
   int length;

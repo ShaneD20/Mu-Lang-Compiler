@@ -17,7 +17,7 @@ void writeValueArray(ValueArray* array, Value value) {
     array->capacity = GROW_CAPACITY(oldCapacity);
     array->values = GROW_ARRAY(Value, array->values, oldCapacity, array->capacity);
   }
-  
+
   array->values[array->count] = value;
   array->count++;
 }
@@ -30,6 +30,8 @@ void printValue(Value value) {
 #ifdef NAN_BOXING
   if (IS_BOOL(value)) {
     printf(AS_BOOL(value) ? "true" : "false");
+  } else if (IS_EFFECT(value)) {
+    printf(AS_EFFECT(value) ? "done" : "fail");
   } else if (IS_NIL(value)) {
     printf("null");
   } else if (IS_NUMBER(value)) {
@@ -48,12 +50,20 @@ void printValue(Value value) {
 //> Types of Values print-value
   switch (value.type) {
     case VAL_BOOL:
-      printf(AS_BOOL(value) ? "true" : "false");
-      break;
-    case VAL_NIL: printf("null"); break;
-    case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
+        printf(AS_BOOL(value) ? "true" : "false");
+        break;
+    case VAL_EFFECT:
+        printf(AS_EFFECT(value) ? "done" : "fail");
+    case VAL_NIL:
+        printf("null");
+        break;
+    case VAL_NUMBER:
+        printf("%g", AS_NUMBER(value));
+        break;
 //> Strings call-print-object
-    case VAL_OBJ: printObject(value); break;
+    case VAL_OBJ:
+        printObject(value);
+        break;
 //< Strings call-print-object
   }
 //< Types of Values print-value
@@ -74,6 +84,7 @@ bool valuesEqual(Value a, Value b) {
     case VAL_BOOL:   return AS_BOOL(a) == AS_BOOL(b);
     case VAL_NIL:    return true;
     case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
+    case VAL_EFFECT: return AS_EFFECT(a) == AS_EFFECT(b);
 /* Strings strings-equal < Hash Tables equal
     case VAL_OBJ: {
       ObjString* aString = AS_STRING(a);

@@ -14,13 +14,13 @@ void initScanner(const char* source) {
 }
 //> Scanner Helpers
 static bool isAlpha(char c) {
-  return (c >= 'a' && c <= 'z') 
-      || (c >= 'A' && c <= 'Z') 
+  return (c >= 'a' && c <= 'z')
+      || (c >= 'A' && c <= 'Z')
       ||  c == '_';
 }
 
 static bool isDigit(char c) {
-  return c >= '0' 
+  return c >= '0'
       && c <= '9';
 }
 
@@ -43,7 +43,7 @@ static char peekNext() {
 }
 
 static char peekTwoAhead() {
-  if (isAtEnd()) return '\0'; 
+  if (isAtEnd()) return '\0';
   return scanner.current[2];
 }
 
@@ -79,13 +79,13 @@ static void skipWhitespace() {
   while (!isAtEnd()) {
     char c = peek();
     switch (c) {
-      case ' ': 
+      case ' ':
       case '\r':
       case '\t':
         advance();
         break;
       case '\n': // newline
-        scanner.line++;
+        scanner.line++;     // TODO new line termination
         advance();
         break;
       case '/':
@@ -104,7 +104,7 @@ static void skipWhitespace() {
 }
 
 static Lexeme checkKeyword(int start, int length, const char* rest, Lexeme keyword) {
-  if (scanner.current - scanner.start == start + length 
+  if (scanner.current - scanner.start == start + length
     && memcmp(scanner.start + start, rest, length) == 0) {
     return keyword;
   }
@@ -116,15 +116,20 @@ static Lexeme identifierType() { // tests for keywords
     case 'a': //branch our to "and", "as"
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
-          case 'n' : return checkKeyword(2, 1, "d", K_AND); 
+          case 'n' : return checkKeyword(2, 1, "d", K_AND);
           case 's' : return checkKeyword(2, 0, "", K_AS);
         }
       }
       break;
-    case 'd': 
+    case 'd':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
           case 'e' : return checkKeyword(2, 4, "fine", K_DEFINE);
+          case 'o' : {
+              if ('n' == scanner.start[2]) {
+                  return checkKeyword(3, 1, "e", K_DONE);
+              }
+          }
         }
       }
       break;
@@ -135,7 +140,14 @@ static Lexeme identifierType() { // tests for keywords
         }
       }
       break;
-    case 'f': return checkKeyword(1, 4, "alse", K_FALSE);
+    case 'f':
+        if ('a' == scanner.start[1]) switch (scanner.start[2]) {
+            case 'i':
+                return checkKeyword(2, 2, "il", K_FAIL);
+            case 'l':
+                return checkKeyword(2, 3, "lse", K_FALSE);
+        }
+        break;
     case 'i': // branch out to 'if', 'is'
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
@@ -146,7 +158,7 @@ static Lexeme identifierType() { // tests for keywords
       break;
     // case 'l': return checkKeyword(1, 3, "ike", K_LIKE); // TODO should be match?
     // case 'm': return checkKeyword(1, 3, "ake", K_MAKE);
-    case 'n': 
+    case 'n':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
           // case 'o': return checkKeyword(2, 1, "t", K_NOT);
@@ -154,7 +166,8 @@ static Lexeme identifierType() { // tests for keywords
         }
       }
       break;
-    case 'o': return checkKeyword(1, 1, "r", K_OR);
+    case 'o':   // TODO add "on"
+        return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT); // TODO replace with native function
     case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
     case 't': // branch out to "to", "true"
@@ -188,7 +201,7 @@ static Lexeme identifierType() { // tests for keywords
     case 'N': return checkKeyword(1, 5, "umber", K_NUMBER);
     case 'T': // Text or Truth
       switch(scanner.start[1]) {
-        case 'e': return checkKeyword(2, 2, "xt", K_TEXT); 
+        case 'e': return checkKeyword(2, 2, "xt", K_TEXT);
         case 'r': return checkKeyword(2, 3, "uth", K_TRUTH);
       }
     case 'V': return checkKeyword(1, 3, "oid", K_VOID);
@@ -234,8 +247,8 @@ Token scanToken() {
 
   // check for constants
   char rune = advance();
-  if (isAlpha(rune)) return identifier(); 
-  if (isDigit(rune)) return number(); 
+  if (isAlpha(rune)) return identifier();
+  if (isDigit(rune)) return number();
 
   switch (rune) {
     // single character
@@ -247,7 +260,7 @@ Token scanToken() {
     case ']': return makeToken(SR_SQUARE, VT_VOID);
     case '?': return makeToken(S_QUESTION, VT_VOID);     // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON, VT_VOID);
-    case '=': return makeToken(S_EQUAL, VT_VOID); 
+    case '=': return makeToken(S_EQUAL, VT_VOID);
     case '-': return makeToken(S_MINUS, VT_VOID);
     case '&': return makeToken(S_AMPERSAND, VT_VOID);
     case '|': return makeToken(S_PIPE, VT_VOID);
@@ -259,9 +272,9 @@ Token scanToken() {
           return  makeToken(D_DOT_EQUAL, VT_VOID);
         case '.': advance();
           return makeToken(D_DOT, VT_VOID);
-        default: 
+        default:
           return makeToken(S_DOT, VT_VOID);
-      } 
+      }
       break;
     case '*': switch(scanner.start[1]) {
         case '=': advance();
@@ -272,17 +285,17 @@ Token scanToken() {
           return makeToken(S_STAR, VT_VOID);
       }
       break;
-    case ')': 
+    case ')':
       return makeToken(match('*') ? D_STAR_R_ROUND : SR_ROUND, VT_VOID);
-    case ',': 
+    case ',':
       return makeToken(match(',') ? D_COMMA : S_COMMA, VT_VOID);
-    case '%': 
+    case '%':
       return makeToken(match('=') ? D_MODULO_EQUAL : S_MODULO, VT_VOID);
-    case '+': 
+    case '+':
       return makeToken(match('=') ? D_PLUS_EQUAL : S_PLUS, VT_VOID);
-    case '/': 
+    case '/':
       return makeToken(match('=') ? D_SLASH_EQUAL : S_SLASH, VT_VOID);
-    case ':': 
+    case ':':
       return makeToken(match('=') ? D_COLON_EQUAL: S_COLON, VT_VOID);
     case '<':
       return makeToken(match('=') ? D_LESS_EQUAL : S_LESS, VT_VOID);
