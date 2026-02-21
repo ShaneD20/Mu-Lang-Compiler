@@ -27,7 +27,7 @@ static void runtimeError(const char* format, ...) {
 
   for (int i = vm.frameCount - 1; i >= 0; i--) {
     CallFrame* frame = &vm.frames[i]; // Calls and Functions runtime error stack
-    ObjFunction* function = frame->closure->function;  
+    ObjFunction* function = frame->closure->function;
     //^ Closures runtime error function
     size_t instruction = frame->ip - function->chunk.code - 1;
     fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
@@ -54,7 +54,7 @@ void initVM() {
   resetStack();
   vm.objects = NULL;
 // GC
-  vm.bytesAllocated = 0; 
+  vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
   vm.grayCount = 0;
   vm.grayCapacity = 0;
@@ -68,9 +68,9 @@ void initVM() {
   vm.initString = NULL;
   vm.initString = copyString("init", 4);
 
-  // defineNative("clock", clockNative); 
-  // defineNative("squareRoot", handleSqrt); 
-  // defineNative("show", handlePrint); 
+  // defineNative("clock", clockNative);
+  // defineNative("squareRoot", handleSqrt);
+  // defineNative("show", handlePrint);
 }
 
 void freeVM() {
@@ -97,7 +97,7 @@ static bool call(ObjClosure* closure, int argCount) {
     runtimeError("Expected %d arguments but got %d.",
         closure->function->arity, argCount);
     return false;
-  } 
+  }
 //^ check-arity
   if (vm.frameCount == FRAMES_MAX) {
     runtimeError("Stack overflow.");
@@ -144,7 +144,7 @@ static ObjUpvalue* captureUpvalue(Value* local) {
     return upvalue;
   }
 //^ look-for-existing-upvalue
-  
+
   ObjUpvalue* createdUpvalue = newUpvalue(local);
   createdUpvalue->next = upvalue;
 
@@ -198,7 +198,7 @@ static InterpretResult run() {
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
-/* TODO replace with actual integer type, actual float type */ 
+/* TODO replace with actual integer type, actual float type */
 #define UNARY_INT_OP(valueType, op) \
     do { \
       if (!IS_NUMBER(peek(0))) { \
@@ -277,13 +277,17 @@ static InterpretResult run() {
         push(constant);
         break;
       }
-      case OP_NIL: push(NIL_VAL); 
+      case OP_NIL: push(NIL_VAL);
         break;
-      case OP_TRUE: push(BOOL_VAL(true)); 
+      case OP_TRUE: push(BOOL_VAL(true));
         break;
-      case OP_FALSE: push(BOOL_VAL(false)); 
+      case OP_FALSE: push(BOOL_VAL(false));
         break;
-      case OP_POP: pop(); 
+      case OP_DONE: push(EFFECT_VAL(true));
+        break;
+      case OP_FAIL: push(EFFECT_VAL(false));
+        break;
+      case OP_POP: pop();
         break;
       case OP_GET_LOCAL: {
         uint8_t slot = READ_BYTE();
@@ -337,19 +341,19 @@ static InterpretResult run() {
         push(BOOL_VAL(valuesEqual(a, b)));
         break;
       }
-      case OP_GREATER:  BINARY_OP(BOOL_VAL, >); 
+      case OP_GREATER:  BINARY_OP(BOOL_VAL, >);
         break;
-      case OP_LESS:     BINARY_OP(BOOL_VAL, <); 
+      case OP_LESS:     BINARY_OP(BOOL_VAL, <);
         break;
       case OP_ADD:      BINARY_OP(NUMBER_VAL, +);
         break;
-      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); 
+      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -);
         break;
-      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); 
+      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *);
         break;
-      case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); 
+      case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /);
         break;
-      case OP_MODULO:   BINARY_INT_OP(NUMBER_VAL, %); 
+      case OP_MODULO:   BINARY_INT_OP(NUMBER_VAL, %);
         break;
       case OP_BIT_AND:  BINARY_INT_OP(NUMBER_VAL, &);
         break;
@@ -376,9 +380,9 @@ static InterpretResult run() {
       }
       case OP_CONCATENATE : {
         if (IS_STRING(peek(1)) && IS_STRING(peek(0))) {
-          concatenate(); 
-        } 
-       // else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) { APPEND_INTEGER(NUMBER_VAL, +);} 
+          concatenate();
+        }
+       // else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) { APPEND_INTEGER(NUMBER_VAL, +);}
           else {
           runtimeError("Operands must be two strings, Or two integers.");
           return INTERPRET_RUNTIME_ERROR;
