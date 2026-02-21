@@ -536,13 +536,7 @@ static void literal(bool unused) {
     case K_VOID:  // TODO assign type
         buildClosure(FT_FUNCTION);
         break;
-    case K_TEXT:  // TODO assign type
-        buildClosure(FT_FUNCTION);
-        break;
-    case K_NUMBER:  // TODO assign type
-        buildClosure(FT_FUNCTION);
-        break;
-    case K_TRUTH:  // TODO assign type
+    case K_FUNCTION:  // TODO assign type
         buildClosure(FT_FUNCTION);
         break;
     case D_STAR_L_ROUND: buildAnonymous();
@@ -592,9 +586,7 @@ ParseRule rules[] = {
   [K_DONE]             = {literal,  NULL,    LVL_NONE},
   // [K_MAKE]             = {literal,  NULL,    LVL_NONE},
   [K_VOID]             = {literal,  NULL,    LVL_NONE},
-  [K_NUMBER]           = {literal,  NULL,    LVL_NONE},
-  [K_TEXT]             = {literal,  NULL,    LVL_NONE},
-  [K_TRUTH]            = {literal,  NULL,    LVL_NONE},
+  [K_FUNCTION]         = {literal,  NULL,    LVL_NONE},
   [K_QUIT]             = {literal,  NULL,    LVL_NONE},
   [D_STAR_L_ROUND]     = {literal,  NULL,    LVL_NONE},
   [K_RETURN]           = {buildReturn, NULL, LVL_NONE},

@@ -74,6 +74,33 @@ static Token errorToken(const char* message) {
   token.line = scanner.line;
   return token;
 }
+static void findContent() {
+    char c = 0;
+REDO:
+    c = peek();
+    switch (c) {
+      case ' ':
+      case '\r':
+      case '\t':
+        advance();
+        goto REDO;
+      case '\n':
+        scanner.line++;
+        advance();
+        goto REDO;
+      case '/':
+        if (peekNext() == '/') { // comment goes until the end of the line.
+            while (peek() != '\n' && !isAtEnd()) {
+                advance();
+            }
+            goto REDO;
+        } else {
+            return;
+        }
+      default:
+        break;
+    }
+}
 
 static void skipWhitespace() {
   while (!isAtEnd()) {
@@ -82,10 +109,6 @@ static void skipWhitespace() {
       case ' ':
       case '\r':
       case '\t':
-        advance();
-        break;
-      case '\n': // newline
-        scanner.line++;     // TODO new line termination
         advance();
         break;
       case '/':
@@ -141,6 +164,7 @@ static Lexeme identifierType() { // tests for keywords
       }
       break;
     case 'f':
+        if ('(' == scanner.start[1]) return K_FUNCTION;
         if ('a' == scanner.start[1]) switch (scanner.start[2]) {
             case 'i':
                 return checkKeyword(2, 2, "il", K_FAIL);
@@ -169,7 +193,8 @@ static Lexeme identifierType() { // tests for keywords
     case 'o':   // TODO add "on"
         return checkKeyword(1, 1, "r", K_OR);
     case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT); // TODO replace with native function
-    case 'r': return checkKeyword(1, 5, "eturn", K_RETURN);
+    //case 'r':
+    // return checkKeyword(1, 5, "eturn", K_RETURN);
     case 't': // branch out to "to", "true"
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
@@ -198,13 +223,7 @@ static Lexeme identifierType() { // tests for keywords
       }
       break;
     case 'q': return checkKeyword(1, 3, "uit", K_QUIT);
-    case 'N': return checkKeyword(1, 5, "umber", K_NUMBER);
-    case 'T': // Text or Truth
-      switch(scanner.start[1]) {
-        case 'e': return checkKeyword(2, 2, "xt", K_TEXT);
-        case 'r': return checkKeyword(2, 3, "uth", K_TRUTH);
-      }
-    case 'V': return checkKeyword(1, 3, "oid", K_VOID);
+    case 'v': return checkKeyword(1, 3, "oid", K_VOID);
     case '#': return L_MUTABLE;
   }
   return L_IDENTIFIER;
@@ -252,20 +271,35 @@ Token scanToken() {
 
   switch (rune) {
     // single character
-    case '#': return identifier();
-    case '(': return makeToken(SL_ROUND, VT_VOID); // TODO would be new line aware
-    case '{': return makeToken(SL_CURLY, VT_KEYED_COLLECTION);   // TODO would be new line aware
-    case '}': return makeToken(SR_CURLY, VT_VOID);
-    case '[': return makeToken(SL_SQUARE, VT_INDEX_COLLECTION);
-    case ']': return makeToken(SR_SQUARE, VT_VOID);
+    case '#':
+        return identifier();
+    case '(':
+        skipWhitespace();
+        return makeToken(SL_ROUND, VT_VOID); // TODO would be new line aware
+    case '{':
+        findContent();
+        return makeToken(SL_CURLY, VT_KEYED_COLLECTION);   // TODO would be new line aware
+    case '[':
+        skipWhitespace();
+        return makeToken(SL_SQUARE, VT_INDEX_COLLECTION);
+    case '}':
+        findContent();
+        return makeToken(SR_CURLY, VT_VOID);
+    case ']':
+        return makeToken(SR_SQUARE, VT_VOID);
+    case '\n': // newline
+        scanner.line++;
+        findContent();
+        return makeToken(S_SEMICOLON, VT_VOID);
     case '?': return makeToken(S_QUESTION, VT_VOID);     // TODO would be new line aware
     case ';': return makeToken(S_SEMICOLON, VT_VOID);
-    case '=': return makeToken(S_EQUAL, VT_VOID);
     case '-': return makeToken(S_MINUS, VT_VOID);
     case '&': return makeToken(S_AMPERSAND, VT_VOID);
     case '|': return makeToken(S_PIPE, VT_VOID);
     case '^': return makeToken(S_RAISE, VT_VOID);
     case '~': return makeToken(S_TILDE, VT_VOID);
+    case '=':
+        return makeToken(match('>') ? K_RETURN : S_EQUAL, VT_VOID);
     // two characters
     case '.': switch(scanner.start[1]) {
         case '=': advance();
