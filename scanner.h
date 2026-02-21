@@ -23,7 +23,7 @@ typedef enum {
 
   // Keywords
   K_AND, K_AS, K_ELSE, K_FALSE,
-  K_DONE, K_FAIL,
+  K_DONE, K_FAIL, K_FUNCTION,
   K_OR, K_HAS, K_IF, K_TRUE,
   K_WHILE, K_UNTIL, K_UNLESS,
   // K_FROM, K_GIVE, K_LIKE,
@@ -34,7 +34,8 @@ typedef enum {
 
   K_DEFINE, TOKEN_PRINT, K_TO,
   // primative types
-  K_NULL, K_VOID, K_NUMBER, K_TRUTH, K_TEXT,
+  K_NULL, K_VOID,
+  //K_NUMBER, K_TRUTH, K_TEXT,
   K_TYPE, K_SELF,
   // NEW_LINE,
   LANGUAGE_ERROR, END_OF_FILE
